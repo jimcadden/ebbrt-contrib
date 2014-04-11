@@ -43,10 +43,9 @@ with open(joblog, 'w') as log:
                 print "An error has occured with the test"
                 exit(0)
             stats.write(lline[2][:-1]+buf)
-            stats.write(lline[4]+buf)
             stats.write(lline[6]+buf)
             stats.write(lline[8][:-3]+buf)
             stats.write('\n')
             stats.flush()
 
-print "Tests finished"
+print "#end"
