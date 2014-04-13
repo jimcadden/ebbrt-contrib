@@ -1,4 +1,5 @@
 #!/usr/bin/python
+import csv
 import sys
 import time
 import numpy as n
@@ -22,12 +23,8 @@ except KeyboardInterrupt:
     sys.stdout.flush()
     pass
 
+print "order: min,max,mean,var,std";
 for i in range(numcols):
     ncols.append(n.array(cols[i], float))
-    print ncols[i].min()
-    print ncols[i].max()
-    print ncols[i].mean()
-    print ncols[i].var()
-    print ncols[i].std()
-    print "#"
-#print ncol1.mean(), ncol1.var(),ncol1.std(),ncol1.min(),ncol1.max()
+    csv.writer(sys.stdout).writerow([ncols[i].min(), ncols[i].max(),
+        ncols[i].mean(), ncols[i].var(), ncols[i].std()])
