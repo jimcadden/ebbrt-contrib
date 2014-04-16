@@ -20,16 +20,32 @@ exp_cmd = os.environ['EBBRT_MEMASLAP_CMD']
 end_exp = False
 i = 0
 
-def augmentcmd(test, count):
+def cmd_flag(test, count):
     if test == "concurrency":
-      return " -c "+str(pow(4,count+1))
+      return "-c"
+    if test == "singleton":
+      return ""
     else:
-      print "Error: unknown experiment type"
+      print "error: unknown experiment type"
       exit(0)
+
+def cmd_val(test, count):
+    if test == "concurrency":
+      return str((4 * count * count))
+    if test == "singleton":
+      return ""
+    else:
+      print "error: unknown experiment type"
+      exit(0)
+
+def build_cmd(test, count):
+    return " "+cmd_flag(test, count)+" "+cmd_val(test_count)
 
 def continue_exp(test, count):
     if test == "concurrency":
       return (count <  4)
+    if test == "singleton":
+      return (count < 1)
     else:
       print "Error: unknown experiment type"
       exit(0)
@@ -50,13 +66,14 @@ with open(exp_logs, 'w') as log:
 #write one : exp name, type and date
     log.write("#"+exp_name+" "+exp_type+" "+trial_count)
     log.write("# "+str(datetime.datetime.now())+"\n")
+    data.write("##"+exp_name+"\n") 
     log.flush()
     while continue_exp(exp_type, i):
       # write on each test
-      aug_str = augmentcmd(exp_type, i)
+      aug_str = build_cmd(exp_type, i)
       cmd = exp_cmd +aug_str
       data.write("#"+exp_name+" "+aug_str+'\n')
-      log.write("#"+cmd+"\n") 
+      log.write("#"+cmd_val()+"\n") 
       # execute many trials of experiment
       for x in range(0, int(trial_count)):
         output = subprocess.check_output(cmd, shell=True)
@@ -68,7 +85,7 @@ with open(exp_logs, 'w') as log:
           exit(0)
         data.write(lline[2][:-1]+'\t')
         data.write(lline[6]+'\t')
-        data.write(lline[8][:-3]+'\t')
+        data.write(lline[8][:-3])
         data.write('\n')
         data.flush()
       i += 1 # next test
