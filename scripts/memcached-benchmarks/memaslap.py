@@ -23,31 +23,32 @@ i = 0
 def cmd_flag(test, count):
     if test == "concurrency":
       return "-c"
-    if test == "singleton":
+    elif test == "singleton":
       return ""
     else:
-      print "error: unknown experiment type"
+      print "error: unknown experiment type", test
       exit(0)
 
 def cmd_val(test, count):
     if test == "concurrency":
       return str((4 * (count+1) * (count+1)))
-    if test == "singleton":
+    elif test == "singleton":
       return ""
     else:
-      print "error: unknown experiment type"
+      print "error: unknown experiment type", test
       exit(0)
 
 def build_cmd(test, count):
-    return " "+cmd_flag(test, count)+" "+cmd_val(test_count)
+    retstr = " "+str(cmd_flag(test, count))+" "+str(cmd_val(test,count))
+    return retstr
 
 def continue_exp(test, count):
     if test == "concurrency":
       return (count < 13) # 4 *(13^2) = 676
-    if test == "singleton":
+    elif test == "singleton":
       return (count < 1)
     else:
-      print "Error: unknown experiment type"
+      print "Error: unknown experiment type", test
       exit(0)
 
 if os.path.isfile(exp_logs) or os.path.isfile(exp_cols):
@@ -72,8 +73,8 @@ with open(exp_logs, 'w') as log:
       # write on each test
       aug_str = build_cmd(exp_type, i)
       cmd = exp_cmd+" "+aug_str
-      log.write("#"+exp_type+" "+aug_str+'\n')
-      data.write("#"+cmd_val()+"\n") 
+      log.write("#"+exp_name+" "+aug_str+'\n')
+      data.write("#"+cmd_val(exp_type, i)+"\n") 
       # execute many trials of experiment
       for x in range(0, int(trial_count)):
         output = subprocess.check_output(cmd, shell=True)
