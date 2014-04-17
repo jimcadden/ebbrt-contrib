@@ -4,7 +4,10 @@ import os
 import sys
 import subprocess
 ''' 
-    EBBRT_MEMASLAP_CMD  - base command that will be augmented with each trial
+    EBBRT_MEMASLAP_CMD  - base command that will be augmented with each trial.
+                          Use the placeholder "{IP}" 
+    EBBRT_VM_BOOT - script to bring up vm, return IP
+    EBBRT_VM_CLEAN - TODO...
 '''
 
 if len(sys.argv) != 4:
@@ -16,7 +19,10 @@ exp_type = sys.argv[2]
 trial_count = sys.argv[3]
 exp_logs = os.path.join(os.getcwd(),exp_name+'.log')
 exp_cols = os.path.join(os.getcwd(),exp_name+'.data')
-exp_cmd = os.environ['EBBRT_MEMASLAP_CMD'] 
+
+base_cmd = os.environ['EBBRT_MEMASLAP_CMD'] 
+vm_boot_cmd = os.envoirn['EBBRT_VM_BOOT']
+
 end_exp = False
 i = 0
 
@@ -40,6 +46,10 @@ def cmd_val(test, count):
 
 def build_cmd(test, count):
     retstr = " "+str(cmd_flag(test, count))+" "+str(cmd_val(test,count))
+    ip = subprocess.check_output(vm_boo_cmd, shell=True)
+    retstr.replace('{IP}', ip) 
+    print retstr
+    exit(0)
     return retstr
 
 def continue_exp(test, count):
@@ -70,10 +80,9 @@ with open(exp_logs, 'w') as log:
     data.write("##"+exp_name+"\n") 
     log.flush()
     while continue_exp(exp_type, i):
-      # write on each test
-      aug_str = build_cmd(exp_type, i)
-      cmd = exp_cmd+" "+aug_str
-      log.write("#"+exp_name+" "+aug_str+'\n')
+      # for each experiment stage
+      cmd = build_cmd(exp_type, i)
+      log.write("#"+cmd+'\n')
       data.write("#"+cmd_val(exp_type, i)+"\n") 
       # execute many trials of experiment
       for x in range(0, int(trial_count)):
