@@ -4,7 +4,7 @@ import os
 import sys
 import subprocess
 ''' 
-    EXP_TRIAL_CMD  - base command that will be augmented with each trial
+    EBBRT_MEMASLAP_CMD  - base command that will be augmented with each trial
 '''
 
 if len(sys.argv) != 4:
@@ -31,7 +31,7 @@ def cmd_flag(test, count):
 
 def cmd_val(test, count):
     if test == "concurrency":
-      return str((4 * count * count))
+      return str((4 * (count+1) * (count+1)))
     if test == "singleton":
       return ""
     else:
@@ -43,7 +43,7 @@ def build_cmd(test, count):
 
 def continue_exp(test, count):
     if test == "concurrency":
-      return (count <  4)
+      return (count < 13) # 4 *(13^2) = 676
     if test == "singleton":
       return (count < 1)
     else:
@@ -71,9 +71,9 @@ with open(exp_logs, 'w') as log:
     while continue_exp(exp_type, i):
       # write on each test
       aug_str = build_cmd(exp_type, i)
-      cmd = exp_cmd +aug_str
-      data.write("#"+exp_name+" "+aug_str+'\n')
-      log.write("#"+cmd_val()+"\n") 
+      cmd = exp_cmd+" "+aug_str
+      log.write("#"+exp_type+" "+aug_str+'\n')
+      data.write("#"+cmd_val()+"\n") 
       # execute many trials of experiment
       for x in range(0, int(trial_count)):
         output = subprocess.check_output(cmd, shell=True)
