@@ -43,7 +43,7 @@ i = 0
 def cmd_flag(test, count):
     if test == "concurrency":
       return "-c"
-    elif test == "payload":
+    elif test == "payload" or test =="payload-quick":
       return "-X"
     elif test == "singleton":
       return ""
@@ -54,6 +54,8 @@ def cmd_flag(test, count):
 def cmd_val(test, count):
     if test == "concurrency":
       return str((4 * (count+1) * (count+1)))
+    elif test == "payload-quick":
+      return str((64 * (count+1) * (count+1)))
     elif test == "payload":
       return str(64 * (count+1))
     elif test == "singleton":
@@ -65,6 +67,8 @@ def cmd_val(test, count):
 def continue_exp(test, count):
     if test == "concurrency":
       return (count < 13) # 4 *(13^2) = 676
+    elif test == "payload-quick":
+      return (count < 8) # 64 * 8^2 = 4096 
     elif test == "payload":
       return (count < 32) # 64 * 32 = 2048 
     elif test == "singleton":
@@ -112,10 +116,12 @@ except KeyError:
 with open(exp_logs, 'w') as log:
   with open(exp_cols, 'w') as data:
 #write one : exp name, type and date
-    log.write("#"+exp_name+" "+exp_type+" "+trial_count)
+    log.write("# "+exp_name+" "+exp_type+" "+trial_count+"\n")
     log.write("# "+str(datetime.datetime.now())+"\n")
+    log.write("# "+str(vm_boot_cmd)+"\n")
     data.write("##"+exp_name+"\n") 
     log.flush()
+    data.flush()
     while continue_exp(exp_type, i):
       # for each experiment stage
       cmd = build_cmd(exp_type, i)
