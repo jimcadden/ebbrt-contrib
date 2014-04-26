@@ -2,6 +2,8 @@
 import datetime
 import os
 import sys
+import math
+import time
 import subprocess
 ### Python 2.6 hack
 if "check_output" not in dir( subprocess ): # duck punch it in!
@@ -41,9 +43,9 @@ end_exp = False
 i = 0
 
 def cmd_flag(test, count):
-    if test == "concurrency":
+    if test == "concurrency" or test == "concurrency-quick":
       return "-c"
-    elif test == "payload" or test =="payload-quick":
+    elif test == "payload" or test =="payload-quick" or test=="payload-single-mtu":
       return "-X"
     elif test == "singleton":
       return ""
@@ -53,11 +55,20 @@ def cmd_flag(test, count):
 
 def cmd_val(test, count):
     if test == "concurrency":
-      return str((4 * (count+1) * (count+1)))
+      if count == "0":
+        return 4
+      return str(math.pow(2,count+2)) #4.8.16.32...
+    if test == "concurrency-quick":
+      return str((4 * (count+1) * (count+1) * (count+1)))
     elif test == "payload-quick":
+      return str((500 * (count+1) * (count+1)))
+    elif test=="payload-single-mtu":
       return str((64 * (count+1) * (count+1)))
-    elif test == "payload":
-      return str(64 * (count+1))
+    elif test=="payload":
+      if count == "0":
+	return 64
+      else: 
+	return str((count)*100) #100,200,300
     elif test == "singleton":
       return ""
     else:
@@ -66,11 +77,15 @@ def cmd_val(test, count):
 
 def continue_exp(test, count):
     if test == "concurrency":
-      return (count < 13) # 4 *(13^2) = 676
+      return (count < 8) # (2^9) = 512
+    elif test == "concurrency-quick":
+      return (count < 5) #  
     elif test == "payload-quick":
-      return (count < 8) # 64 * 8^2 = 4096 
+      return (count < 10) #  
+    elif test == "payload-single-mtu":
+      return (count < 4) # 64 * 4^2 = 1024 
     elif test == "payload":
-      return (count < 32) # 64 * 32 = 2048 
+      return (count < 30) 
     elif test == "singleton":
       return (count < 1)
     else:
@@ -79,9 +94,9 @@ def continue_exp(test, count):
 
 def build_cmd(test, count):
     ip = subprocess.check_output(vm_boot_cmd, shell=True)
-    ip_clean = ip.rstrip('\n')
+    ip_clean = ip.rstrip('\r\n')
     if not ip_clean:
-      print "Error, we were unable to get an IP after boot."
+      sys.stderr.write('Error, we were unable to get an IP after boot.\n')
       exit(0)
     retstr = str(base_cmd+" "+str(cmd_flag(test, count))+" "+str(cmd_val(test,count)))
     return retstr.replace("{IP}", ip_clean) 
@@ -92,7 +107,7 @@ if os.path.isfile(exp_logs) or os.path.isfile(exp_cols):
     print "Aborting..."
     exit(0)
 
-################################################################################
+#######################################################################
 
 try: 
     base_cmd = os.environ['EBBRT_MEMASLAP_CMD'] 
@@ -125,11 +140,16 @@ with open(exp_logs, 'w') as log:
     while continue_exp(exp_type, i):
       # for each experiment stage
       cmd = build_cmd(exp_type, i)
+      sys.stderr.write(cmd)
       log.write("#"+cmd+'\n')
       data.write("#"+cmd_val(exp_type, i)+"\n") 
+      log.flush()
+      data.flush()
       # execute many trials of experiment
       for x in range(0, int(trial_count)):
+        print cmd
         output = subprocess.check_output(cmd, shell=True)
+        print output
         log.write(output+"\n") 
         lines = output.split('\n')
         lline = lines[len(lines)-2].split(' ')
@@ -140,8 +160,9 @@ with open(exp_logs, 'w') as log:
         data.write(lline[6]+'\t')
         data.write(lline[8][:-3])
         data.write('\n')
+        log.flush()
         data.flush()
       i += 1 # next test
-
+      time.sleep(3)
 print "## END EXPERIMENT"
     
