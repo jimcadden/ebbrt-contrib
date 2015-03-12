@@ -1,0 +1,188 @@
+#!/usr/bin/python
+''' MUTILATE EXPERIMENT GRAPH
+Input format must be as follows: 
+
+## EbbRT
+# A
+33  442.5 595   3343.55  <_ each row columns of measurements from A sample 
+13  42.33  54495 3243.44 <_ i.e, this is run of EbbRT,A,Sample#2
+# B
+31  442.5 595   3343.55
+33  442.5 595   3343.55
+## Linux
+# A
+33  442.5 595   3343.55
+31  442.5 595   3343.55
+# B
+31  442.5 595   3343.55  <_ i.e, this is run of Linux,B,Sample#1
+33  442.5 595   3343.55
+
+    - "##" identifies the start of an series (LinuxA, LinuxB, Ebbrt)
+    - Script should support any number of tab-seperated data columns (values are
+      assumed to be floats)
+'''
+import argparse
+import csv
+import itertools
+import numpy as n
+import matplotlib.pyplot as plt
+import matplotlib as mpl
+import operator
+import sys
+import time
+from matplotlib.backends.backend_pdf import PdfPages
+
+# Parser options
+parser = argparse.ArgumentParser(description='Graph options')
+parser.add_argument('--xl', metavar='x_label', dest='x_label', default="x axis", type=str, help='x axis label')
+parser.add_argument('--yl', metavar='y_label', dest='y_label', default="y axis", type=str, help='y axis label')
+parser.add_argument('--xmax', metavar='xmax', dest='xmax', type=int, help='x axis max')
+parser.add_argument('--ymax', metavar='ymax', dest='ymax', type=int, help='y axis max')
+parser.add_argument('-t', '--title', metavar='title', dest='title', default="title", type=str, help='graph title')
+parser.add_argument('-g', '--graph', metavar='graph', dest='graph', default=0, type=int, help='graph metric')
+parser.add_argument('--pdf', metavar='filename', dest='filename', help='save as a pdf')
+args = parser.parse_args()
+# End parser options
+"""
+   graph_data = [ topic: [ series: [ column: [0,0,0]]]
+   trial_raw =  [ series: [ column: [t1[],t2[],t3[]]]
+"""
+colors = ['red','blue','green','purple','cyan', 'orange', 'magenta', 'brown','black']
+
+axis_label_font=18
+axis_label_pad=10
+graph_title_font=18
+axis_tick_font=18
+legend_font=18
+
+###
+graphs = ['default'] # use this to later extend the graphs produced
+init_series = False
+init_trial = False
+graph_data = [] 
+for i in range(len(graphs)):
+  graph_data.append([]) # graph topic
+series = [] # series labels (i.e., Ebbrt, Linux)
+trials = [] # trial labels (i,e., "32", "64", "128")
+trial_raw = [] # structure for results of the data columns / trials
+series_ctr = 0 # iteration counters
+trial_ctr = 0
+column_ctr = 0
+
+# Iterate through the trials->series->data of stdin, read into trial_raw'''
+# nested lists
+try:
+  for line in sys.stdin:
+    #initialization steps
+    if init_series == False and line[:2] != "##":
+      sys.exit("Error: first line of input does not signal new series")
+    elif init_trial == False and line[:1] != "#":
+      sys.exit("Error: second line of input does not signal new trial")
+    # setup series structures
+    if line[:2] == "##":
+      series_ctr += 1
+      column_ctr = 0 
+      trial_ctr = 0
+      series.append(line[2:-1])
+      trials.append([])
+      trial_raw.append([])
+      # append a series structure for each graph 
+      for i in range(len(graph_data)):
+        graph_data[i].append([]) 
+      if init_series == False:
+        init_series = True
+    # setup trial structures
+    elif line[0] == "#":
+      trial_ctr += 1
+      trials[series_ctr-1].append(line[1:-1])
+      # append a trial structure for each graph 
+      if init_trial == False:
+        init_trial = True
+    # parse data line
+    else:
+      nline = line[:-1]
+      #remove extra whitespace
+      #' '.join(nline.split())
+      cols = nline.split() 
+      ### yuck..
+      if column_ctr == 0:  
+        column_ctr = len(cols)
+        for i in range(column_ctr):
+          trial_raw[series_ctr-1].append([])
+          # extend graph data for column
+          for i in range(len(graphs)):
+            graph_data[i][series_ctr-1].append([]) 
+      for i in range(column_ctr):
+        try:
+          trial_raw[series_ctr-1][i][trial_ctr-1].append(cols[i])
+        except IndexError:
+          trial_raw[series_ctr-1][i].append([])
+          trial_raw[series_ctr-1][i][trial_ctr-1].append(cols[i])
+except KeyboardInterrupt:
+    sys.stdout.flush()
+    pass
+
+# Step 3, gather statistics'''
+for s in range(len(trial_raw)):
+  for c in range(len(trial_raw[s])):
+    # column loop
+    for t in range(len(trial_raw[s][c])):
+      narray = n.array(trial_raw[s][c][t], float)
+      graph_data[0][s][c].append(narray.mean())
+
+# DEBUG OUTPUT'''
+#print graphs
+#print series
+#print trials
+#print graph_data
+#print trial_raw
+
+
+### ALL THE GRAPH SETTINGS ARE BELOW THIS POINT
+
+x_label = args.x_label
+y_label = args.y_label 
+title = args.title
+graph_metric = args.graph
+
+''' graph canvas '''
+fig = plt.gcf()
+plt.ylabel(y_label, fontsize=18, labelpad=10)
+plt.xlabel(x_label, fontsize=18, labelpad=10)
+plt.title(title, fontsize=18)
+plt.xticks(fontsize=12)
+plt.yticks(fontsize=12)
+
+# axis labels
+if args.xmax:
+  plt.xlim(0,args.xmax)
+if args.ymax:
+  plt.ylim(0,args.ymax)
+
+#xtick_loc = [20000,40000,60000,80000]
+#xtick_lab = ["20k","40k","60k","80k"]
+#plt.xticks(xtick_loc,xtick_lab)
+#ytick_loc = [100,200,300,400,500]
+#ytick_lab = ["100","200","300","400","500"]
+#plt.yticks(ytick_loc,ytick_lab)
+
+''' set series error bars
+graphdata = [A][B][C]
+A = graphs (average, min, max)
+B = trials (e.g.mebbrt,linux)
+C = columns (dat1, dat2)
+'''
+for i in range(len(series)):
+  plt.plot(trials[i],graph_data[0][i][graph_metric], label=series[i], marker='x', ls='-', lw=2, color=colors[i])
+
+# legend
+plt.legend(loc=1, numpoints=2, frameon=False, markerscale=1, prop={'size':18, 'family':'sans-serif' })
+
+# render graph
+if args.filename:
+  pp = PdfPages(args.filename)
+  pp.savefig()
+  pp.close()
+  #plt.savefig(pp, format='pdf')
+else:
+  plt.show()
