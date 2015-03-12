@@ -1,0 +1,191 @@
+#!/bin/bash
+set -x
+#RUNS=${EXP_RUNS:-1}
+#REPEAT=${EXP_REPEAT:-1}
+#DONRUNS=${EXP_DONRUNS:-100}
+#DONREPEAT=${EXP_DONREPEAT:-1000}
+#EXEC=apps/ubench/hosted/build/Release/ubench
+
+# APPLICATION
+EBBRT_REPO=/home/jmcadden/work/SOSP15/EbbRT
+APP_REPO=/home/jmcadden/work/SOSP15/EbbRT-memcached
+APP_PATH=${APP_REPO}/baremetal/build/Release/mcd.elf32
+APP_NAME=mcd.elf32
+
+# QEMU SCRIPT {qemu1core, qemu4core, qemu8core}
+QEMU_ALLOC=${QEMU_ALLOC:-qemu4core}
+QEMU_INITRD=/dev/null
+QEMU_APPEND=
+
+
+
+# MEMCACHED 
+MCD_SERVER=192.168.4.104
+
+# EXPERIMENT 
+DONEXPDIR=/home/don/kh/experiment/memcached_ebbrt
+BOOTFILE=${DONEXPDIR}/boot
+STARTFILE=${DONEXPDIR}/start
+STOPFILE=${DONEXPDIR}/stop
+DONEXPPTR=/home/don/kh/experiment/current
+TS="$(date +%s)"
+SESSION=myDONlock_$$_$TS
+RUNDIR=/home/don/kh/runs/current/run
+DONEFILE=DONE_$$_$TS
+
+
+function acquireExpLock()
+{
+   screen -S $SESSION -d -m  minicom
+   # give minicom time to fail
+   sleep 1
+   screen -ls $SESSION | grep "$SESSION"
+}
+
+function releaseExpLock()
+{
+  screen -X -S $SESSION quit
+}
+
+function setExp()
+{
+    if [[ -a $DONEXPPTR ]]; then
+	! rm -f $DONEXPPTR && echo "ERROR: setExp " && exit -1
+    fi
+    ! ln -s $DONEXPDIR $DONEXPPTR && echo "ERROR: setExp ln" && exit -1
+}
+
+function mkDonDir()
+{
+  [[ -a $DONEXPDIR ]] && ! rm -rf $DONEXPDIR && echo "ERROR rm -rf $DONEXPDIR" && exit -1
+  ! mkdir $DONEXPDIR && echo "ERROR: mkdir $DONEXPDIR" && exit -1
+}
+
+function mkExpBoot()
+{
+    cat > $BOOTFILE  <<EOF
+#!/bin/bash
+
+MYDIR=\$1
+\$MYDIR/scripts/set_irq_affinity.sh eth5
+\$MYDIR/scripts/bridge_init
+EOF
+  chmod +x $BOOTFILE
+}
+
+function mkExpStart()
+{
+    cat > $STARTFILE <<EOF
+#!/bin/bash
+
+MYDIR=\$1
+RUNDIR=\$MYDIR/run
+APPDIR=\$MYDIR/files
+SCPDIR=\$MYDIR/scripts
+kernel=\$APPDIR/$APP_NAME
+initrd=$QEMU_INITRD
+append=$QEMU_APPEND
+
+\$SCPDIR/$QEMU_ALLOC \$kernel \$initrd \$append
+
+#touch \$RUNDIR/$DONEFILE
+#/etc/init.d/don_experiment stop
+#/bin/kexec-to-don
+
+EOF
+ chmod +x $STARTFILE
+}
+
+function mkExpStop()
+{
+    cat > $STOPFILE <<EOF
+#!/bin/bash
+EOF
+  chmod +x $STOPFILE
+}
+
+function mkExpLinks()
+{
+    #ln -s -f $DONEXPDIR/../../khpy $DONEXPDIR
+    ln -s -f $DONEXPDIR/../../scripts $DONEXPDIR
+}
+
+function startExp()
+{
+  ssh -f don "/opt/kexec-to-kh"
+  while ! ping -c1 $MCD_SERVER &>/dev/null; do 
+    echo "Waiting for server.."; 
+    sleep 10; 
+  done
+  echo "Memcached server is online."
+  ssh nod "mkdir -p ~/mutilate-exp/$TS" > /dev/null
+  ssh -f nod "cd ~/mutilate-exp/$TS; ~/mutilate-exp/batch-run \ 
+EbbRT-${EMU_ALLOC} && scp -r ~/mutilate-exp/$TS kd: "
+
+}
+
+function copyFiles()
+{
+   [[ -a $DONEXPDIR/files ]] && rm -rf $DONEXPDIR/files
+   mkdir $DONEXPDIR/files
+   cp -aL -t $DONEXPDIR/files $APP_PATH
+
+   # grab commit ids
+  ( cd $EBBRT_REPO; git log | head -1 > $DONEXPDIR/files/ebbrt-commit )
+  ( cd $APP_REPO;  git log | head -1 > $DONEXPDIR/files/app-commit )
+}
+
+function copyOutputs()
+{
+  cp $RUNDIR/*.out .
+}
+
+function expWait()
+{
+  while [[ ! -a $RUNDIR/$DONEFILE ]]; do 
+    sleep 10
+  done
+}
+
+#####################################
+#  RUN CODE
+#####################################
+
+if [[ -n $BUILD ]]; then
+  echo $BUILD
+  echo "pulling latest version of $APP"
+  ( cd $EBBRT_REPO; git pull )
+  ( cd $APP_REPO; git pull )
+  echo "making $APP"
+  ( EBBRT_SRCDIR=$EBBRT_REPO make clean -C $APP_REPO )
+  ( EBBRT_SRCDIR=$EBBRT_REPO make -j8 -C $APP_REPO )
+fi
+
+if [[ ! -a $APP_PATH ]]; then
+  echo "FAILED to locate ${APP}, try running with BUILD=1"
+  exit -1
+fi
+
+releaseExpLock
+if ! acquireExpLock; then
+  echo "FAILED TO GET LOCK ON DON"
+  exit -1
+fi
+
+if [[ -n $EXP_MONITOR ]]; then 
+   xterm -e "screen -r $SESSION" &
+fi
+
+mkDonDir
+copyFiles
+mkExpBoot
+mkExpStart
+mkExpStop
+mkExpLinks
+setExp
+startExp
+#expWait
+releaseExpLock
+#copyOutputs
+
+

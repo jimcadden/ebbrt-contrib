@@ -11,7 +11,9 @@ D_ServerIP=192.168.4.104
 D_Key=fb_key
 D_Val=fb_value
 D_IA=fb_ia
-D_Runtime=30
+D_Runtime=${RUNTIME:-1200}
+MPOINTS=${MPOINTS:-18}
+EPOINTS=${EPOINTS:-2}
 
 # AGENT DEFAULTS
 D_AgentIP=127.0.0.1
@@ -162,8 +164,6 @@ else
 fi
 EXPNAME="${EXPNAME}_${AgentDepth}d"
 
-MPOINTS=50
-EPOINTS=5
 echo "## $EXPNAME"
 
   mutilate_kill
