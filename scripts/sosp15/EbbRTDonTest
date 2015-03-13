@@ -21,7 +21,7 @@ QEMU_APPEND=
 
 # MEMCACHED 
 MCD_SERVER=192.168.4.104
-MCD_OPTIONS="RUNTIME=20 MPOINTS=3 EPOINTS=0"
+MCD_OPTIONS="RUNTIME=1200 MPOINTS=10 EPOINTS=2"
 
 # EXPERIMENT 
 DONEXPDIR=/home/don/kh/experiment/memcached_ebbrt
@@ -140,9 +140,7 @@ function expWait()
     sleep 10
   done
   echo "Results gathered. Shutting down experiment"
-  echo "/etc/init.d/don_experiment stop" > /dev/ttyS0
-  sleep 60
-  echo "/bin/kexec-to-don" > /dev/ttyS0
+  echo "/bin/end-experiment" > /dev/ttyS0
 }
 
 #####################################
