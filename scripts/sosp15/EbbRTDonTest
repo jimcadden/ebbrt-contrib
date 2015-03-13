@@ -21,6 +21,7 @@ QEMU_APPEND=
 
 # MEMCACHED 
 MCD_SERVER=192.168.4.104
+MCD_OPTIONS="RUNTIME=20 MPOINTS=3 EPOINTS=0"
 
 # EXPERIMENT 
 DONEXPDIR=/home/don/kh/experiment/memcached_ebbrt
@@ -68,7 +69,7 @@ function mkExpBoot()
 
 MYDIR=\$1
 \$MYDIR/scripts/set_irq_affinity.sh eth5
-\$MYDIR/scripts/bridge_init
+\$MYDIR/scripts/bridge-init
 EOF
   chmod +x $BOOTFILE
 }
@@ -77,7 +78,7 @@ function mkExpStart()
 {
     cat > $STARTFILE <<EOF
 #!/bin/bash
-
+set -x
 MYDIR=\$1
 RUNDIR=\$MYDIR/run
 APPDIR=\$MYDIR/files
@@ -86,11 +87,7 @@ kernel=\$APPDIR/$APP_NAME
 initrd=$QEMU_INITRD
 append=$QEMU_APPEND
 
-\$SCPDIR/$QEMU_ALLOC \$kernel \$initrd \$append
-
-#touch \$RUNDIR/$DONEFILE
-#/etc/init.d/don_experiment stop
-#/bin/kexec-to-don
+\$SCPDIR/$QEMU_ALLOC \$RUNDIR \$kernel \$initrd \$append
 
 EOF
  chmod +x $STARTFILE
@@ -113,14 +110,11 @@ function mkExpLinks()
 function startExp()
 {
   ssh -f don "/opt/kexec-to-kh"
-  while ! ping -c1 $MCD_SERVER &>/dev/null; do 
-    echo "Waiting for server.."; 
-    sleep 10; 
-  done
-  echo "Memcached server is online."
+  sleep 60
   ssh nod "mkdir -p ~/mutilate-exp/$TS" > /dev/null
-  ssh -f nod "cd ~/mutilate-exp/$TS; ~/mutilate-exp/batch-run \ 
-EbbRT-${EMU_ALLOC} && scp -r ~/mutilate-exp/$TS kd: "
+  ssh -f nod "${MCD_OPTIONS} ~/mutilate-exp/batch-run EbbRT-${QEMU_ALLOC}\
+> ~/mutilate-exp/$TS/EbbRT-${QEMU_ALLOC} \
+&& scp -r ~/mutilate-exp/$TS kd:RESULTS "
 
 }
 
@@ -142,9 +136,13 @@ function copyOutputs()
 
 function expWait()
 {
-  while [[ ! -a $RUNDIR/$DONEFILE ]]; do 
+  while [[ ! -a ${HOME}/RESULTS/${TS}/EbbRT-${QEMU_ALLOC} ]]; do 
     sleep 10
   done
+  echo "Results gathered. Shutting down experiment"
+  echo "/etc/init.d/don_experiment stop" > /dev/ttyS0
+  sleep 60
+  echo "/bin/kexec-to-don" > /dev/ttyS0
 }
 
 #####################################
@@ -176,6 +174,12 @@ if [[ -n $EXP_MONITOR ]]; then
    xterm -e "screen -r $SESSION" &
 fi
 
+while ! ping -c1 don &>/dev/null; do 
+  echo "Don is not in native boot"; 
+  releaseExpLock
+  exit -1
+done
+
 mkDonDir
 copyFiles
 mkExpBoot
@@ -184,8 +188,9 @@ mkExpStop
 mkExpLinks
 setExp
 startExp
-#expWait
+expWait
 releaseExpLock
 #copyOutputs
 
+echo "Experiment Finished."
 
