@@ -1,0 +1,186 @@
+#!/bin/bash
+set -x
+
+# THIS EXPERIMENT
+DONEXPDIR=/home/don/kh/experiment/memcached_linux
+APP_NAME=vmlinuz-3.15.0-4-amd64
+INITD_NAME=memcached_3-13.cgz
+APP_PATH=/home/jmcadden/work/SOSP/imgs/${APP_NAME}
+INITD_PATH=/home/jmcadden/work/SOSP/imgs/${INITD_NAME}
+QEMU_APPEND="quiet console=ttyS0 ro 1"
+
+# MISC
+EXPNAME="Linux"
+EBBRT_REPO=
+APP_REPO=
+
+# QEMU TYPE {qemu1core, qemu4core, qemu6core}
+QEMU_ALLOC=${QEMU_ALLOC:-qemu4core}
+
+# MEMCACHED 
+MCD_SERVER=192.168.4.104
+MCD_OPTIONS="RUNTIME=1200 MPOINTS=10 EPOINTS=2"
+
+# EXPERIMENT 
+BOOTFILE=${DONEXPDIR}/boot
+STARTFILE=${DONEXPDIR}/start
+STOPFILE=${DONEXPDIR}/stop
+DONEXPPTR=/home/don/kh/experiment/current
+TS="$(date +%s)"
+SESSION=myDONlock_$$_$TS
+RUNDIR=/home/don/kh/runs/current/run
+DONEFILE=DONE_$$_$TS
+
+function mkExpLinks()
+{
+    #ln -s -f $DONEXPDIR/../../khpy $DONEXPDIR
+    ln -s -f $DONEXPDIR/../../scripts $DONEXPDIR
+}
+
+function mkExpBoot()
+{
+    cat > $BOOTFILE  <<EOF
+#!/bin/bash
+
+MYDIR=\$1
+\$MYDIR/scripts/set_irq_affinity.sh eth5
+\$MYDIR/scripts/bridge-init
+EOF
+  chmod +x $BOOTFILE
+}
+
+function mkExpStart()
+{
+    cat > $STARTFILE <<EOF
+#!/bin/bash
+set -x
+MYDIR=\$1
+RUNDIR=\$MYDIR/run
+APPDIR=\$MYDIR/files
+SCPDIR=\$MYDIR/scripts
+kernel=\$APPDIR/$APP_NAME
+initrd=\$APPDIR/$INITD_NAME
+append="${QEMU_APPEND}"
+
+\$SCPDIR/$QEMU_ALLOC \$RUNDIR \$kernel \$initrd \$append
+
+EOF
+ chmod +x $STARTFILE
+}
+
+function startExp()
+{
+  ssh -f don "/opt/kexec-to-kh"
+  sleep 60
+  ssh nod "mkdir -p ~/mutilate-exp/$TS" > /dev/null
+  ssh -f nod "${MCD_OPTIONS} ~/mutilate-exp/batch-run ${EXPNAME}-${QEMU_ALLOC}\
+> ~/mutilate-exp/$TS/${EXPNAME}-${QEMU_ALLOC} \
+&& scp -r ~/mutilate-exp/$TS kd:RESULTS "
+
+}
+
+function acquireExpLock()
+{
+   screen -S $SESSION -d -m  minicom
+   # give minicom time to fail
+   sleep 1
+   screen -ls $SESSION | grep "$SESSION"
+}
+
+function releaseExpLock()
+{
+  screen -X -S $SESSION quit
+}
+
+function setExp()
+{
+    if [[ -a $DONEXPPTR ]]; then
+	! rm -f $DONEXPPTR && echo "ERROR: setExp " && exit -1
+    fi
+    ! ln -s $DONEXPDIR $DONEXPPTR && echo "ERROR: setExp ln" && exit -1
+}
+
+function mkDonDir()
+{
+  [[ -a $DONEXPDIR ]] && ! rm -rf $DONEXPDIR && echo "ERROR rm -rf $DONEXPDIR" && exit -1
+  ! mkdir $DONEXPDIR && echo "ERROR: mkdir $DONEXPDIR" && exit -1
+}
+
+function mkExpStop()
+{
+    cat > $STOPFILE <<EOF
+#!/bin/bash
+EOF
+  chmod +x $STOPFILE
+}
+
+function copyFiles()
+{
+   [[ -a $DONEXPDIR/files ]] && rm -rf $DONEXPDIR/files
+   mkdir $DONEXPDIR/files
+   cp -aL -t $DONEXPDIR/files $APP_PATH
+}
+
+function copyOutputs()
+{
+  cp $RUNDIR/*.out .
+}
+
+function expWait()
+{
+  while [[ ! -a ${HOME}/RESULTS/${TS}/${EXPNAME}-${QEMU_ALLOC} ]]; do 
+    sleep 10
+  done
+  echo "Results gathered. Shutting down experiment"
+  echo "/bin/end-experiment" > /dev/ttyS0
+}
+
+#####################################
+#  RUN CODE
+#####################################
+
+if [[ -n $BUILD ]]; then
+  echo $BUILD
+  echo "pulling latest version of $APP"
+  ( cd $EBBRT_REPO; git pull )
+  ( cd $APP_REPO; git pull )
+  echo "making $APP"
+  ( EBBRT_SRCDIR=$EBBRT_REPO make clean -C $APP_REPO )
+  ( EBBRT_SRCDIR=$EBBRT_REPO make -j8 -C $APP_REPO )
+fi
+
+if [[ ! -a $APP_PATH ]]; then
+  echo "FAILED to locate ${APP}"
+  exit -1
+fi
+
+releaseExpLock
+if ! acquireExpLock; then
+  echo "FAILED TO GET LOCK ON DON"
+  exit -1
+fi
+
+if [[ -n $EXP_MONITOR ]]; then 
+   xterm -e "screen -r $SESSION" &
+fi
+
+while ! ping -c1 don &>/dev/null; do 
+  echo "Don is not in native boot"; 
+  releaseExpLock
+  exit -1
+done
+
+mkDonDir
+copyFiles
+mkExpBoot
+mkExpStart
+mkExpStop
+mkExpLinks
+setExp
+startExp
+expWait
+releaseExpLock
+#copyOutputs
+
+echo "Experiment Finished."
+
