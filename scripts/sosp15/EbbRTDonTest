@@ -21,7 +21,7 @@ QEMU_APPEND=
 
 # MEMCACHED 
 MCD_SERVER=192.168.4.104
-MCD_OPTIONS="RUNTIME=1200 MPOINTS=10 EPOINTS=2"
+MCD_OPTIONS="RUNTIME=1000 MPOINTS=10 EPOINTS=2"
 
 # EXPERIMENT 
 DONEXPDIR=/home/don/kh/experiment/memcached_ebbrt
@@ -110,12 +110,28 @@ function mkExpLinks()
 function startExp()
 {
   ssh -f don "/opt/kexec-to-kh"
-  sleep 60
-  ssh nod "mkdir -p ~/mutilate-exp/$TS" > /dev/null
-  ssh -f nod "${MCD_OPTIONS} ~/mutilate-exp/batch-run EbbRT-${QEMU_ALLOC}\
-> ~/mutilate-exp/$TS/EbbRT-${QEMU_ALLOC} \
-&& scp -r ~/mutilate-exp/$TS kd:RESULTS "
+  sleep 120 # roughly the time to kexec,boot host,guest
+#  ssh nod "mkdir -p ~/mutilate-exp/$TS" > /dev/null
+#  ssh -f nod "${MCD_OPTIONS} ~/mutilate-exp/batch-run EbbRT-${QEMU_ALLOC}\
+#> ~/mutilate-exp/$TS/EbbRT-${QEMU_ALLOC} \
+#&& scp -r ~/mutilate-exp/$TS kd:RESULTS "
 
+}
+
+function expWait()
+{
+  while [[ ! -a ${HOME}/RESULTS/${TS}/EbbRT-${QEMU_ALLOC} ]]; do 
+    sleep 10
+  done
+}
+
+function stopExp()
+{
+  echo "Results gathered. Shutting down experiment"
+  echo "" > /dev/ttyS0
+  sleep 2
+  echo "/bin/kexec-to-don" > /dev/ttyS0
+  sleep 60
 }
 
 function copyFiles()
@@ -134,14 +150,6 @@ function copyOutputs()
   cp $RUNDIR/*.out .
 }
 
-function expWait()
-{
-  while [[ ! -a ${HOME}/RESULTS/${TS}/EbbRT-${QEMU_ALLOC} ]]; do 
-    sleep 10
-  done
-  echo "Results gathered. Shutting down experiment"
-  echo "/bin/end-experiment" > /dev/ttyS0
-}
 
 #####################################
 #  RUN CODE
@@ -172,11 +180,11 @@ if [[ -n $EXP_MONITOR ]]; then
    xterm -e "screen -r $SESSION" &
 fi
 
-while ! ping -c1 don &>/dev/null; do 
+if ! ping -c1 don &>/dev/null; then 
   echo "Don is not in native boot"; 
   releaseExpLock
   exit -1
-done
+fi
 
 mkDonDir
 copyFiles
@@ -187,6 +195,7 @@ mkExpLinks
 setExp
 startExp
 expWait
+stopExp
 releaseExpLock
 #copyOutputs
 
