@@ -1,30 +1,27 @@
 #!/bin/bash
 set -x
-#RUNS=${EXP_RUNS:-1}
-#REPEAT=${EXP_REPEAT:-1}
-#DONRUNS=${EXP_DONRUNS:-100}
-#DONREPEAT=${EXP_DONREPEAT:-1000}
-#EXEC=apps/ubench/hosted/build/Release/ubench
-
-# APPLICATION
-EBBRT_REPO=/home/jmcadden/work/SOSP15/EbbRT
-APP_REPO=/home/jmcadden/work/SOSP15/EbbRT-memcached
-APP_PATH=${APP_REPO}/baremetal/build/Release/mcd.elf32
-APP_NAME=mcd.elf32
-
-# QEMU SCRIPT {qemu1core, qemu4core, qemu8core}
-QEMU_ALLOC=${QEMU_ALLOC:-qemu4core}
-QEMU_INITRD=/dev/null
-QEMU_APPEND=
-
-
 
 # MEMCACHED 
-MCD_SERVER=192.168.4.104
-MCD_OPTIONS="RUNTIME=1000 MPOINTS=10 EPOINTS=2"
+MCDSERVER=${MCD_SERVER:-192.168.4.104}
+MCDOPTIONS=${MCD_OPTIONS:-"RUNTIME=1200 MPOINTS=10 EPOINTS=2"}
 
-# EXPERIMENT 
+# THIS EXPERIMENT
+EXPNAME=${EXP_NAME:-"EbbRT"}
 DONEXPDIR=/home/don/kh/experiment/memcached_ebbrt
+APP_NAME=mcd.elf32
+APP_PATH=${APP_REPO}/baremetal/build/Release/mcd.elf32
+INITD_NAME=
+INITD_PATH=
+EBBRT_REPO=/home/jmcadden/work/SOSP15/EbbRT
+APP_REPO=/home/jmcadden/work/SOSP15/EbbRT-memcached
+EXPBUILD=${EXP_BUILD:-}
+EXPMONITOR=${EXP_MONITOR:-}
+
+# QEMU {qemu1core, qemu4core, qemu6core}
+QEMU_ALLOC=${QEMU_ALLOC:-qemu4core}
+QEMUAPPEND=${QEMU_APPEND:-""}
+
+# EXPERIMENT INTERNALS
 BOOTFILE=${DONEXPDIR}/boot
 STARTFILE=${DONEXPDIR}/start
 STOPFILE=${DONEXPDIR}/stop
@@ -34,6 +31,81 @@ SESSION=myDONlock_$$_$TS
 RUNDIR=/home/don/kh/runs/current/run
 DONEFILE=DONE_$$_$TS
 
+#####################################
+#  Functions
+#####################################
+
+function mkExpLinks()
+{
+    ln -s -f $DONEXPDIR/../../scripts $DONEXPDIR
+}
+
+function mkExpBoot()
+{
+    cat > $BOOTFILE  <<EOF
+#!/bin/bash
+
+MYDIR=\$1
+\$MYDIR/scripts/set_irq_affinity.sh eth5
+\$MYDIR/scripts/bridge-init
+EOF
+  chmod +x $BOOTFILE
+}
+
+function mkExpStart()
+{
+  if [[ -n $INITD_NAME ]]; then
+    INITRD="\$APPDIR/$INITD_NAME"
+  else
+    INITRD="/dev/null"
+  fi
+
+    cat > $STARTFILE <<EOF
+#!/bin/bash
+set -x
+MYDIR=\$1
+RUNDIR=\$MYDIR/run
+APPDIR=\$MYDIR/files
+SCPDIR=\$MYDIR/scripts
+kernel=\$APPDIR/$APP_NAME
+initrd=$INITRD
+append="${QEMU_APPEND}"
+
+\$SCPDIR/$QEMU_ALLOC \$RUNDIR \$kernel \$initrd \$append
+
+EOF
+ chmod +x $STARTFILE
+}
+
+function mkExpStop()
+{
+    cat > $STOPFILE <<EOF
+#!/bin/bash
+EOF
+  chmod +x $STOPFILE
+}
+
+function startExp()
+{
+  ssh -f don "/opt/kexec-to-kh"
+  sleep 120 
+  ssh nod "mkdir -p ~/mutilate-exp/$TS" > /dev/null
+  ssh -f nod "${MCD_OPTIONS} ~/mutilate-exp/batch-run EbbRT-${QEMU_ALLOC}\
+#> ~/mutilate-exp/$TS/EbbRT-${QEMU_ALLOC} \
+#&& scp -r ~/mutilate-exp/$TS kd:RESULTS "
+
+}
+
+function stopExp()
+{
+  echo "Results gathered. Shutting down experiment"
+  echo "" > /dev/ttyS0
+  sleep 2
+  echo "/etc/init.d/don_experiment stop" > /dev/ttyS0
+  sleep 120
+  echo "/bin/kexec-to-don" > /dev/ttyS0
+  sleep 60
+}
 
 function acquireExpLock()
 {
@@ -62,78 +134,6 @@ function mkDonDir()
   ! mkdir $DONEXPDIR && echo "ERROR: mkdir $DONEXPDIR" && exit -1
 }
 
-function mkExpBoot()
-{
-    cat > $BOOTFILE  <<EOF
-#!/bin/bash
-
-MYDIR=\$1
-\$MYDIR/scripts/set_irq_affinity.sh eth5
-\$MYDIR/scripts/bridge-init
-EOF
-  chmod +x $BOOTFILE
-}
-
-function mkExpStart()
-{
-    cat > $STARTFILE <<EOF
-#!/bin/bash
-set -x
-MYDIR=\$1
-RUNDIR=\$MYDIR/run
-APPDIR=\$MYDIR/files
-SCPDIR=\$MYDIR/scripts
-kernel=\$APPDIR/$APP_NAME
-initrd=$QEMU_INITRD
-append=$QEMU_APPEND
-
-\$SCPDIR/$QEMU_ALLOC \$RUNDIR \$kernel \$initrd \$append
-
-EOF
- chmod +x $STARTFILE
-}
-
-function mkExpStop()
-{
-    cat > $STOPFILE <<EOF
-#!/bin/bash
-EOF
-  chmod +x $STOPFILE
-}
-
-function mkExpLinks()
-{
-    #ln -s -f $DONEXPDIR/../../khpy $DONEXPDIR
-    ln -s -f $DONEXPDIR/../../scripts $DONEXPDIR
-}
-
-function startExp()
-{
-  ssh -f don "/opt/kexec-to-kh"
-  sleep 120 # roughly the time to kexec,boot host,guest
-#  ssh nod "mkdir -p ~/mutilate-exp/$TS" > /dev/null
-#  ssh -f nod "${MCD_OPTIONS} ~/mutilate-exp/batch-run EbbRT-${QEMU_ALLOC}\
-#> ~/mutilate-exp/$TS/EbbRT-${QEMU_ALLOC} \
-#&& scp -r ~/mutilate-exp/$TS kd:RESULTS "
-
-}
-
-function expWait()
-{
-  while [[ ! -a ${HOME}/RESULTS/${TS}/EbbRT-${QEMU_ALLOC} ]]; do 
-    sleep 10
-  done
-}
-
-function stopExp()
-{
-  echo "Results gathered. Shutting down experiment"
-  echo "" > /dev/ttyS0
-  sleep 2
-  echo "/bin/kexec-to-don" > /dev/ttyS0
-  sleep 60
-}
-
 function copyFiles()
 {
    [[ -a $DONEXPDIR/files ]] && rm -rf $DONEXPDIR/files
@@ -145,28 +145,33 @@ function copyFiles()
   ( cd $APP_REPO;  git log | head -1 > $DONEXPDIR/files/app-commit )
 }
 
-function copyOutputs()
+
+function expWait()
 {
-  cp $RUNDIR/*.out .
+  while [[ ! -a ${HOME}/RESULTS/${TS}/EbbRT-${QEMU_ALLOC} ]]; do 
+    sleep 10
+  done
 }
 
-
 #####################################
-#  RUN CODE
+#  Start
 #####################################
 
 if [[ -n $BUILD ]]; then
-  echo $BUILD
   echo "pulling latest version of $APP"
-  ( cd $EBBRT_REPO; git pull )
-  ( cd $APP_REPO; git pull )
+  if [[ -n $EBBRT_REPO ]]; then
+    ( cd $EBBRT_REPO; git pull )
+  fi
+  if [[ -n $APP_REPO ]]; then
+    ( cd $APP_REPO; git pull )
+  fi
   echo "making $APP"
   ( EBBRT_SRCDIR=$EBBRT_REPO make clean -C $APP_REPO )
   ( EBBRT_SRCDIR=$EBBRT_REPO make -j8 -C $APP_REPO )
 fi
 
 if [[ ! -a $APP_PATH ]]; then
-  echo "FAILED to locate ${APP}, try running with BUILD=1"
+  echo "FAILED to locate ${APP}"
   exit -1
 fi
 
@@ -193,11 +198,9 @@ mkExpStart
 mkExpStop
 mkExpLinks
 setExp
+echo "Experiment Started: $(date)"
 startExp
 expWait
 stopExp
 releaseExpLock
-#copyOutputs
-
-echo "Experiment Finished."
-
+echo "Experiment Finished: $(date)"

@@ -31,9 +31,12 @@ SESSION=myDONlock_$$_$TS
 RUNDIR=/home/don/kh/runs/current/run
 DONEFILE=DONE_$$_$TS
 
+#####################################
+#  Functions
+#####################################
+
 function mkExpLinks()
 {
-    #ln -s -f $DONEXPDIR/../../khpy $DONEXPDIR
     ln -s -f $DONEXPDIR/../../scripts $DONEXPDIR
 }
 
@@ -74,6 +77,14 @@ EOF
  chmod +x $STARTFILE
 }
 
+function mkExpStop()
+{
+    cat > $STOPFILE <<EOF
+#!/bin/bash
+EOF
+  chmod +x $STOPFILE
+}
+
 function startExp()
 {
   ssh -f don "/opt/kexec-to-kh"
@@ -94,14 +105,6 @@ function stopExp()
   sleep 120
   echo "/bin/kexec-to-don" > /dev/ttyS0
   sleep 60
-}
-
-function mkExpStop()
-{
-    cat > $STOPFILE <<EOF
-#!/bin/bash
-EOF
-  chmod +x $STOPFILE
 }
 
 function acquireExpLock()
@@ -153,7 +156,7 @@ function expWait()
 
 
 #####################################
-#  Start`
+#  Start
 #####################################
 
 if [[ -n $EXPBUILD ]]; then
@@ -202,7 +205,6 @@ mkExpStart
 mkExpStop
 mkExpLinks
 setExp
-
 echo "Experiment Started: $(date)"
 startExp
 expWait
