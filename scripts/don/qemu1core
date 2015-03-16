@@ -1,0 +1,39 @@
+#!/bin/bash
+
+# this path kh-appliance specific
+export PATH=$PATH:/home/kh/opt/bin/
+
+# bring up a 4-core pinned qemu instance w/ given kernel/initrd
+
+RUNDIR=$1
+kernel=$2
+initrd=$3
+if [[ $4 ]]; then
+  append="$4"
+else
+  append=""
+fi
+
+#We assume here an bridge has been setup between tap0 and the external interface
+
+# pin qemus to cpu 10
+( taskset -a -c 10 qemu-system-x86_64 -smp cpus=1 -cpu host -enable-kvm --netdev \
+tap,ifname=tap0,id=vlan1,script=no,downscript=no,vhost=on,queues=2 --device \
+virtio-net-pci,mq=on,vectors=4,netdev=vlan1,mac=00:11:22:33:44:55 -serial stdio \
+-display none -m 2G -kernel $kernel \
+-initrd $initrd \
+-append "${append}" \
+-pidfile $RUNDIR/pid > $RUNDIR/stdout 2> $RUNDIR/stderr;)&
+
+while [ -z "$pids" ]
+do
+  pids=$( pgrep vhost- ) 
+done
+# pin vhosts to cpu 2
+core=2
+for pid in $pids
+do
+  taskset -pc $core $pid
+  core=$(( $core + 2 ))
+done
+

@@ -1,0 +1,6 @@
+#!/bin/bash
+
+if [ -a /bin/kexec-to-don ]
+  then
+    /bin/kexec-to-don
+fi

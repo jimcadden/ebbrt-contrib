@@ -1,0 +1,6 @@
+#!/bin/bash
+export KHPYDIR=/opt/khpy
+python $KHPYDIR/khs stop
+python $KHPYDIR/khs clean
+python $KHPYDIR/khs install
+python $KHPYDIR/khs start -D &
