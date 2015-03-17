@@ -2,19 +2,19 @@
 set -x
 
 # THIS EXPERIMENT
-EXPNAME=${EXP_NAME:-"Netpipe_Linux"}
-DONEXPDIR=/home/don/kh/experiment/netpipe_linux
-APP_NAME=vmlinuz-3.16.0-4-amd64
-INITD_NAME=netpipe_3-13.cgz
+EXPNAME=${EXP_NAME:-"Netpipe_Ebbrt"}
+DONEXPDIR=/home/don/kh/experiment/netpipe_ebbrt
+APP_NAME=netpipe_server.elf32
+INITD_NAME=
 APP_PATH=/home/jmcadden/work/SOSP15/imgs/${APP_NAME}
-INITD_PATH=/home/jmcadden/work/SOSP15/imgs/${INITD_NAME}
+INITD_PATH=
 EBBRT_REPO=
 APP_REPO=
 EXPBUILD=${EXP_BUILD:-}
 EXPMONITOR=${EXP_MONITOR:-}
 
 # QEMU {qemu1core, qemu4core, qemu6core}
-QEMU_ALLOC=${QEMU_ALLOC:-qemu1core}
+QEMU_ALLOC=${QEMU_ALLOC:-qemu4core}
 QEMUAPPEND=${QEMU_APPEND:-"quiet console=ttyS0 ro 1"}
 
 # EXPERIMENT INTERNALS
@@ -85,10 +85,10 @@ function startExp()
 {
   ssh -f don "/opt/kexec-to-kh"
   sleep 120
-  #ssh nod "mkdir -p ~/mutilate-exp/$TS" > /dev/null
-  #ssh -f nod "${MCDOPTIONS} ~/mutilate-exp/batch-run ${EXPNAME}-${QEMU_ALLOC}\
-#> ~/mutilate-exp/$TS/${EXPNAME}-${QEMU_ALLOC} \
-#&& scp -r ~/mutilate-exp/$TS kd:RESULTS "
+  ssh nod "mkdir -p ~/mutilate-exp/$TS" > /dev/null
+  ssh -f nod "${MCDOPTIONS} ~/mutilate-exp/batch-run ${EXPNAME}-${QEMU_ALLOC}\
+> ~/mutilate-exp/$TS/${EXPNAME}-${QEMU_ALLOC} \
+&& scp -r ~/mutilate-exp/$TS kd:RESULTS "
 
 }
 
@@ -145,10 +145,9 @@ function copyFiles()
 function expWait()
 {
   # poll on results file uploaded from nod
-#  while [[ ! -a ${HOME}/RESULTS/${TS}/${EXPNAME}-${QEMU_ALLOC} ]]; do 
-#    sleep 10
-#  done
-   while true; do sleep 10; done
+  while [[ ! -a ${HOME}/RESULTS/${TS}/${EXPNAME}-${QEMU_ALLOC} ]]; do 
+    sleep 10
+  done
 }
 
 
@@ -156,18 +155,18 @@ function expWait()
 #  Start
 #####################################
 
-#if [[ -n $EXPBUILD ]]; then
-#  echo "pulling latest version of $APP_NAME"
-#  if [[ -n $EBBRT_REPO ]]; then
-#    ( cd $EBBRT_REPO; git pull )
-#  fi
-#  if [[ -n $APP_REPO ]]; then
-#    ( cd $APP_REPO; git pull )
-#  fi
-#  echo "making $APP_NAME"
-#  ( EBBRT_SRCDIR=$EBBRT_REPO make clean -C $APP_REPO )
-#  ( EBBRT_SRCDIR=$EBBRT_REPO make -j8 -C $APP_REPO )
-#fi
+if [[ -n $EXPBUILD ]]; then
+  echo "pulling latest version of $APP_NAME"
+  if [[ -n $EBBRT_REPO ]]; then
+    ( cd $EBBRT_REPO; git pull )
+  fi
+  if [[ -n $APP_REPO ]]; then
+    ( cd $APP_REPO; git pull )
+  fi
+  echo "making $APP_NAME"
+  ( EBBRT_SRCDIR=$EBBRT_REPO make clean -C $APP_REPO )
+  ( EBBRT_SRCDIR=$EBBRT_REPO make -j8 -C $APP_REPO )
+fi
 
 if [[ ! -a $APP_PATH ]]; then
   echo "FAILED to locate ${APP_PATH}"
@@ -204,8 +203,8 @@ mkExpLinks
 setExp
 echo "Experiment Started: $(date)"
 startExp
-#expWait
-#stopExp
-#releaseExpLock
+expWait
+stopExp
+releaseExpLock
 echo "Experiment Finished: $(date)"
 
