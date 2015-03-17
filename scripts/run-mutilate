@@ -168,6 +168,7 @@ echo "## $EXPNAME"
 
   mutilate_kill
   mutilate_agent $AgentThread 
+  sleep 5
   server_flush $SERVERIP
   mutilate_load $SERVERIP
 
