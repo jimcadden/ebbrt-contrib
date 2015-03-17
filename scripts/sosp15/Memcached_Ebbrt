@@ -7,13 +7,13 @@ MCDOPTIONS=${MCD_OPTIONS:-"RUNTIME=1200 MPOINTS=10 EPOINTS=2"}
 
 # THIS EXPERIMENT
 EXPNAME=${EXP_NAME:-"EbbRT"}
+EBBRT_REPO=/home/jmcadden/work/SOSP15/EbbRT
+APP_REPO=/home/jmcadden/work/SOSP15/EbbRT-memcached
 DONEXPDIR=/home/don/kh/experiment/memcached_ebbrt
 APP_NAME=mcd.elf32
 APP_PATH=${APP_REPO}/baremetal/build/Release/mcd.elf32
 INITD_NAME=
 INITD_PATH=
-EBBRT_REPO=/home/jmcadden/work/SOSP15/EbbRT
-APP_REPO=/home/jmcadden/work/SOSP15/EbbRT-memcached
 EXPBUILD=${EXP_BUILD:-}
 EXPMONITOR=${EXP_MONITOR:-}
 
