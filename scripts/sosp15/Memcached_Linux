@@ -9,7 +9,7 @@ MCDOPTIONS=${MCD_OPTIONS:-"RUNTIME=1200 MPOINTS=10 EPOINTS=2"}
 EXPNAME=${EXP_NAME:-"Linux"}
 DONEXPDIR=/home/don/kh/experiment/memcached_linux
 APP_NAME=vmlinuz-3.16.0-4-amd64
-INITD_NAME=memcached_3-16.cgz
+INITD_NAME=memcached.cgz
 APP_PATH=/home/jmcadden/work/SOSP15/imgs/${APP_NAME}
 INITD_PATH=/home/jmcadden/work/SOSP15/imgs/${INITD_NAME}
 EBBRT_REPO=
