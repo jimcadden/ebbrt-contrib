@@ -6,20 +6,20 @@ MCDSERVER=${MCD_SERVER:-192.168.4.104}
 MCDOPTIONS=${MCD_OPTIONS:-"RUNTIME=1200 MPOINTS=10 EPOINTS=2"}
 
 # THIS EXPERIMENT
-EXPNAME=${EXP_NAME:-"EbbRT"}
-DONEXPDIR=/home/don/kh/experiment/memcached_ebbrt
-APP_NAME=mcd.elf32
-APP_PATH=${APP_REPO}/baremetal/build/Release/mcd.elf32
-INITD_NAME=
-INITD_PATH=
-EBBRT_REPO=/home/jmcadden/work/SOSP15/EbbRT
-APP_REPO=/home/jmcadden/work/SOSP15/EbbRT-memcached
+EXPNAME=${EXP_NAME:-"Linux"}
+DONEXPDIR=/home/don/kh/experiment/memcached_linux
+APP_NAME=vmlinuz-3.16.0-4-amd64
+INITD_NAME=memcached_3-16.cgz
+APP_PATH=/home/jmcadden/work/SOSP15/imgs/${APP_NAME}
+INITD_PATH=/home/jmcadden/work/SOSP15/imgs/${INITD_NAME}
+EBBRT_REPO=
+APP_REPO=
 EXPBUILD=${EXP_BUILD:-}
 EXPMONITOR=${EXP_MONITOR:-}
 
 # QEMU {qemu1core, qemu4core, qemu6core}
 QEMU_ALLOC=${QEMU_ALLOC:-qemu4core}
-QEMUAPPEND=${QEMU_APPEND:-""}
+QEMUAPPEND=${QEMU_APPEND:-"quiet console=ttyS0 ro 1"}
 
 # EXPERIMENT INTERNALS
 BOOTFILE=${DONEXPDIR}/boot
@@ -69,9 +69,9 @@ APPDIR=\$MYDIR/files
 SCPDIR=\$MYDIR/scripts
 kernel=\$APPDIR/$APP_NAME
 initrd=$INITRD
-append="${QEMU_APPEND}"
+append="${QEMUAPPEND}"
 
-\$SCPDIR/$QEMU_ALLOC \$RUNDIR \$kernel \$initrd \$append
+\$SCPDIR/$QEMU_ALLOC \$RUNDIR \$kernel \$initrd "\${append}"
 
 EOF
  chmod +x $STARTFILE
@@ -88,11 +88,11 @@ EOF
 function startExp()
 {
   ssh -f don "/opt/kexec-to-kh"
-  sleep 120 
+  sleep 120
   ssh nod "mkdir -p ~/mutilate-exp/$TS" > /dev/null
-  ssh -f nod "${MCD_OPTIONS} ~/mutilate-exp/batch-run EbbRT-${QEMU_ALLOC}\
-#> ~/mutilate-exp/$TS/EbbRT-${QEMU_ALLOC} \
-#&& scp -r ~/mutilate-exp/$TS kd:RESULTS "
+  ssh -f nod "${MCDOPTIONS} ~/mutilate-exp/batch-run ${EXPNAME}-${QEMU_ALLOC}\
+> ~/mutilate-exp/$TS/${EXPNAME}-${QEMU_ALLOC} \
+&& scp -r ~/mutilate-exp/$TS kd:RESULTS "
 
 }
 
@@ -118,6 +118,8 @@ function acquireExpLock()
 function releaseExpLock()
 {
   screen -X -S $SESSION quit
+  # give screen time to clean up
+  sleep 10
 }
 
 function setExp()
@@ -139,49 +141,54 @@ function copyFiles()
    [[ -a $DONEXPDIR/files ]] && rm -rf $DONEXPDIR/files
    mkdir $DONEXPDIR/files
    cp -aL -t $DONEXPDIR/files $APP_PATH
-
-   # grab commit ids
-  ( cd $EBBRT_REPO; git log | head -1 > $DONEXPDIR/files/ebbrt-commit )
-  ( cd $APP_REPO;  git log | head -1 > $DONEXPDIR/files/app-commit )
+   if [[ -n $INITD_PATH ]]; then
+     cp -aL -t $DONEXPDIR/files $INITD_PATH
+   fi
 }
-
 
 function expWait()
 {
-  while [[ ! -a ${HOME}/RESULTS/${TS}/EbbRT-${QEMU_ALLOC} ]]; do 
+  # poll on results file uploaded from nod
+  while [[ ! -a ${HOME}/RESULTS/${TS}/${EXPNAME}-${QEMU_ALLOC} ]]; do 
     sleep 10
   done
 }
+
 
 #####################################
 #  Start
 #####################################
 
-if [[ -n $BUILD ]]; then
-  echo "pulling latest version of $APP"
+if [[ -n $EXPBUILD ]]; then
+  echo "pulling latest version of $APP_NAME"
   if [[ -n $EBBRT_REPO ]]; then
     ( cd $EBBRT_REPO; git pull )
   fi
   if [[ -n $APP_REPO ]]; then
     ( cd $APP_REPO; git pull )
   fi
-  echo "making $APP"
+  echo "making $APP_NAME"
   ( EBBRT_SRCDIR=$EBBRT_REPO make clean -C $APP_REPO )
   ( EBBRT_SRCDIR=$EBBRT_REPO make -j8 -C $APP_REPO )
 fi
 
 if [[ ! -a $APP_PATH ]]; then
-  echo "FAILED to locate ${APP}"
+  echo "FAILED to locate ${APP_PATH}"
+  exit -1
+fi
+if [[ -n $INID_PATH && ! -n $INIT_PATH ]]; then
+  echo "FAILED to locate ${INIT_PATH}"
   exit -1
 fi
 
-releaseExpLock
+#releaseExpLock
+
 if ! acquireExpLock; then
   echo "FAILED TO GET LOCK ON DON"
   exit -1
 fi
 
-if [[ -n $EXP_MONITOR ]]; then 
+if [[ -n $EXPMONITOR ]]; then 
    xterm -e "screen -r $SESSION" &
 fi
 
@@ -204,3 +211,4 @@ expWait
 stopExp
 releaseExpLock
 echo "Experiment Finished: $(date)"
+
