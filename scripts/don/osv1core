@@ -1,0 +1,30 @@
+#!/bin/bash
+export EXPPATH=$HOME/work/SOSP15/imgs
+RUNDIR=$PWD
+
+RUNDIR=$1
+CORES=${EXP_CORES:-1}
+IMG=${EXP_IMG:-osv1core.img}
+KERNEL=$EXPPATH/$IMG
+
+( taskset -a -c 10 qemu-system-x86_64 -m 2G -display none -cpu host \
+-enable-kvm --nographic -smp cpus=1 \
+-drive file=${KERNEL},if=none,id=hd0,aio=native,cache=none \
+-netdev tap,ifname=tap0,id=vlan1,script=no,downscript=no,vhost=on \
+-device virtio-blk-pci,id=blk0,bootindex=0,drive=hd0,scsi=off \
+-device virtio-net-pci,netdev=vlan1,mac=00:11:22:33:44:55 \
+-device virtio-rng-pci -chardev stdio,mux=on,id=stdio,signal=off \
+-mon chardev=stdio,mode=readline,default -device isa-serial,chardev=stdio \
+-pidfile $RUNDIR/pid > $RUNDIR/stdout 2> $RUNDIR/stderr;)&
+
+while [ -z "$pids" ]
+do
+  pids=$( pgrep qemu ) 
+done
+# pin vhosts to cpu 2
+core=2
+for pid in $pids
+do
+  taskset -pc $core $pid
+  core=$(( $core + 2 ))
+done

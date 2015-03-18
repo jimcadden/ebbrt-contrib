@@ -17,7 +17,7 @@ fi
 #We assume here an bridge has been setup between tap0 and the external interface
 
 # pin qemus to cpu 12-22
-( taskset -c 12,14,16,18,20,22 qemu-system-x86_64 -smp cpus=6 -cpu host -enable-kvm --netdev \
+( taskset -a -c 12,14,16,18,20,22 qemu-system-x86_64 -smp cpus=6 -cpu host -enable-kvm --netdev \
 tap,ifname=tap0,id=vlan1,script=no,vhost=on,queues=6 --device \
 virtio-net-pci,mq=on,vectors=14,netdev=vlan1,mac=00:11:22:33:44:55 -serial stdio \
 -display none -m 2G -kernel $kernel \

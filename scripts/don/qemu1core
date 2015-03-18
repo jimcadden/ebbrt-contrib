@@ -6,13 +6,6 @@ export PATH=$PATH:/home/kh/opt/bin/
 # bring up a 4-core pinned qemu instance w/ given kernel/initrd
 
 RUNDIR=$1
-kernel=$2
-initrd=$3
-if [[ $4 ]]; then
-  append="$4"
-else
-  append=""
-fi
 
 #We assume here an bridge has been setup between tap0 and the external interface
 
