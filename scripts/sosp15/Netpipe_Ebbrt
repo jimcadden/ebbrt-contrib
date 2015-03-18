@@ -14,8 +14,8 @@ EXPBUILD=${EXP_BUILD:-}
 EXPMONITOR=${EXP_MONITOR:-}
 
 # QEMU {qemu1core, qemu4core, qemu6core}
-QEMU_ALLOC=${QEMU_ALLOC:-qemu4core}
-QEMUAPPEND=${QEMU_APPEND:-"quiet console=ttyS0 ro 1"}
+QEMU_ALLOC=${QEMU_ALLOC:-qemu1core}
+QEMUAPPEND=${QEMU_APPEND:-""}
 
 # EXPERIMENT INTERNALS
 BOOTFILE=${DONEXPDIR}/boot
@@ -84,11 +84,11 @@ EOF
 function startExp()
 {
   ssh -f don "/opt/kexec-to-kh"
-  sleep 120
-  ssh nod "mkdir -p ~/mutilate-exp/$TS" > /dev/null
-  ssh -f nod "${MCDOPTIONS} ~/mutilate-exp/batch-run ${EXPNAME}-${QEMU_ALLOC}\
-> ~/mutilate-exp/$TS/${EXPNAME}-${QEMU_ALLOC} \
-&& scp -r ~/mutilate-exp/$TS kd:RESULTS "
+  sleep 90
+#  ssh nod "mkdir -p ~/mutilate-exp/$TS" > /dev/null
+#  ssh -f nod "${MCDOPTIONS} ~/mutilate-exp/batch-run ${EXPNAME}-${QEMU_ALLOC}\
+#> ~/mutilate-exp/$TS/${EXPNAME}-${QEMU_ALLOC} \
+#&& scp -r ~/mutilate-exp/$TS kd:RESULTS "
 
 }
 
@@ -145,9 +145,10 @@ function copyFiles()
 function expWait()
 {
   # poll on results file uploaded from nod
-  while [[ ! -a ${HOME}/RESULTS/${TS}/${EXPNAME}-${QEMU_ALLOC} ]]; do 
-    sleep 10
-  done
+#  while [[ ! -a ${HOME}/RESULTS/${TS}/${EXPNAME}-${QEMU_ALLOC} ]]; do 
+#    sleep 10
+#  done
+   while true; do sleep 10; done
 }
 
 
@@ -155,18 +156,18 @@ function expWait()
 #  Start
 #####################################
 
-if [[ -n $EXPBUILD ]]; then
-  echo "pulling latest version of $APP_NAME"
-  if [[ -n $EBBRT_REPO ]]; then
-    ( cd $EBBRT_REPO; git pull )
-  fi
-  if [[ -n $APP_REPO ]]; then
-    ( cd $APP_REPO; git pull )
-  fi
-  echo "making $APP_NAME"
-  ( EBBRT_SRCDIR=$EBBRT_REPO make clean -C $APP_REPO )
-  ( EBBRT_SRCDIR=$EBBRT_REPO make -j8 -C $APP_REPO )
-fi
+#if [[ -n $EXPBUILD ]]; then
+#  echo "pulling latest version of $APP_NAME"
+#  if [[ -n $EBBRT_REPO ]]; then
+#    ( cd $EBBRT_REPO; git pull )
+#  fi
+#  if [[ -n $APP_REPO ]]; then
+#    ( cd $APP_REPO; git pull )
+#  fi
+#  echo "making $APP_NAME"
+#  ( EBBRT_SRCDIR=$EBBRT_REPO make clean -C $APP_REPO )
+#  ( EBBRT_SRCDIR=$EBBRT_REPO make -j8 -C $APP_REPO )
+#fi
 
 if [[ ! -a $APP_PATH ]]; then
   echo "FAILED to locate ${APP_PATH}"
@@ -203,8 +204,8 @@ mkExpLinks
 setExp
 echo "Experiment Started: $(date)"
 startExp
-expWait
-stopExp
+#expWait
+#stopExp
 releaseExpLock
 echo "Experiment Finished: $(date)"
 
