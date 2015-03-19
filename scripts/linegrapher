@@ -38,6 +38,8 @@ parser.add_argument('--xl', metavar='x_label', dest='x_label', default="x axis",
 parser.add_argument('--yl', metavar='y_label', dest='y_label', default="y axis", type=str, help='y axis label')
 parser.add_argument('--xmax', metavar='xmax', dest='xmax', type=int, help='x axis max')
 parser.add_argument('--ymax', metavar='ymax', dest='ymax', type=int, help='y axis max')
+parser.add_argument('--xlog', metavar='xlog', dest='xlog', action='store_const', const=1, help='x axis max')
+parser.add_argument('--ylog', metavar='ylog', dest='ylog', action='store_const', const=1, help='y axis max')
 parser.add_argument('-t', '--title', metavar='title', dest='title', default="title", type=str, help='graph title')
 parser.add_argument('-g', '--graph', metavar='graph', dest='graph', default=0, type=int, help='graph metric')
 parser.add_argument('--pdf', metavar='filename', dest='filename', help='save as a pdf')
@@ -152,6 +154,12 @@ plt.xlabel(x_label, fontsize=18, labelpad=10)
 plt.title(title, fontsize=18)
 plt.xticks(fontsize=12)
 plt.yticks(fontsize=12)
+
+# log scale
+if args.xlog:
+  plt.xscale('log',basex=2)
+if args.ylog:
+  plt.yscale('log',basex=2)
 
 # axis labels
 if args.xmax:
