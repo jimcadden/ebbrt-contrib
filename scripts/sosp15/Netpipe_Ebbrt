@@ -4,7 +4,7 @@ set -x
 # THIS EXPERIMENT
 EXPNAME=${EXP_NAME:-"Netpipe_Ebbrt"}
 DONEXPDIR=/home/don/kh/experiment/netpipe_ebbrt
-APP_NAME=netpipe_server.elf32
+APP_NAME=netpipe-server.elf32
 INITD_NAME=
 APP_PATH=/home/jmcadden/work/SOSP15/imgs/${APP_NAME}
 INITD_PATH=
