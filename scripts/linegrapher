@@ -34,14 +34,17 @@ from matplotlib.backends.backend_pdf import PdfPages
 
 # Parser options
 parser = argparse.ArgumentParser(description='Graph options')
-parser.add_argument('--xl', metavar='x_label', dest='x_label', default="x axis", type=str, help='x axis label')
-parser.add_argument('--yl', metavar='y_label', dest='y_label', default="y axis", type=str, help='y axis label')
+parser.add_argument('--xl', metavar='xlabel', dest='xlabel', default="x axis", type=str, help='x axis label')
+parser.add_argument('--yl', metavar='ylabel', dest='ylabel', default="y axis", type=str, help='y axis label')
 parser.add_argument('--xmax', metavar='xmax', dest='xmax', type=int, help='x axis max')
 parser.add_argument('--ymax', metavar='ymax', dest='ymax', type=int, help='y axis max')
 parser.add_argument('--xlog', metavar='xlog', dest='xlog', action='store_const', const=1, help='x axis max')
 parser.add_argument('--ylog', metavar='ylog', dest='ylog', action='store_const', const=1, help='y axis max')
 parser.add_argument('-t', '--title', metavar='title', dest='title', default="title", type=str, help='graph title')
 parser.add_argument('-g', '--graph', metavar='graph', dest='graph', default=0, type=int, help='graph metric')
+parser.add_argument('--g2', '--graph2', metavar='graph2', dest='graph2', type=int, help='alt graph metric')
+parser.add_argument('--gl', '--graphlabel', metavar='gl', dest='gl', default="", type=str, help='alt graph metric label')
+parser.add_argument('--g2l', '--graph2label', metavar='g2l', dest='g2l', default="", type=str, help='alt graph metric label')
 parser.add_argument('--pdf', metavar='filename', dest='filename', help='save as a pdf')
 args = parser.parse_args()
 # End parser options
@@ -142,15 +145,15 @@ for s in range(len(trial_raw)):
 
 ### ALL THE GRAPH SETTINGS ARE BELOW THIS POINT
 
-x_label = args.x_label
-y_label = args.y_label 
+xlabel = args.xlabel
+ylabel = args.ylabel 
 title = args.title
 graph_metric = args.graph
 
 ''' graph canvas '''
 fig = plt.gcf()
-plt.ylabel(y_label, fontsize=18, labelpad=10)
-plt.xlabel(x_label, fontsize=18, labelpad=10)
+plt.ylabel(ylabel, fontsize=18, labelpad=10)
+plt.xlabel(xlabel, fontsize=18, labelpad=10)
 plt.title(title, fontsize=18)
 plt.xticks(fontsize=12)
 plt.yticks(fontsize=12)
@@ -181,7 +184,9 @@ B = trials (e.g.mebbrt,linux)
 C = columns (dat1, dat2)
 '''
 for i in range(len(series)):
-  plt.plot(trials[i],graph_data[0][i][graph_metric], label=series[i], marker='x', ls='-', lw=2, color=colors[i])
+  plt.plot(trials[i],graph_data[0][i][graph_metric], label=series[i]+' '+args.gl, marker='x', ls='-', lw=2, color=colors[i])
+  if args.graph2:
+    plt.plot(trials[i],graph_data[0][i][args.graph2], label=series[i]+' '+args.g2l, marker='x', ls='--', lw=2, color=colors[i])
 
 # legend
 plt.legend(loc=1, numpoints=2, frameon=False, markerscale=1, prop={'size':18, 'family':'sans-serif' })
