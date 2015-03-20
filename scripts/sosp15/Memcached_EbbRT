@@ -26,7 +26,7 @@ BOOTFILE=${DONEXPDIR}/boot
 STARTFILE=${DONEXPDIR}/start
 STOPFILE=${DONEXPDIR}/stop
 DONEXPPTR=/home/don/kh/experiment/current
-TS="$(date +%s)"
+TS="${EXPNAME}_$(date +%T)"
 SESSION=myDONlock_$$_$TS
 RUNDIR=/home/don/kh/runs/current/run
 DONEFILE=DONE_$$_$TS
@@ -91,8 +91,8 @@ function startExp()
   sleep 120 
   ssh nod "mkdir -p ~/mutilate-exp/$TS" > /dev/null
   ssh -f nod "${MCD_OPTIONS} ~/mutilate-exp/batch-run EbbRT-${QEMU_ALLOC}\
-#> ~/mutilate-exp/$TS/EbbRT-${QEMU_ALLOC} \
-#&& scp -r ~/mutilate-exp/$TS kd:RESULTS "
+> ~/mutilate-exp/$TS/EbbRT-${QEMU_ALLOC} \
+&& scp -r ~/mutilate-exp/$TS kd:RESULTS "
 
 }
 
@@ -118,6 +118,7 @@ function acquireExpLock()
 function releaseExpLock()
 {
   screen -X -S $SESSION quit
+  sleep 10
 }
 
 function setExp()
@@ -175,7 +176,6 @@ if [[ ! -a $APP_PATH ]]; then
   exit -1
 fi
 
-releaseExpLock
 if ! acquireExpLock; then
   echo "FAILED TO GET LOCK ON DON"
   exit -1

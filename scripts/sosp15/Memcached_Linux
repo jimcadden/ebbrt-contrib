@@ -26,8 +26,8 @@ BOOTFILE=${DONEXPDIR}/boot
 STARTFILE=${DONEXPDIR}/start
 STOPFILE=${DONEXPDIR}/stop
 DONEXPPTR=/home/don/kh/experiment/current
-TS="$(date +%s)"
-SESSION=myDONlock_$$_$TS
+TS="${EXPNAME}_$(date +%T)"
+SESSION=DONlock_$$_$TS
 RUNDIR=/home/don/kh/runs/current/run
 DONEFILE=DONE_$$_$TS
 
@@ -90,9 +90,8 @@ function startExp()
   ssh -f don "/opt/kexec-to-kh"
   sleep 120
   ssh nod "mkdir -p ~/mutilate-exp/$TS" > /dev/null
-  ssh -f nod "${MCDOPTIONS} ~/mutilate-exp/batch-run ${EXPNAME}-${QEMU_ALLOC}\
-> ~/mutilate-exp/$TS/${EXPNAME}-${QEMU_ALLOC} \
-&& scp -r ~/mutilate-exp/$TS kd:RESULTS "
+  ssh -f nod "${MCDOPTIONS} ~/mutilate-exp/batch-run ${EXPNAME}-${QEMU_ALLOC} \
+> ~/mutilate-exp/$TS/${EXPNAME}-${QEMU_ALLOC} && scp -r ~/mutilate-exp/$TS kd:RESULTS "
 
 }
 
@@ -118,7 +117,6 @@ function acquireExpLock()
 function releaseExpLock()
 {
   screen -X -S $SESSION quit
-  # give screen time to clean up
   sleep 10
 }
 
@@ -180,8 +178,6 @@ if [[ -n $INID_PATH && ! -n $INIT_PATH ]]; then
   echo "FAILED to locate ${INIT_PATH}"
   exit -1
 fi
-
-#releaseExpLock
 
 if ! acquireExpLock; then
   echo "FAILED TO GET LOCK ON DON"
