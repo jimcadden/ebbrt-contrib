@@ -1,0 +1,24 @@
+#!/bin/bash
+export PATH=$PATH:/home/kh/opt/bin/
+
+# bridge br0
+# tap0 -> vm-guest
+# 10GigE -> eth5
+# assume eth5 has been auto-configured
+#
+ip addr flush dev eth5
+
+brctl addbr br0
+ip tuntap add tap0 mode tap 
+brctl addif br0 tap0
+brctl addif br0 eth5
+ip link set tap0 up
+ip link set eth5 up
+
+ifconfig br0 192.168.4.2 netmask 255.255.255.0 up
+
+dnsmasq --listen-address=192.168.4.2 -z \
+  --dhcp-range=192.168.4.100,192.168.4.103,12h \
+  --dhcp-range=192.168.4.104,static \
+  --dhcp-host=00:11:22:33:44:55,192.168.4.104,infinite
+
