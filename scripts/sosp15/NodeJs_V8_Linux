@@ -1,0 +1,189 @@
+#!/bin/bash
+set -x
+
+# THIS EXPERIMENT
+EXPNAME=${EXP_NAME:-"NodeJs_Linux"}
+DONEXPDIR=/home/don/kh/experiment/nodejs_linux
+APP_NAME=vmlinuz-3.16.0-4-amd64
+INITD_NAME=nodejs.cgz
+APP_PATH=/home/jmcadden/work/SOSP15/imgs/${APP_NAME}
+INITD_PATH=/home/jmcadden/work/SOSP15/imgs/${INITD_NAME}
+EBBRT_REPO=
+APP_REPO=
+EXPBUILD=${EXP_BUILD:-}
+EXPMONITOR=${EXP_MONITOR:-}
+
+# QEMU {qemu1core, qemu4core, qemu6core}
+QEMU_ALLOC=${QEMU_ALLOC:-qemu1core}
+QEMUAPPEND=${QEMU_APPEND:-"quiet console=ttyS0 ro 1"}
+
+# EXPERIMENT INTERNALS
+BOOTFILE=${DONEXPDIR}/boot
+STARTFILE=${DONEXPDIR}/start
+STOPFILE=${DONEXPDIR}/stop
+DONEXPPTR=/home/don/kh/experiment/current
+TS="${EXPNAME}_$(date +%T)"
+SESSION=myDONlock_$$_$TS
+RUNDIR=/home/don/kh/runs/current/run
+DONEFILE=DONE_$$_$TS
+
+#####################################
+#  Functions
+#####################################
+
+function mkExpLinks()
+{
+    ln -s -f $DONEXPDIR/../../scripts $DONEXPDIR
+}
+
+function mkExpBoot()
+{
+    cat > $BOOTFILE  <<EOF
+#!/bin/bash
+
+MYDIR=\$1
+\$MYDIR/scripts/set_irq_affinity.sh eth5
+\$MYDIR/scripts/bridge-init
+EOF
+  chmod +x $BOOTFILE
+}
+
+function mkExpStart()
+{
+  if [[ -n $INITD_NAME ]]; then
+    INITRD="\$APPDIR/$INITD_NAME"
+  else
+    INITRD="/dev/null"
+  fi
+
+    cat > $STARTFILE <<EOF
+#!/bin/bash
+set -x
+MYDIR=\$1
+RUNDIR=\$MYDIR/run
+APPDIR=\$MYDIR/files
+SCPDIR=\$MYDIR/scripts
+kernel=\$APPDIR/$APP_NAME
+initrd=$INITRD
+append="${QEMUAPPEND}"
+
+\$SCPDIR/$QEMU_ALLOC \$RUNDIR \$kernel \$initrd "\${append}"
+
+EOF
+ chmod +x $STARTFILE
+}
+
+function mkExpStop()
+{
+    cat > $STOPFILE <<EOF
+#!/bin/bash
+EOF
+  chmod +x $STOPFILE
+}
+
+function startExp()
+{
+  ssh -f don "/opt/kexec-to-kh"
+  sleep 90
+}
+
+function stopExp()
+{
+  echo "Results gathered. Shutting down experiment"
+  echo "" > /dev/ttyS0
+  sleep 2
+  echo "/etc/init.d/don_experiment stop" > /dev/ttyS0
+  sleep 120
+  echo "/bin/kexec-to-don" > /dev/ttyS0
+  sleep 60
+}
+
+function acquireExpLock()
+{
+   screen -S $SESSION -d -m  minicom
+   # give minicom time to fail
+   sleep 1
+   screen -ls $SESSION | grep "$SESSION"
+}
+
+function releaseExpLock()
+{
+  screen -X -S $SESSION quit
+  # give screen time to clean up
+  sleep 10
+}
+
+function setExp()
+{
+    if [[ -a $DONEXPPTR ]]; then
+	! rm -f $DONEXPPTR && echo "ERROR: setExp " && exit -1
+    fi
+    ! ln -s $DONEXPDIR $DONEXPPTR && echo "ERROR: setExp ln" && exit -1
+}
+
+function mkDonDir()
+{
+  [[ -a $DONEXPDIR ]] && ! rm -rf $DONEXPDIR && echo "ERROR rm -rf $DONEXPDIR" && exit -1
+  ! mkdir $DONEXPDIR && echo "ERROR: mkdir $DONEXPDIR" && exit -1
+}
+
+function copyFiles()
+{
+   [[ -a $DONEXPDIR/files ]] && rm -rf $DONEXPDIR/files
+   mkdir $DONEXPDIR/files
+   cp -aL -t $DONEXPDIR/files $APP_PATH
+   if [[ -n $INITD_PATH ]]; then
+     cp -aL -t $DONEXPDIR/files $INITD_PATH
+   fi
+}
+
+function expWait()
+{
+   sleep 120
+}
+
+
+#####################################
+#  Start
+#####################################
+
+if [[ ! -a $APP_PATH ]]; then
+  echo "FAILED to locate ${APP_PATH}"
+  exit -1
+fi
+if [[ -n $INID_PATH && ! -n $INIT_PATH ]]; then
+  echo "FAILED to locate ${INIT_PATH}"
+  exit -1
+fi
+
+#releaseExpLock
+
+if ! acquireExpLock; then
+  echo "FAILED TO GET LOCK ON DON"
+  exit -1
+fi
+
+if [[ -n $EXPMONITOR ]]; then 
+   xterm -e "screen -r $SESSION" &
+fi
+
+if ! ping -c1 don &>/dev/null; then 
+  echo "Don is not in native boot"; 
+  releaseExpLock
+  exit -1
+fi
+
+mkDonDir
+copyFiles
+mkExpBoot
+mkExpStart
+mkExpStop
+mkExpLinks
+setExp
+echo "Experiment Started: $(date)"
+startExp
+#expWait
+#stopExp
+releaseExpLock
+echo "Experiment Finished: $(date)"
+

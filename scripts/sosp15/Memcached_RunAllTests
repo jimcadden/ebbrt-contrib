@@ -1,0 +1,28 @@
+#!/bin/bash
+set -x
+export EXP_MONITOR=1
+export MCD_OPTIONS="RUNTIME=240 MPOINTS=30 EPOINTS=1"
+
+#REBOOTNDON
+#
+echo "Started EbbRT single: $(date)"
+BUILD=1 QEMU_ALLOC=qemu1core ./Memcached_EbbRT
+echo "Started EbbRT quad: $(date)"
+QEMU_ALLOC=qemu4core ./Memcached_EbbRT
+#
+echo "Started Linux single: $(date)"
+QEMU_ALLOC=qemu1core ./Memcached_Linux
+echo "Started Linux quad: $(date)"
+QEMU_ALLOC=qemu4core ./Memcached_Linux
+#
+echo "Started Native single: $(date)"
+MCD_THREADS="1" MCD_CORES="10" QEMU_ALLOC=qemu1core ./Memcached_Native
+echo "Started Native quad: $(date)"
+MCD_THREADS="4" MCD_CORES="10,12,14,16" QEMU_ALLOC=qemu4core ./Memcached_Native
+##
+#echo "Started OSV single: $(date)"
+#OSV_IMG=osv1core.img QEMU_ALLOC=osv1core ./Memcached_OSV
+#echo "Started OSV quad: $(date)"
+#OSV_IMG=osv4core.img QEMU_ALLOC=osv4core ./Memcached_OSV
+##
+echo "Finished $(date)"

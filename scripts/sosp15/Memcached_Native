@@ -1,0 +1,207 @@
+#!/bin/bash
+set -x
+
+# MEMCACHED CLIENT
+MCDSERVER=${MCD_SERVER:-192.168.4.104}
+MCDOPTIONS=${MCD_OPTIONS:-"RUNTIME=1200 MPOINTS=10 EPOINTS=2"}
+# MEMCACHED SERVER
+MCDTHREADS=${MCD_THREADS:-"1"}
+#pinning
+MCDCORES=${MCD_CORES:-"10"}
+MCDSOPTIONS=${MCD_SOPTIONS=:-" -u nobody -d -t $MCDTHREADS -l $MCDSERVER -m 1024 "}
+
+# THIS EXPERIMENT
+EXPNAME=${EXP_NAME:-"Native"}
+DONEXPDIR=/home/don/kh/experiment/memcached_native
+APP_NAME=memcached
+APP_PATH=
+REMOTE_APP_PATH=/home/jmcadden/src/memcached-1.4.22/build/${APP_NAME}
+INITD_NAME=
+INITD_PATH=
+EBBRT_REPO=
+APP_REPO=
+EXPBUILD=${EXP_BUILD:-}
+EXPMONITOR=${EXP_MONITOR:-}
+QEMU_ALLOC=${QEMU_ALLOC:-}
+
+# EXPERIMENT INTERNALS
+BOOTFILE=${DONEXPDIR}/boot
+STARTFILE=${DONEXPDIR}/start
+STOPFILE=${DONEXPDIR}/stop
+DONEXPPTR=/home/don/kh/experiment/current
+TS="${EXPNAME}_$(date +%T)"
+SESSION=DONlock_$$_$TS
+RUNDIR=/home/don/kh/runs/current/run
+DONEFILE=DONE_$$_$TS
+
+#####################################
+#  Functions
+#####################################
+
+function mkExpLinks()
+{
+    ln -s -f $DONEXPDIR/../../scripts $DONEXPDIR
+}
+
+function mkExpBoot()
+{
+    cat > $BOOTFILE  <<EOF
+#!/bin/bash
+
+MYDIR=\$1
+\$MYDIR/scripts/set_irq_affinity.sh eth5
+\$MYDIR/scripts/bring-up-eth5
+EOF
+  chmod +x $BOOTFILE
+}
+
+function mkExpStart()
+{
+    cat > $STARTFILE <<EOF
+#!/bin/bash
+set -x
+MYDIR=\$1
+RUNDIR=\$MYDIR/run
+APPDIR=\$MYDIR/files
+SCPDIR=\$MYDIR/scripts
+kernel=\$APPDIR/$APP_NAME
+
+taskset -a -c $MCDCORES $REMOTE_APP_PATH $MCDSOPTIONS
+
+EOF
+ chmod +x $STARTFILE
+}
+
+function mkExpStop()
+{
+    cat > $STOPFILE <<EOF
+#!/bin/bash
+EOF
+  chmod +x $STOPFILE
+}
+
+function startExp()
+{
+  ssh -f don "/opt/kexec-to-don"
+  sleep 60 
+  # Server run
+  ssh -f don "sudo /etc/init.d/don_experiment start"
+  sleep 60
+  # Client run
+  ssh nod "mkdir -p ~/mutilate-exp/$TS" > /dev/null
+  ssh -f nod "${MCDOPTIONS} ~/mutilate-exp/batch-run ${EXPNAME}-${QEMU_ALLOC}\
+> ~/mutilate-exp/$TS/${EXPNAME}-${QEMU_ALLOC} \
+&& scp -r ~/mutilate-exp/$TS kd:RESULTS "
+
+}
+
+function stopExp()
+{
+  echo "Results gathered. Shutting down experiment"
+  ssh -f nod "~/stop_exp_don"
+  sleep 60
+}
+
+function acquireExpLock()
+{
+   screen -S $SESSION -d -m  minicom
+   sleep 1
+   screen -ls $SESSION | grep "$SESSION"
+}
+
+function releaseExpLock()
+{
+  screen -X -S $SESSION quit
+  sleep 10
+}
+
+function setExp()
+{
+    if [[ -a $DONEXPPTR ]]; then
+	! rm -f $DONEXPPTR && echo "ERROR: setExp " && exit -1
+    fi
+    ! ln -s $DONEXPDIR $DONEXPPTR && echo "ERROR: setExp ln" && exit -1
+}
+
+function mkDonDir()
+{
+  [[ -a $DONEXPDIR ]] && ! rm -rf $DONEXPDIR && echo "ERROR rm -rf $DONEXPDIR" && exit -1
+  ! mkdir $DONEXPDIR && echo "ERROR: mkdir $DONEXPDIR" && exit -1
+}
+
+function copyFiles()
+{
+   [[ -a $DONEXPDIR/files ]] && rm -rf $DONEXPDIR/files
+   mkdir $DONEXPDIR/files
+   if [[ -n $APP_PATH ]]; then
+    cp -aL -t $DONEXPDIR/files $APP_PATH
+   fi
+   if [[ -n $INITD_PATH ]]; then
+     cp -aL -t $DONEXPDIR/files $INITD_PATH
+   fi
+}
+
+function expWait()
+{
+  # poll on results file uploaded from nod
+  while [[ ! -a ${HOME}/RESULTS/${TS}/${EXPNAME}-${QEMU_ALLOC} ]]; do 
+    sleep 10
+  done
+}
+
+
+#####################################
+#  Start
+#####################################
+
+if [[ -n $EXPBUILD ]]; then
+  echo "pulling latest version of $APP_NAME"
+  if [[ -n $EBBRT_REPO ]]; then
+    ( cd $EBBRT_REPO; git pull )
+  fi
+  if [[ -n $APP_REPO ]]; then
+    ( cd $APP_REPO; git pull )
+  fi
+  echo "making $APP_NAME"
+  ( EBBRT_SRCDIR=$EBBRT_REPO make clean -C $APP_REPO )
+  ( EBBRT_SRCDIR=$EBBRT_REPO make -j8 -C $APP_REPO )
+fi
+
+if [[ -n $APP_PATH && ! -a $APP_PATH ]]; then
+  echo "FAILED to locate ${APP_PATH}"
+  exit -1
+fi
+if [[ -n $INID_PATH && ! -n $INIT_PATH ]]; then
+  echo "FAILED to locate ${INIT_PATH}"
+  exit -1
+fi
+
+if ! acquireExpLock; then
+  echo "FAILED TO GET LOCK ON DON"
+  exit -1
+fi
+
+if [[ -n $EXPMONITOR ]]; then 
+   xterm -e "screen -r $SESSION" &
+fi
+
+if ! ping -c1 don &>/dev/null; then 
+  echo "Don is not in native boot"; 
+  releaseExpLock
+  exit -1
+fi
+
+mkDonDir
+copyFiles
+mkExpBoot
+mkExpStart
+mkExpStop
+mkExpLinks
+setExp
+echo "Experiment Started: $(date)"
+startExp
+expWait
+stopExp
+releaseExpLock
+echo "Experiment Finished: $(date)"
+
