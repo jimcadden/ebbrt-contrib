@@ -6,6 +6,7 @@
 
 PATH=$PATH:$HOME/src/mutilate:$HOME/usr/local/bin
 
+
 # EXPERIMENT DEFAULTS 
 D_ServerIP=192.168.4.104
 D_Key=fb_key
@@ -14,6 +15,9 @@ D_IA=fb_ia
 D_Runtime=${RUNTIME:-1200}
 MPOINTS=${MPOINTS:-18}
 EPOINTS=${EPOINTS:-2}
+# CORE PINNING
+AGENTPIN="taskset -a -c 0-15"
+MASTERPIN="taskset -a c 19"
 
 # AGENT DEFAULTS
 D_AgentIP=127.0.0.1
@@ -40,7 +44,7 @@ function mutilate_agent {
   else
     T=$D_AgentThread
   fi
-  mutilate --binary -T $T -A &
+  $AGENTPIN mutilate --binary -T $T -A &
 }
 
 function mutilate_load {
@@ -49,7 +53,7 @@ function mutilate_load {
   else
     T=$D_ServerIP
   fi
-  mutilate --binary -s $1 --loadonly \
+  $MASTERPIN mutilate --binary -s $1 --loadonly \
     -K $D_Key -V $D_Val
 }
 
@@ -70,7 +74,7 @@ function mutilate_run {
   else
     DEPTH=$D_AgentDepth
   fi
-  mutilate --binary -s $SERVERIP --noload \
+  $MASTERPIN mutilate --binary -s $SERVERIP --noload \
    -K $D_Key -V $D_Val -i $D_IA -B -t $D_Runtime \
    -T $M_THRD -C $M_CONN -Q $D_MasterQPS -D $D_MasterDepth\
    -q $VQPS -c $A_CONN -d $DEPTH -a $D_AgentIP
@@ -182,7 +186,6 @@ do
   run=$( mutilate_run $SERVERIP $D_MasterThread $D_MasterConnections $AgentConnections $t_qps $AgentDepth)
   qps=$( printf "%.0f" $( echo "$run" | grep 'Total' | cut -d ' ' -f 4 ))
   data=$( echo "$run" | grep 'read' | cut -d ' ' --fields=1 --complement)
-  #echo "$run"
   echo "# $qps"
   echo "$( echo "$data" | sed 's/^ *//g' )"
 done
