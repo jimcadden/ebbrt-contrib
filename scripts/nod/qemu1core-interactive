@@ -1,0 +1,22 @@
+#!/bin/bash
+set -x
+
+# bring up a 4-core pinned qemu instance w/ given kernel/initrd
+
+kernel=$1
+initrd=$2
+if [[ $3 ]]; then
+  append="$3"
+else
+  append=""
+fi
+
+#We assume here an bridge has been setup between tap0 and the external interface
+
+# pin qemus to cpu 10
+sudo taskset -a -c 10 qemu-system-x86_64 -smp cpus=1 -cpu host -enable-kvm --netdev \
+tap,ifname=tap0,id=vlan1,script=no,downscript=no,vhost=on,queues=2 --device \
+virtio-net-pci,mq=on,vectors=4,netdev=vlan1,mac=00:00:00:00:00:55 -serial stdio \
+-display none -m 2G -kernel $kernel \
+-initrd $initrd \
+-append "${append}"

@@ -1,0 +1,10 @@
+#!/bin/bash
+echo "*** ALARM! ***"
+sleeptime=1
+if [ $1 ]; then
+  sleeptime=$1
+fi
+while true; do
+  echo -e '\a\c'
+  sleep $sleeptime
+done
