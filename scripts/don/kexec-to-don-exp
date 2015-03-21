@@ -1,0 +1,5 @@
+#!/bin/bash
+set -x
+sudo mount /dev/sda2 /mnt
+sudo kexec -l /mnt/vmlinuz-3.16-2-amd64 --initrd=/mnt/initrd.img-3.16-2-amd64 --append='console=tty0 console=ttyS1,115200n8 root=/dev/mapper/debian-root noht'
+sudo kexec -e

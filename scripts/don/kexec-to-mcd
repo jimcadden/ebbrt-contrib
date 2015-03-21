@@ -1,0 +1,7 @@
+#!/bin/bash
+set -x
+
+export KHDIR=/home/jmcadden/debirf/builds/kittyhawk
+export MCDDIR=/home/jmcadden/debirf/builds/native_memcached
+sudo kexec -l $KHDIR/vmlinuz-3.16.0-4-amd64 --initrd=$MCDDIR/minimal_jessie_3.16.0-4-amd64.cgz --append='quiet console=ttyS1,115200n8 ro single'
+sudo kexec -e
