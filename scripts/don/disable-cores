@@ -3,43 +3,32 @@
 
 IN=/proc/cmdline
 
-grep singlecore $IN >& /dev/null
-if [ $? -eq 0 ]; then # Disable all cores but zero
-  for i in `seq 1 $(nproc)`; do
-    echo "Disable core ${i}"
-    if [ -a /sys/devices/system/node/node0/cpu${i}/online ]; then
-      echo 0 > /sys/devices/system/node/node0/cpu${i}/online 
-    else
-      echo 0 > /sys/devices/system/node/node1/cpu${i}/online 
-    fi
-  done
-fi
+#grep singlecore $IN >& /dev/null
+#if [ $? -eq 0 ]; then # Disable all cores but zero
+#  for i in `seq 1 $(( nproc - 1 ))`; do
+#    if [ -a /sys/devices/system/node/node0/cpu${i}/online ]; then
+#      echo "Disable core ${i} on node 0"
+#      echo 0 > /sys/devices/system/node/node0/cpu${i}/online 
+#    else
+#      echo "Disable core ${i} on node 1"
+#      echo 0 > /sys/devices/system/node/node1/cpu${i}/online 
+#    fi
+#  done
+#fi
 
 grep fourcore $IN >& /dev/null
-if [ $? -eq 0 ]; then # Disable all cores but zero
+if [ $? -eq 0 ]; then 
   for i in `seq 1 9`; do
-    echo "Disable core ${i}"
-    if [ -a /sys/devices/system/node/node0/cpu${i}/online ]; then
-      echo 0 > /sys/devices/system/node/node0/cpu${i}/online 
-    else 
-      echo 0 > /sys/devices/system/node/node1/cpu${i}/online 
-    fi
+      echo "Disable core ${i} on node 0"
+      echo 0 > /sys/devices/system/cpu/cpu${i}/online 
   done
   for i in `seq 11 2 15`; do
-    echo "Disable core ${i}"
-    if [ -a /sys/devices/system/node/node0/cpu${i}/online ]; then
-      echo 0 > /sys/devices/system/node/node0/cpu${i}/online 
-    else 
-      echo 0 > /sys/devices/system/node/node1/cpu${i}/online 
-    fi
+      echo "Disable core ${i} on node 0"
+      echo 0 > /sys/devices/system/cpu/cpu${i}/online 
   done
-  for i in `seq 16 $(nproc)`; do
-    echo "Disable core ${i}"
-    if [ -a /sys/devices/system/node/node0/cpu${i}/online ]; then
-      echo 0 > /sys/devices/system/node/node0/cpu${i}/online 
-    else 
-      echo 0 > /sys/devices/system/node/node1/cpu${i}/online 
-    fi
+  for i in `seq 16 $(( nproc - 1 ))`; do
+      echo "Disable core ${i} on node 0"
+      echo 0 > /sys/devices/system/cpu/cpu${i}/online 
   done
 fi
 

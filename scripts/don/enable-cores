@@ -1,0 +1,11 @@
+#!/bin/bash
+# assumes two numa nodes {0,1}
+
+IN=/proc/cmdline
+DONCORES=48
+
+for i in `seq 1 $(( DONCORES - 1 ))`; do
+  echo "Enable core ${i}"
+    echo 1 > /sys/devices/system/cpu/cpu${i}/online 
+done
+
