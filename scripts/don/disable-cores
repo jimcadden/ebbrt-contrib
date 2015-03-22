@@ -8,45 +8,37 @@ if [ $? -eq 0 ]; then # Disable all cores but zero
   for i in `seq 1 $(nproc)`; do
     echo "Disable core ${i}"
     if [ -a /sys/devices/system/node/node0/cpu${i}/online ]; then
-      echo ""
-     # echo 0 > /sys/devices/system/node/node0/cpu{i}/online 
+      echo 0 > /sys/devices/system/node/node0/cpu${i}/online 
     else
-      echo ""
-     # echo 0 > /sys/devices/system/node/node1/cpu{i}/online 
+      echo 0 > /sys/devices/system/node/node1/cpu${i}/online 
     fi
   done
 fi
 
-grep multicore $IN >& /dev/null
+grep fourcore $IN >& /dev/null
 if [ $? -eq 0 ]; then # Disable all cores but zero
   for i in `seq 1 9`; do
     echo "Disable core ${i}"
     if [ -a /sys/devices/system/node/node0/cpu${i}/online ]; then
-      echo ""
-      #echo 0 > /sys/devices/system/node/node0/cpu{i}/online 
+      echo 0 > /sys/devices/system/node/node0/cpu${i}/online 
     else 
-      echo ""
-      #echo 0 > /sys/devices/system/node/node1/cpu{i}/online 
+      echo 0 > /sys/devices/system/node/node1/cpu${i}/online 
     fi
   done
   for i in `seq 11 2 15`; do
     echo "Disable core ${i}"
     if [ -a /sys/devices/system/node/node0/cpu${i}/online ]; then
-      echo ""
-      #echo 0 > /sys/devices/system/node/node0/cpu{i}/online 
+      echo 0 > /sys/devices/system/node/node0/cpu${i}/online 
     else 
-      echo ""
-      #echo 0 > /sys/devices/system/node/node1/cpu{i}/online 
+      echo 0 > /sys/devices/system/node/node1/cpu${i}/online 
     fi
   done
   for i in `seq 16 $(nproc)`; do
     echo "Disable core ${i}"
     if [ -a /sys/devices/system/node/node0/cpu${i}/online ]; then
-      echo ""
-      #echo 0 > /sys/devices/system/node/node0/cpu{i}/online 
+      echo 0 > /sys/devices/system/node/node0/cpu${i}/online 
     else 
-      echo ""
-      #echo 0 > /sys/devices/system/node/node1/cpu{i}/online 
+      echo 0 > /sys/devices/system/node/node1/cpu${i}/online 
     fi
   done
 fi
