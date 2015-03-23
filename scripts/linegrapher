@@ -45,7 +45,7 @@ parser.add_argument('-g', '--graph', metavar='graph', dest='graph', default=0, t
 parser.add_argument('--g2', '--graph2', metavar='graph2', dest='graph2', type=int, help='alt graph metric')
 parser.add_argument('--gl', '--graphlabel', metavar='gl', dest='gl', default="", type=str, help='alt graph metric label')
 parser.add_argument('--g2l', '--graph2label', metavar='g2l', dest='g2l', default="", type=str, help='alt graph metric label')
-parser.add_argument('--pdf', metavar='filename', dest='filename', help='save as a pdf')
+parser.add_argument('--pdf', metavar='pdfloc', dest='pdfloc', help='save as a pdf')
 args = parser.parse_args()
 # End parser options
 """
@@ -54,11 +54,18 @@ args = parser.parse_args()
 """
 colors = ['red','blue','green','purple','cyan', 'orange', 'magenta', 'brown','black']
 
-axis_label_font=18
-axis_label_pad=10
-graph_title_font=18
-axis_tick_font=18
-legend_font=18
+if args.pdfloc:
+  axis_label_font=18
+  axis_label_pad=10
+  graph_title_font=18
+  axis_tick_font=18
+  legend_font=18
+else:
+  axis_label_font=18
+  axis_label_pad=10
+  graph_title_font=18
+  axis_tick_font=18
+  legend_font=18
 
 ###
 graphs = ['default'] # use this to later extend the graphs produced
@@ -192,10 +199,9 @@ for i in range(len(series)):
 plt.legend(loc=1, numpoints=2, frameon=False, markerscale=1, prop={'size':18, 'family':'sans-serif' })
 
 # render graph
-if args.filename:
-  pp = PdfPages(args.filename)
-  pp.savefig()
-  pp.close()
-  #plt.savefig(pp, format='pdf')
+if args.pdfloc:
+    with PdfPages(args.pdfloc) as pdf:
+        pdf.savefig()
+        print "Graph saved as",args.pdfloc
 else:
   plt.show()
