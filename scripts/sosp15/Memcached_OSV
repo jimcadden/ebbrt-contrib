@@ -94,7 +94,9 @@ function startExp()
 function stopExp()
 {
   echo "Results gathered. Shutting down experiment"
-  ssh -f nod "~/stop_exp_don"
+  ssh -f don "sudo /etc/init.d/don_experiment stop"
+  sleep 60
+  ssh -f don "/opt/kexec-to-don"
   sleep 60
 }
 
