@@ -40,6 +40,7 @@ parser.add_argument('--xmax', metavar='xmax', dest='xmax', type=int, help='x axi
 parser.add_argument('--ymax', metavar='ymax', dest='ymax', type=int, help='y axis max')
 parser.add_argument('--xlog', metavar='xlog', dest='xlog', action='store_const', const=1, help='x axis max')
 parser.add_argument('--ylog', metavar='ylog', dest='ylog', action='store_const', const=1, help='y axis max')
+parser.add_argument('--yg', metavar='yg', dest='yg', action='store_const', const=1, help='y grib lines')
 parser.add_argument('-t', '--title', metavar='title', dest='title', default="title", type=str, help='graph title')
 parser.add_argument('-g', '--graph', metavar='graph', dest='graph', default=0, type=int, help='graph metric')
 parser.add_argument('--g2', '--graph2', metavar='graph2', dest='graph2', type=int, help='alt graph metric')
@@ -161,9 +162,10 @@ graph_metric = args.graph
 fig = plt.gcf()
 plt.ylabel(ylabel, fontsize=18, labelpad=10)
 plt.xlabel(xlabel, fontsize=18, labelpad=10)
-plt.title(title, fontsize=18)
-plt.xticks(fontsize=12)
-plt.yticks(fontsize=12)
+plt.title(title, fontsize=20)
+plt.xticks(fontsize=12, fontweight='bold')
+plt.yticks(fontsize=12, fontweight='bold')
+plt.gca().yaxis.grid(True)
 
 # log scale
 if args.xlog:
@@ -177,8 +179,8 @@ if args.xmax:
 if args.ymax:
   plt.ylim(0,args.ymax)
 
-#xtick_loc = [20000,40000,60000,80000]
-#xtick_lab = ["20k","40k","60k","80k"]
+#xtick_loc = [200000,400000,600000,800000,1000000,1200000]
+#xtick_lab = ["200k","400k","600k","800k", "1000k", "1200k"]
 #plt.xticks(xtick_loc,xtick_lab)
 #ytick_loc = [100,200,300,400,500]
 #ytick_lab = ["100","200","300","400","500"]
@@ -191,12 +193,12 @@ B = trials (e.g.mebbrt,linux)
 C = columns (dat1, dat2)
 '''
 for i in range(len(series)):
-  plt.plot(trials[i],graph_data[0][i][graph_metric], label=series[i]+' '+args.gl, marker='x', ls='-', lw=2, color=colors[i])
+  plt.plot(trials[i],graph_data[0][i][graph_metric], label=series[i]+' '+args.gl, marker='.', ls='-', lw=2, color=colors[i])
   if args.graph2:
-    plt.plot(trials[i],graph_data[0][i][args.graph2], label=series[i]+' '+args.g2l, marker='x', ls='--', lw=2, color=colors[i])
+    plt.plot(trials[i],graph_data[0][i][args.graph2], label=series[i]+' '+args.g2l, marker='.', ls='--', lw=2, color=colors[i])
 
 # legend
-plt.legend(loc=1, numpoints=2, frameon=False, markerscale=1, prop={'size':18, 'family':'sans-serif' })
+plt.legend(loc=0, numpoints=2, frameon=True, markerscale=1, prop={'size':12, 'family':'sans-serif', 'weight':'bold'})
 
 # render graph
 if args.pdfloc:
