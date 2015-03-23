@@ -4,11 +4,8 @@ set -x
 # MEMCACHED CLIENT
 MCDSERVER=${MCD_SERVER:-192.168.4.104}
 MCDOPTIONS=${MCD_OPTIONS:-"RUNTIME=1200 MPOINTS=10 EPOINTS=2"}
-# MEMCACHED SERVER
-MCDTHREADS=${MCD_THREADS:-"1"}
-#pinning
-MCDCORES=${MCD_CORES:-"10"}
-MCDSOPTIONS=${MCD_SOPTIONS=:-" -u nobody -d -t $MCDTHREADS -l $MCDSERVER -m 1024 "}
+## RUN NATIVE VARS
+RUN=${EXP_RUN:-1}
 
 # THIS EXPERIMENT
 EXPNAME=${EXP_NAME:-"Native"}
@@ -82,11 +79,8 @@ EOF
 
 function startExp()
 {
-  ssh -f don "/opt/kexec-to-don"
+  ssh -f don "/opt/kexec-to-mcd-${RUN}"
   sleep 60 
-  # Server run
-  ssh -f don "sudo /etc/init.d/don_experiment start"
-  sleep 60
   # Client run
   ssh nod "mkdir -p ~/mutilate-exp/$TS" > /dev/null
   ssh -f nod "${MCDOPTIONS} ~/mutilate-exp/batch-run ${EXPNAME}-${QEMU_ALLOC}\
@@ -98,7 +92,9 @@ function startExp()
 function stopExp()
 {
   echo "Results gathered. Shutting down experiment"
-  ssh -f nod "~/stop_exp_don"
+  echo "" > /dev/ttyS0
+  sleep 2
+  echo "/opt/kexec-to-don" > /dev/ttyS0
   sleep 60
 }
 
@@ -191,13 +187,13 @@ if ! ping -c1 don &>/dev/null; then
   exit -1
 fi
 
-mkDonDir
-copyFiles
-mkExpBoot
-mkExpStart
-mkExpStop
-mkExpLinks
-setExp
+#mkDonDir
+#copyFiles
+#mkExpBoot
+#mkExpStart
+#mkExpStop
+#mkExpLinks
+#setExp
 echo "Experiment Started: $(date)"
 startExp
 expWait
