@@ -16,14 +16,14 @@ D_Runtime=${RUNTIME:-1200}
 MPOINTS=${MPOINTS:-18}
 EPOINTS=${EPOINTS:-2}
 # CORE PINNING
-AGENTPIN="taskset -a -c 0-15"
-MASTERPIN="taskset -a c 19"
+AGENTPIN="taskset -a -c 0-18"
+MASTERPIN="taskset -a -c 19"
 
 # AGENT DEFAULTS
 D_AgentIP=127.0.0.1
 D_AgentQPS=0
-D_AgentConnections=8
-D_AgentThread=16
+D_AgentConnections=32
+D_AgentThread=19
 D_AgentDepth=4
 
 # MASTER DEFAULTS
