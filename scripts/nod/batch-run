@@ -1,0 +1,21 @@
+#!/bin/bash
+if [[ $1 ]]; then
+  NAME="${1}_$(date +'%m-%d')"
+else
+  NAME="EXP_$(date +'%m-%d')"
+fi
+DIR=/home/jmcadden/mutilate-exp
+
+killall run-mutilate
+killall mutilate
+sleep 5
+
+# wait for server to come online
+while ! ping -c1 192.168.4.104 &>/dev/null; do
+  sleep 10;
+done
+
+$DIR/run-mutilate graphline $NAME 192.168.4.104 16 8 4  
+#$DIR/run-mutilate graphline $NAME 192.168.4.104 16 8 1  
+#$DIR/run-mutilate graphline $NAME 192.168.4.104 16 16 1 
+#$DIR/run-mutilate graphline $NAME 192.168.4.104 16 16 4 

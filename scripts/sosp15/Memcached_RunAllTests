@@ -1,27 +1,33 @@
 #!/bin/bash
 set -x
 export EXP_MONITOR=1
-#export MCD_OPTIONS="RUNTIME=240 MPOINTS=30 EPOINTS=1"
-export MCD_OPTIONS="RUNTIME=30 MPOINTS=20 EPOINTS=1"
-#
-echo "Started EbbRT single: $(date)"
-BUILD=1 QEMU_ALLOC=qemu1core ./Memcached_EbbRT
+export MCD_OPTIONS="RUNTIME=300 MPOINTS=36 EPOINTS=0"
+#export MCD_OPTIONS="RUNTIME=30 MPOINTS=2 EPOINTS=1"
+##
 echo "Started EbbRT quad: $(date)"
 QEMU_ALLOC=qemu4core ./Memcached_EbbRT
-#
-echo "Started Linux single: $(date)"
-QEMU_ALLOC=qemu1core ./Memcached_Linux
+##
 echo "Started Linux quad: $(date)"
 QEMU_ALLOC=qemu4core ./Memcached_Linux
-#
-echo "Started Native single: $(date)"
-MCD_THREADS="1" MCD_CORES="10" QEMU_ALLOC=qemu1core ./Memcached_Native
-echo "Started Native quad: $(date)"
-MCD_THREADS="4" MCD_CORES="10,12,14,16" QEMU_ALLOC=qemu4core ./Memcached_Native
-#
-echo "Started OSV single: $(date)"
-OSV_IMG=osv1core.img QEMU_ALLOC=osv1core ./Memcached_OSV
-echo "Started OSV quad: $(date)"
-OSV_IMG=osv4core.img QEMU_ALLOC=osv4core ./Memcached_OSV
 ##
+echo "Started Native quad: $(date)"
+EXP_RUN=4 QEMU_ALLOC=qemu4core ./Memcached_Native
+##
+#echo "Started OSV quad: $(date)"
+#OSV_IMG=osv4core.img QEMU_ALLOC=osv4core ./Memcached_OSV
+###
+#echo "Started OSV single: $(date)"
+#OSV_IMG=osv1core.img QEMU_ALLOC=osv1core ./Memcached_OSV
+###
+#echo "Started EbbRT single: $(date)"
+#BUILD=1 QEMU_ALLOC=qemu1core ./Memcached_EbbRT
+###
+#echo "Started Linux single: $(date)"
+#QEMU_ALLOC=qemu1core ./Memcached_Linux
+###
+#echo "Started Native single: $(date)"
+#EXP_RUN=1 QEMU_ALLOC=qemu1core ./Memcached_Native
+#
+
+
 echo "Finished $(date)"
