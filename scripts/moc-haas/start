@@ -1,0 +1,19 @@
+#!/bin/bash
+if [[ $1 ]]; then
+  NAME="${1}_$(date +'%m-%d')"
+else
+  NAME="EXP_$(date +'%m-%d')"
+fi
+DIR=.
+IP=192.168.1.45
+
+killall run-mutilate
+killall mutilate
+sleep 5
+
+# wait for server to come online
+while ! ping -c1 $IP &>/dev/null; do
+  sleep 10;
+done
+
+$DIR/run-mutilate graphline $NAME $IP 16 8 4  

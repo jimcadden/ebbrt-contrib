@@ -2,6 +2,7 @@
 # assumes two numa nodes {0,1}
 
 IN=/proc/cmdline
+nproc=`nproc`
 
 #grep singlecore $IN >& /dev/null
 #if [ $? -eq 0 ]; then # Disable all cores but zero

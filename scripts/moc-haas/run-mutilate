@@ -1,0 +1,200 @@
+#!/bin/bash
+# set -x
+# Mutilate Suggested Usages:
+# 1) Order of 100 connections per memcached server thread
+# 2) >16 connections per mutilate thread
+
+PATH=$PATH:$HOME/src/mutilate:$HOME/usr/local/bin
+
+
+# EXPERIMENT DEFAULTS 
+D_ServerIP=192.168.4.104
+D_Key=fb_key
+D_Val=fb_value
+D_IA=fb_ia
+D_Runtime=${RUNTIME:-30}
+MPOINTS=${MPOINTS:-18}
+EPOINTS=${EPOINTS:-2}
+# CORE PINNING
+AGENTPIN="taskset -a -c 0-18"
+MASTERPIN="taskset -a -c 19"
+
+# AGENT DEFAULTS
+D_AgentIP="-a 192.168.1.26 -a 192.168.1.27 "
+D_AgentQPS=0
+D_AgentConnections=32
+D_AgentThread=4
+D_AgentDepth=4
+
+# MASTER DEFAULTS
+D_MasterThread=1
+D_MasterConnections=1
+D_MasterDepth=1
+D_MasterQPS=1000
+
+
+
+function mutilate_kill {
+ killall -q mutilate > /dev/null 2>&1
+}
+
+function mutilate_agent {
+  if [[ $1 ]]; then
+    T=$1
+  else
+    T=$D_AgentThread
+  fi
+  $AGENTPIN mutilate --binary -T $T -A &
+}
+
+function mutilate_load {
+  if [[ $1 ]]; then
+    T=$1
+  else
+    T=$D_ServerIP
+  fi
+  $MASTERPIN mutilate --binary -s $1 --loadonly \
+    -K $D_Key -V $D_Val
+}
+
+function mutilate_run {
+  SERVERIP=$1
+  M_THRD=$2
+  M_CONN=$3
+  A_CONN=$4
+  # QPS
+  if [[ $5 ]]; then
+    VQPS=$5
+  else
+    VQPS=$D_AgentQPS
+  fi
+  #DEPTH 
+  if [[ $6 ]]; then
+    DEPTH=$6
+  else
+    DEPTH=$D_AgentDepth
+  fi
+  $MASTERPIN mutilate --binary -s $SERVERIP --noload \
+   -K $D_Key -V $D_Val -i $D_IA -B -t $D_Runtime \
+   -T $M_THRD -C $M_CONN -Q $D_MasterQPS -D $D_MasterDepth\
+   -q $VQPS -c $A_CONN -d $DEPTH $D_AgentIP
+}
+
+function server_flush {
+  SERVERIP=$1
+  memflush --servers=$SERVERIP --binary --quiet 
+}
+
+function spread() {
+MAX_CON=16
+MAX_THD=16
+ITERATIONS=4
+M_CON_CNT=1
+M_THD_CNT=1
+A_CON_CNT=1
+A_THD_CNT=1
+ITR_CNT=0
+
+while [ $M_CON_CNT -le $MAX_CON ]; do
+  while [ $M_THD_CNT -le $MAX_THD ]; do
+    while [ $A_CON_CNT -le $MAX_CON ]; do
+      while [ $A_THD_CNT -le $MAX_THD ]; do
+        echo "## M(t:$M_THD_CNT, c:$M_CON_CNT, \
+T:$(( $M_THD_CNT * $M_CON_CNT ))) \
+A(t:$A_THD_CNT,c:$A_CON_CNT \
+T:$(( $A_THD_CNT * $A_CON_CNT )))"
+        mutilate_agent $A_THD_CNT
+        mutilate_load $D_ServerIP 
+        while [ $ITR_CNT -lt $ITERATIONS ]; do
+          mutilate_run $D_ServerIP $M_THD_CNT $M_CON_CNT $A_CON_CNT
+          ITR_CNT=$(( $ITR_CNT + 1 ))
+        done
+        ITR_CNT=0
+        A_CON_CNT=$(( $A_CON_CNT * 2 ))
+        A_THD_CNT=$(( $A_THD_CNT * 2 ))
+        server_flush $D_ServerIP
+        mutilate_kill
+      done
+    done
+   M_CON_CNT=$(( $M_CON_CNT * 2 ))
+   M_THD_CNT=$(( $M_THD_CNT * 2 ))
+   A_CON_CNT=1
+   A_THD_CNT=1
+  done
+done
+
+} 
+
+function single() {
+  mutilate_kill
+  mutilate_agent $1
+  mutilate_load $D_ServerIP
+  mutilate_run $D_ServerIP $2 $3 $4
+}
+
+function graphline (){
+
+if [[ $1 ]]; then
+  EXPNAME=$1
+else
+  EXPNAME="EXP_$(date +%m-%d-%Y_%T)"
+fi
+
+if [[ $2 ]]; then
+  SERVERIP=$2
+else
+  SERVERIP=192.168.4.104
+fi
+
+if [[ $3 ]]; then
+  AgentThread=$3
+else
+  AgentThread=$D_AgentThread
+fi
+
+EXPNAME="${EXPNAME}_A_${AgentThread}t"
+
+if [[ $4 ]]; then
+  AgentConnections=$4
+else
+  AgentConnections=$D_AgentConnections
+fi
+EXPNAME="${EXPNAME}_${AgentConnections}c"
+
+if [[ $5 ]]; then
+  AgentDepth=$5
+else
+  AgentDepth=$D_AgentDepth
+fi
+EXPNAME="${EXPNAME}_${AgentDepth}d"
+
+echo "## $EXPNAME"
+
+  mutilate_kill
+  mutilate_agent $AgentThread 
+  sleep 5
+  server_flush $SERVERIP
+  mutilate_load $SERVERIP
+
+# capture max qps
+init=$( mutilate_run $SERVERIP $D_MasterThread $D_MasterConnections $AgentConnections 0 $AgentDepth)
+res=$( printf "%.0f" $( echo "$init" | grep 'Total' | cut -d ' ' -f 4 ))
+amt=$(( $res  / $MPOINTS ))
+for i in $( seq 1 $(( $MPOINTS + $EPOINTS  )) )
+do
+  t_qps=$(( $i * $amt ))
+  run=$( mutilate_run $SERVERIP $D_MasterThread $D_MasterConnections $AgentConnections $t_qps $AgentDepth)
+  qps=$( printf "%.0f" $( echo "$run" | grep 'Total' | cut -d ' ' -f 4 ))
+  data=$( echo "$run" | grep 'read' | cut -d ' ' --fields=1 --complement)
+  echo "# $qps"
+  echo "$( echo "$data" | sed 's/^ *//g' )"
+done
+
+  mutilate_kill
+
+}
+
+
+# KLUDGY FUNCTION LOAD
+$1 $2 $3 $4 $5 $6
+
