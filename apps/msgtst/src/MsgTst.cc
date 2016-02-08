@@ -3,6 +3,8 @@
 //    (See accompanying file LICENSE_1_0.txt or copy at
 //          http://www.boost.org/LICENSE_1_0.txt)
 #include "MsgTst.h"
+#include <boost/range/irange.hpp>
+
 
 #include <ebbrt/UniqueIOBuf.h>
 #include <ebbrt/LocalIdMap.h>
@@ -30,7 +32,7 @@ MsgTst& MsgTst::HandleFault(EbbId id) {
   }
 
   MsgTst* rep;
-  {
+  {,`
     // Try to insert an entry into the LocalIdMap while holding an exclusive
     // (write) lock
     LocalIdMap::Accessor accessor;
@@ -50,6 +52,25 @@ MsgTst& MsgTst::HandleFault(EbbId id) {
 }
 
 MsgTst::MsgTst(EbbId ebbid) : Messagable<MsgTst>(ebbid) {}
+
+
+
+std::unique_ptr<IOBuf> MsgTst::RandomMsg(uint16_t bytes){
+    std::random_device rd;
+    std::default_random_engine rng(rd());
+    std::uniform_int_distribution<> dist(0,sizeof(alphanum)/sizeof(*alphanum)-2);
+    std::string str; 
+    str.reserve(bytes); 
+    std::generate_n(std::back_inserter(str), bytes,
+      [&]() { return alphabet[dist(rng)];}); 
+
+ auto buf = MakeUniqueIOBuf(bytes);
+ auto dp = buf.GetMutDataPointer();
+ for (auto i : boost::irange(0,buf.Length()-1){
+  auto ptr = dp.MutData() + i;
+  *ptr = alphanum[dist(rng)];
+} 
+}
 
 // We need to store promises for each Ping and therefore also need an identifier
 // for each Ping

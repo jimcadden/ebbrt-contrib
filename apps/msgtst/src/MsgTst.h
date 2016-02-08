@@ -6,6 +6,11 @@
 #define APPS_MSGTST_SRC_MSGTST_H_
 
 #include <unordered_map>
+#include <iostream>
+#include <iterator>
+#include <vector>
+#include <random>
+#include <algorithm>
 
 #include <ebbrt/EbbAllocator.h>
 #include <ebbrt/Future.h>
@@ -20,6 +25,7 @@ class MsgTst : public ebbrt::Messagable<MsgTst> {
   static ebbrt::EbbRef<MsgTst>
   Create(ebbrt::EbbId id = ebbrt::ebb_allocator->Allocate());
 
+  std::unique_ptr<IOBuf> RandomMsg(uint16_t bytes);
   static MsgTst& HandleFault(ebbrt::EbbId id);
 
   MsgTst(ebbrt::EbbId ebbid);
@@ -30,6 +36,8 @@ class MsgTst : public ebbrt::Messagable<MsgTst> {
                       std::unique_ptr<ebbrt::IOBuf>&& buffer);
 
  private:
+  const char alphanum[] = "0 .. 1A .. Za.. z";
+
   std::mutex m_;
   std::unordered_map<uint32_t, ebbrt::Promise<void>> promise_map_;
   uint32_t id_{0};
