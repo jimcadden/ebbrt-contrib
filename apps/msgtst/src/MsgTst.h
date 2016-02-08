@@ -13,6 +13,8 @@
 #include <algorithm>
 
 #include <ebbrt/EbbAllocator.h>
+#include <ebbrt/UniqueIOBuf.h>
+#include <ebbrt/IOBuf.h>
 #include <ebbrt/Future.h>
 #include <ebbrt/Message.h>
 
@@ -20,26 +22,23 @@
  * messages via the messenger to another node (machine). The remote node
  * responds back and the initiator fulfills its Promise. */
 
+static const char alphanum[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+
 class MsgTst : public ebbrt::Messagable<MsgTst> {
  public:
   static ebbrt::EbbRef<MsgTst>
   Create(ebbrt::EbbId id = ebbrt::ebb_allocator->Allocate());
 
-  std::unique_ptr<IOBuf> RandomMsg(uint16_t bytes);
-  static MsgTst& HandleFault(ebbrt::EbbId id);
-
   MsgTst(ebbrt::EbbId ebbid);
-
-  ebbrt::Future<void> Ping(ebbrt::Messenger::NetworkId nid);
-
+  std::unique_ptr<ebbrt::MutIOBuf> RandomMsg(size_t bytes);
+  static MsgTst& HandleFault(ebbrt::EbbId id);
+  ebbrt::Future<std::vector<uint32_t>> SendMessages(ebbrt::Messenger::NetworkId nid, uint8_t count, size_t size);
   void ReceiveMessage(ebbrt::Messenger::NetworkId nid,
                       std::unique_ptr<ebbrt::IOBuf>&& buffer);
 
  private:
-  const char alphanum[] = "0 .. 1A .. Za.. z";
-
   std::mutex m_;
-  std::unordered_map<uint32_t, ebbrt::Promise<void>> promise_map_;
+  std::unordered_map<uint32_t, ebbrt::Promise<uint32_t>> promise_map_;
   uint32_t id_{0};
 };
 
