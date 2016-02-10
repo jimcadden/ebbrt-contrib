@@ -32,7 +32,7 @@ class MsgTst : public ebbrt::Messagable<MsgTst> {
   MsgTst(ebbrt::EbbId ebbid);
   std::unique_ptr<ebbrt::MutIOBuf> RandomMsg(size_t bytes);
   static MsgTst& HandleFault(ebbrt::EbbId id);
-  ebbrt::Future<std::vector<uint32_t>> SendMessages(ebbrt::Messenger::NetworkId nid, uint8_t count, size_t size);
+  std::vector<ebbrt::Future<uint32_t>> SendMessages(ebbrt::Messenger::NetworkId nid, uint8_t count, size_t size);
   void ReceiveMessage(ebbrt::Messenger::NetworkId nid,
                       std::unique_ptr<ebbrt::IOBuf>&& buffer);
 

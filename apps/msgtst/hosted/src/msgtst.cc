@@ -37,7 +37,7 @@ int main(int argc, char** argv) {
     node_desc.NetworkId()
         .Then([msgtst_ebb](Future<Messenger::NetworkId> f) {
           auto nid = f.Get();
-          msgtst_ebb->Begin(nid);
+          msgtst_ebb->SendMessages(nid,1,1);
           return;
         });
   }
