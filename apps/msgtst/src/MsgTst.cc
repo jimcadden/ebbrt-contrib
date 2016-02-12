@@ -83,10 +83,10 @@ std::vector<ebbrt::Future<uint32_t>> MsgTst::SendMessages(Messenger::NetworkId n
     Promise<uint32_t> promise;
     bool inserted;
     // insert our promise into the hash table
+    ret.push_back(promise.GetFuture());
     std::tie(std::ignore, inserted) =
         promise_map_.emplace(id, std::move(promise));
     assert(inserted);
-    ret.push_back(promise.GetFuture());
     auto buf = MakeUniqueIOBuf(sizeof(uint32_t));
     auto dp = buf->GetMutDataPointer();
     dp.Get<uint32_t>() = id + 1; // Ping messages are odd

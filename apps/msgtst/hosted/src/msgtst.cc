@@ -18,7 +18,7 @@
 
 using namespace ebbrt;
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
   auto bindir = boost::filesystem::system_complete(argv[0]).parent_path() /
                 "/bm/msgtst.elf32";
 
@@ -30,18 +30,26 @@ int main(int argc, char** argv) {
     ContextActivation activation(c);
 
     // ensure clean quit on ctrl-c
-    sig.async_wait([&c](const boost::system::error_code& ec,
+    sig.async_wait([&c](const boost::system::error_code &ec,
                         int signal_number) { c.io_service_.stop(); });
     auto msgtst_ebb = MsgTst::Create();
     auto node_desc = node_allocator->AllocateNode(bindir.string());
-    node_desc.NetworkId()
-        .Then([msgtst_ebb](Future<Messenger::NetworkId> f) {
-          auto nid = f.Get();
-          msgtst_ebb->SendMessages(nid,1,1);
-          return;
+    node_desc.NetworkId().Then([msgtst_ebb](Future<Messenger::NetworkId> f) {
+      auto nid = f.Get();
+      std::cout << "Sending initial messages \n";
+      auto v1 = msgtst_ebb->SendMessages(nid, 1, 1);
+      v1[0].Block().Then([msgtst_ebb, nid](Future<uint32_t> f) {
+         printf("woo! \n");
         });
+      printf("blah \n");
+      auto v2 = msgtst_ebb->SendMessages(nid, 2, 1000);
+      std::cout << " received?\n";
+      return;
+    });
   }
   c.Run();
+  c.Reset();
 
+  std::cout << "tests finished\n";
   return 0;
 }
