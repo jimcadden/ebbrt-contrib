@@ -71,8 +71,11 @@ std::unique_ptr<MutIOBuf> MsgTst::RandomMsg(size_t bytes) {
 }
 
 std::vector<ebbrt::Future<uint32_t>> MsgTst::SendMessages(Messenger::NetworkId nid,
-                                                 uint8_t count, size_t size) {
+                                                 uint32_t count, size_t size) {
   uint32_t id;
+  assert(size >= sizeof(uint32_t));
+  assert(count <= std::numeric_limits<uint32_t>::max());
+
   std::vector<ebbrt::Future<uint32_t> > ret;
   {
     std::lock_guard<std::mutex> guard(m_);
@@ -82,12 +85,12 @@ std::vector<ebbrt::Future<uint32_t>> MsgTst::SendMessages(Messenger::NetworkId n
   while(count--){
     Promise<uint32_t> promise;
     bool inserted;
-    // insert our promise into the hash table
-    ret.push_back(promise.GetFuture());
+    auto f = promise.GetFuture();
+    ret.push_back(std::move(f));
     std::tie(std::ignore, inserted) =
         promise_map_.emplace(id, std::move(promise));
     assert(inserted);
-    auto buf = MakeUniqueIOBuf(sizeof(uint32_t));
+    auto buf = RandomMsg(size);
     auto dp = buf->GetMutDataPointer();
     dp.Get<uint32_t>() = id + 1; // Ping messages are odd
     id += 2;

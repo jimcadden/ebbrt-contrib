@@ -36,20 +36,44 @@ int main(int argc, char **argv) {
     auto node_desc = node_allocator->AllocateNode(bindir.string());
     node_desc.NetworkId().Then([msgtst_ebb](Future<Messenger::NetworkId> f) {
       auto nid = f.Get();
-      std::cout << "Sending initial messages \n";
-      auto v1 = msgtst_ebb->SendMessages(nid, 1, 1);
-      v1[0].Block().Then([msgtst_ebb, nid](Future<uint32_t> f) {
-         printf("woo! \n");
-        });
-      printf("blah \n");
-      auto v2 = msgtst_ebb->SendMessages(nid, 2, 1000);
-      std::cout << " received?\n";
+      std::cout << "Begin Messenger Tests:\n";
+
+      std::cout << "1. single small message (4 bytes)\n";
+      // block on first msg is a require work-around to ensure the initial then
+      // has been completed.
+      msgtst_ebb->SendMessages(nid, 1, 4)[0].Block();
+      std::cout << "success!\n";
+
+      std::cout << "2. many small message (1000 x 4 bytes)\n";
+      auto v2 = msgtst_ebb->SendMessages(nid, 1000, 4);
+      when_all(v2).Block().Then([](Future<std::vector<uint32_t> > vf) {
+        std::cout << "success!\n";
+      });
+
+      std::cout << "3. single medium message (1 x  4000 bytes)\n";
+      auto v3 = msgtst_ebb->SendMessages(nid, 1, 4000);
+      when_all(v3).Then([](Future<std::vector<uint32_t> > vf) {
+        vf.Block();
+        std::cout << "success!\n";
+      });
+
+      std::cout << "4. many medium message (100000 x  4000 bytes)\n";
+      auto v4 = msgtst_ebb->SendMessages(nid, 100000, 4000);
+      when_all(v4).Then([](Future<std::vector<uint32_t> > vf) {
+        vf.Block();
+        std::cout << "success!\n";
+      });
+
+      std::cout << "4. one large message (1 x  4000000 bytes)\n";
+      auto v5 = msgtst_ebb->SendMessages(nid, 1, 4000000);
+      when_all(v5).Then([](Future<std::vector<uint32_t> > vf) {
+        vf.Block();
+        std::cout << "success!\n";
+      });
+      std::cout << "\nAll tests finished. Ctl+c to exit. \n";
       return;
     });
   }
   c.Run();
-  c.Reset();
-
-  std::cout << "tests finished\n";
   return 0;
 }
