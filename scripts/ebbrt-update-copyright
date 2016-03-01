@@ -1,0 +1,1 @@
+find $EBBRT_SRCDIR -regex ".*\.\(h\|cc\)" -type f -not -path "*/baremetal/ext/*" -not -path "*/.git/*" -exec sed -i 's/2014/2016/g' {} \;
