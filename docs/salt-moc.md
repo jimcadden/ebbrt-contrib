@@ -1,6 +1,6 @@
 # SESA on the MOC
 
-### node configuration and depoyment
+### node configuration and deployment
 
 ---
 
@@ -14,7 +14,7 @@
 ## Backgroud
 - EbbRT OS for distributed Cloud applications
 - Experimentation and benchmarking
-    - networking latecy/throughput
+    - networking latency/throughput
     - elastic deployment
     - native vs. virtualized
 - HaaS bare-metal deployment
@@ -41,23 +41,27 @@
 - State is hard-coded and contained
 - One image, one configuration
 
-#### Problem?
+---
+
+## Problem
+- images needs to be re-built on change 
+- no transparecy into state of build image
 
 ---
 
 ## Current Solution
-- Network boot into base system image
-- Use SaltStack remote configuration
+- `nfs`/`overlayfs` base system image
+- SaltStack remote configuration and execution
 
 ---
 
 ## Network Boot (Headnode) 
 - PXE / TFTP 
-- Configure linux with **read-only** `nfsroot`
+- Linux boots **read-only** `nfsroot`
         kernel fs/vmlinuz
         initrd fs/initrd.img
         append root=/dev/nfs nfsroot=$IP:/var/lib/tftpboot/fs ro       
-- Union mount `overlayfs`
+- initrd uses `overlayfs` to mount R/W `tmpfs`
 
 ---
 
@@ -66,3 +70,4 @@
 - Salt Master on Headnode
 - Nodes pre-configured as Salt Minions
 
+---
