@@ -3,6 +3,7 @@
 //    (See accompanying file LICENSE_1_0.txt or copy at
 //          http://www.boost.org/LICENSE_1_0.txt)
 
+#define RUNS 100000
 #define ITERATIONS 100000
 
 #include "Printer.h"
@@ -12,18 +13,51 @@
 
 void AppMain() { 
   printer->Print("SANITY BACKEND UP.\n"); 
+  ebbrt::kprintf("ITERATIONS:%llu\n",ITERATIONS);
+  ebbrt::kprintf("[ status, func, n/a, time, cycles, instructions ]\n");
   ebbrt::trace::Init();
   ebbrt::trace::Enable();
 
-  ebbrt::trace::AddNote("NULL Test");
+  // OVERHEADS
+  {
+    for( int i = 0; i<RUNS; i++){
+      auto start = ebbrt::trace::rdtsc();
+      ebbrt::trace::AddTracepoint(0);
+      auto end  = ebbrt::trace::rdtsc();
+      ebbrt::kprintf("TP:%llu - %llu = %llu\n",end,start,(end-start)); 
+    }
+  }
+  {
+    for( int i = 0; i<RUNS; i++){
+      auto start = ebbrt::trace::rdtsc();
+      ebbrt::trace::AddTimestamp(0);
+      auto end  = ebbrt::trace::rdtsc();
+      ebbrt::kprintf("TP:%llu - %llu = %llu\n",end,start,(end-start)); 
+    }
+  }
+  {
+    for( int i = 0; i<RUNS; i++){
+      auto start = ebbrt::trace::rdtsc();
+      ebbrt::trace::AddNote("aaa");
+      auto end  = ebbrt::trace::rdtsc();
+      ebbrt::kprintf("TP:%llu - %llu = %llu\n",end,start,(end-start)); 
+    }
+  }
+  ebbrt::trace::AddNote("000");
   ebbrt::trace::AddTracepoint(0);
+  // sanity tests
+  for( int i = 0; i<ITERATIONS; i++){
+   asm volatile(""); 
+  }
+  ebbrt::trace::AddTracepoint(1);
+
+  ebbrt::trace::AddNote("001");
   ebbrt::trace::AddTimestamp(0);
   // sanity tests
   for( int i = 0; i<ITERATIONS; i++){
    asm volatile(""); 
   }
   ebbrt::trace::AddTimestamp(1);
-  ebbrt::trace::AddTracepoint(1);
 
   ebbrt::trace::Disable();
   ebbrt::trace::Dump();
