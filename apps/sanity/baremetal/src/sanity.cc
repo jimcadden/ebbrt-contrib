@@ -3,8 +3,12 @@
 //    (See accompanying file LICENSE_1_0.txt or copy at
 //          http://www.boost.org/LICENSE_1_0.txt)
 
-#define RUNS 100000
+#define RUNS 100
 #define ITERATIONS 100000
+
+const unsigned int reg = 1 << 30;  // Intel fixed-purpose-register config flag
+//instructions = ebbrt::trace::rdpmc((reg));
+//cycles = ebbrt::trace::rdpmc((reg + 1));
 
 #include "Printer.h"
 #include <ebbrt/Acpi.h>
@@ -21,26 +25,38 @@ void AppMain() {
   // OVERHEADS
   {
     for( int i = 0; i<RUNS; i++){
-      auto start = ebbrt::trace::rdtsc();
+ //     auto start = ebbrt::trace::rdtsc();
+ //     auto start = ebbrt::trace::rdpmc((reg));
+      auto start = ebbrt::trace::rdpmc((reg+1));
       ebbrt::trace::AddTracepoint(0);
-      auto end  = ebbrt::trace::rdtsc();
+      auto end = ebbrt::trace::rdpmc((reg+1));
+ //     auto end = ebbrt::trace::rdpmc((reg));
+ //     auto end  = ebbrt::trace::rdtsc();
       ebbrt::kprintf("TP:%llu - %llu = %llu\n",end,start,(end-start)); 
     }
   }
   {
     for( int i = 0; i<RUNS; i++){
-      auto start = ebbrt::trace::rdtsc();
+ //     auto start = ebbrt::trace::rdtsc();
+ //     auto start = ebbrt::trace::rdpmc((reg));
+      auto start = ebbrt::trace::rdpmc((reg+1));
       ebbrt::trace::AddTimestamp(0);
-      auto end  = ebbrt::trace::rdtsc();
-      ebbrt::kprintf("TP:%llu - %llu = %llu\n",end,start,(end-start)); 
+      auto end = ebbrt::trace::rdpmc((reg+1));
+ //     auto end = ebbrt::trace::rdpmc((reg));
+ //     auto end  = ebbrt::trace::rdtsc();
+      ebbrt::kprintf("TS:%llu - %llu = %llu\n",end,start,(end-start)); 
     }
   }
   {
     for( int i = 0; i<RUNS; i++){
-      auto start = ebbrt::trace::rdtsc();
+  //    auto start = ebbrt::trace::rdtsc();
+ //     auto start = ebbrt::trace::rdpmc((reg));
+      auto start = ebbrt::trace::rdpmc((reg+1));
       ebbrt::trace::AddNote("aaa");
-      auto end  = ebbrt::trace::rdtsc();
-      ebbrt::kprintf("TP:%llu - %llu = %llu\n",end,start,(end-start)); 
+      auto end = ebbrt::trace::rdpmc((reg+1));
+ //     auto end = ebbrt::trace::rdpmc((reg));
+  //    auto end  = ebbrt::trace::rdtsc();
+      ebbrt::kprintf("NT:%llu - %llu = %llu\n",end,start,(end-start)); 
     }
   }
   ebbrt::trace::AddNote("000");
