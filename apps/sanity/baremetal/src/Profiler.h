@@ -2,7 +2,7 @@
 #include <cstdint>
 #include <ebbrt/Clock.h>
 
-#define IF_INTEL 1
+#define IS_INTEL 1
 
 namespace ebbrt {
 namespace profiler {
@@ -42,13 +42,13 @@ class CycleCounter {
 public:
   void tick() __attribute__((always_inline)) {
 #if IS_INTEL
-    cycles_low_ = ebbrt::profiler::rdpmc((reg+1))
+    cycles_low_ = ebbrt::profiler::rdpmc((reg+1));
 #endif
     return;
   };
   void tock() __attribute__((always_inline)) {
 #if IS_INTEL
-    cycles_high_ = ebbrt::profiler::rdpmc((reg+1))
+    cycles_high_ = ebbrt::profiler::rdpmc((reg+1));
 #endif
     return;
   };
@@ -70,13 +70,13 @@ class InstructionCounter {
 public:
   void tick() __attribute__((always_inline)) {
 #if IS_INTEL
-    inst_low_ = ebbrt::profiler::rdpmc((reg+1))
+    inst_low_ = ebbrt::profiler::rdpmc((reg+1));
 #endif
     return;
   };
   void tock() __attribute__((always_inline)) {
 #if IS_INTEL
-    inst_high_ = ebbrt::profiler::rdpmc((reg+1))
+    inst_high_ = ebbrt::profiler::rdpmc((reg+1));
 #endif
     return;
   };
