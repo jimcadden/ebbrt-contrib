@@ -2,16 +2,16 @@
 #include <cstdint>
 #include <ebbrt/Clock.h>
 
-#define IS_INTEL 1
+#define IS_INTEL 0
+
+const constexpr uint32_t reg =
+    1 << 30; // Intel fixed-purpose-register config flag
 
 namespace ebbrt {
 namespace profiler {
 
 typedef std::chrono::nanoseconds ns;
 typedef std::chrono::seconds s;
-
-const constexpr uint32_t reg =
-    1 << 30; // Intel fixed-purpose-register config flag
 
 inline uint64_t rdtsc(void) {
   uint32_t lo, hi;

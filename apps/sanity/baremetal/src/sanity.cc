@@ -4,9 +4,7 @@
 //          http://www.boost.org/LICENSE_1_0.txt)
 
 #define RUNS 100
-#define ITERATIONS 100000
-
-const unsigned int reg = 1 << 30;  // Intel fixed-purpose-register config flag
+#define ITERATIONS 1000
 
 #include "Printer.h"
 #include "Profiler.h"
@@ -16,18 +14,22 @@ const unsigned int reg = 1 << 30;  // Intel fixed-purpose-register config flag
 
 void AppMain() { 
   printer->Print("SANITY BACKEND UP.\n"); 
-  printer->Print("SANITY BACKEND POWERING OFF.\n"); 
   ebbrt::profiler::Duration d;
 
   ebbrt::profiler::Profiler prof;
   prof.tick();
   for( int i = 0; i<ITERATIONS; i++){
-   asm volatile(""); 
+    ebbrt::kprintf("."); 
   }
   prof.tock();
+  for( int i = 0; i<ITERATIONS; i++){
+   asm volatile(""); 
+    ebbrt::kprintf("."); 
+  }
   d = prof.get();
   ebbrt::kprintf("1 %llu %llu %llu %llu \n", d.tsc,
     d.wct, d.instructions, d.cycles);
+  printer->Print("SANITY BACKEND POWERING OFF.\n"); 
   ////
   //prof.tick();
   //for( int i = 0; i<ITERATIONS*100; i++){
