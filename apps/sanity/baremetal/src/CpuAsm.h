@@ -12,7 +12,7 @@ inline uintptr_t ReadCr3() {
   return cr3;
 }
 
-inline uint64_t rdpmc(int reg) {
+inline uint64_t rdpmc(uint64_t reg) {
   uint32_t lo, hi;
   __asm__ __volatile__("rdpmc" : "=a"(lo), "=d"(hi) : "c"(reg));
   return ((uint64_t)lo) | (((uint64_t)hi) << 32);
@@ -49,7 +49,8 @@ inline uint64_t rdtscp() {
 inline void wrmsr(uint64_t val, uint32_t msr){
     __asm__ __volatile__("wrmsr"
                          :
-                         : "A"(val), "c"(msr));
+                         : "a"(val & 0xFFFFFFFF),
+                           "d"(val >> 32), "c"(msr));
 }
 
 }

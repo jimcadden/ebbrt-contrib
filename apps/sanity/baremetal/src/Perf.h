@@ -9,7 +9,7 @@
 namespace ebbrt {
 namespace perf {
 #define PERF_CPUID_LEAF                       0x0A
-#define FAST_READ                             1 << 30
+#define FAST_READ(X)                             ((1 << 30)+X)
 
 #define IA32_FIXED_CTR_CTRL                   0x38D
 #define IA32_PERF_GLOBAL_CTRL                 0x38F
@@ -18,7 +18,7 @@ namespace perf {
 #define IA32_PERFEVTSEL(X)                    (0x186+(X))
 #define IA32_FXD_CTR(X)                       (0x309+(X))
 #define IA32_GP_CTR(X)                        (0x4C1+(X))
-#define PERF_EVENT_BITMASK(X)                 1 << X
+#define PERF_EVENT_BITMASK(X)                 (1 << X)
 
 #define PERFEVT_UMASK_CYCLES                  0x00
 #define PERFEVT_UMASK_CYCLES_REF              0x00
@@ -116,11 +116,11 @@ typedef struct {
 class PerfCounter {
 public:
   PerfCounter(PerfEvent e);
-  void clear();
-  bool overflow();
-  uint64_t read();
-  void start();
-  void stop();
+  void Clear();
+  bool Overflow();
+  uint64_t Read();
+  void Start();
+  void Stop();
 private:
   std::atomic<bool> is_running_;
   PerfEvent evt_;

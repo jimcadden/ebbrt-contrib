@@ -16,16 +16,20 @@ void AppMain() {
 
   ebbrt::perf::PerfCounter c{ebbrt::perf::PerfEvent::fixed_cycles};
 
-  //c.start();
-  //for( int i = 1; i<ITERATIONS*10000; i++){
-  //  asm volatile(""); 
-  //}
-  //c.stop();
+  c.Start();
+  for( int i = 1; i<ITERATIONS; i++){
+    asm volatile(""); 
+    ebbrt::kprintf(".");
+  }
+  printer->Print("GATHERING NUMBERS.\n"); 
+  c.Stop();
 
-  //auto count = c.read();
+  auto count = c.Read();
+  ebbrt::kprintf("\nRead %llu cycles\n", count);
   //c.clear();
   //auto ofl = c.overflow();
 
+  printer->Print("SANITY BACKEND FINISHED.\n"); 
   ebbrt::event_manager->SpawnLocal([=]() { ebbrt::kprintf("Powering off...\n"); });
   ebbrt::event_manager->SpawnLocal([=]() { ebbrt::acpi::PowerOff(); });
  }
