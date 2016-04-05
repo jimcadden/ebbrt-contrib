@@ -6,118 +6,27 @@
 #define RUNS 100
 #define ITERATIONS 1000
 
-#include "Printer.h"
-#include "Profiler.h"
 #include <ebbrt/Acpi.h>
 #include <ebbrt/EventManager.h>
-#include <ebbrt/Trace.h>
+#include "Printer.h"
+#include "Perf.h"
 
 void AppMain() { 
   printer->Print("SANITY BACKEND UP.\n"); 
-  ebbrt::profiler::Duration d;
 
-  ebbrt::profiler::Profiler prof;
-  prof.tick();
-  for( int i = 0; i<ITERATIONS; i++){
-    ebbrt::kprintf("."); 
-  }
-  prof.tock();
-  for( int i = 0; i<ITERATIONS; i++){
-   asm volatile(""); 
-    ebbrt::kprintf("."); 
-  }
-  d = prof.get();
-  ebbrt::kprintf("1 %llu %llu %llu %llu \n", d.tsc,
-    d.wct, d.instructions, d.cycles);
-  printer->Print("SANITY BACKEND POWERING OFF.\n"); 
-  ////
-  //prof.tick();
-  //for( int i = 0; i<ITERATIONS*100; i++){
-  // asm volatile(""); 
-  //}
-  //prof.tock();
-  //ebbrt::kprintf("2 %llu\n", prof.get());
-  ////
-  //prof.tick();
-  //for( int i = 0; i<ITERATIONS*1000; i++){
-  // asm volatile(""); 
-  //}
-  //prof.tock();
-  //ebbrt::kprintf("3 %llu\n", prof.get());
+  ebbrt::perf::PerfCounter c{ebbrt::perf::PerfEvent::fixed_cycles};
 
-  //for( int i = 0; i<ITERATIONS*10000; i++){
-  // asm volatile(""); 
+  //c.start();
+  //for( int i = 1; i<ITERATIONS*10000; i++){
+  //  asm volatile(""); 
   //}
+  //c.stop();
+
+  //auto count = c.read();
+  //c.clear();
+  //auto ofl = c.overflow();
 
   ebbrt::event_manager->SpawnLocal([=]() { ebbrt::kprintf("Powering off...\n"); });
   ebbrt::event_manager->SpawnLocal([=]() { ebbrt::acpi::PowerOff(); });
-//  ebbrt::kprintf("ITERATIONS:%llu\n",ITERATIONS);
-//  ebbrt::kprintf("[ status, func, n/a, time, cycles, instructions ]\n");
-//  ebbrt::trace::Init();
-//  ebbrt::trace::Enable();
-//
-//  // OVERHEADS
-//  {
-//    for( int i = 0; i<RUNS; i++){
-// //     auto start = ebbrt::trace::rdtsc();
-// //     auto start = ebbrt::trace::rdpmc((reg));
-//      auto start = ebbrt::trace::rdpmc((reg+1));
-//      ebbrt::trace::AddTracepoint(0);
-//      auto end = ebbrt::trace::rdpmc((reg+1));
-// //     auto end = ebbrt::trace::rdpmc((reg));
-// //     auto end  = ebbrt::trace::rdtsc();
-//      ebbrt::kprintf("TP:%llu - %llu = %llu\n",end,start,(end-start)); 
-//    }
-//  }
-//  {
-//    for( int i = 0; i<RUNS; i++){
-// //     auto start = ebbrt::trace::rdtsc();
-// //     auto start = ebbrt::trace::rdpmc((reg));
-//      auto start = ebbrt::trace::rdpmc((reg+1));
-//      ebbrt::trace::AddTimestamp(0);
-//      auto end = ebbrt::trace::rdpmc((reg+1));
-// //     auto end = ebbrt::trace::rdpmc((reg));
-// //     auto end  = ebbrt::trace::rdtsc();
-//      ebbrt::kprintf("TS:%llu - %llu = %llu\n",end,start,(end-start)); 
-//    }
-//  }
-//  {
-//    for( int i = 0; i<RUNS; i++){
-//  //    auto start = ebbrt::trace::rdtsc();
-// //     auto start = ebbrt::trace::rdpmc((reg));
-//      auto start = ebbrt::trace::rdpmc((reg+1));
-//      ebbrt::trace::AddNote("aaa");
-//      auto end = ebbrt::trace::rdpmc((reg+1));
-// //     auto end = ebbrt::trace::rdpmc((reg));
-//  //    auto end  = ebbrt::trace::rdtsc();
-//      ebbrt::kprintf("NT:%llu - %llu = %llu\n",end,start,(end-start)); 
-//    }
-//  }
-//  ebbrt::trace::AddNote("000");
-//  ebbrt::trace::AddTracepoint(0);
-//  // sanity tests
-//  for( int i = 0; i<ITERATIONS; i++){
-//   asm volatile(""); 
-//  }
-//  ebbrt::trace::AddTracepoint(1);
-//
-//  ebbrt::trace::AddNote("001");
-//  ebbrt::trace::AddTimestamp(0);
-//  // sanity tests
-//  for( int i = 0; i<ITERATIONS; i++){
-//   asm volatile(""); 
-//  }
-//  ebbrt::trace::AddTimestamp(1);
-//
-//  ebbrt::trace::Disable();
-//  ebbrt::trace::Dump();
  }
 
-/*
-  is = ebbrt::trace::rdpmc((reg));
-  cs = ebbrt::trace::rdpmc((reg + 1));
-  ts = ebbrt::trace::rdtsc();
-  for (auto i = 0; i < ITERATIONS; i++) { ebbrt::trace::AddTracepoint(0);}
-  for (auto i = 0; i < ITERATIONS; i++) { ebbrt::trace::AddNote("overhead");}
- *
- */
