@@ -2,7 +2,7 @@
 #include <cstdint>
 #include <ebbrt/Clock.h>
 
-#define IS_INTEL 0
+#define IS_INTEL 1
 
 const constexpr uint32_t reg =
     1 << 30; // Intel fixed-purpose-register config flag
