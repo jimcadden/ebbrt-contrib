@@ -37,7 +37,7 @@ namespace perf {
 #define PERFEVT_SEL_BRANCH_MISSES             0xC5
 #define FIXED_CTR_OFFSET                      0x20
 
-enum class PerfEvent : char {
+enum class PerfEvent : uint8_t {
     cycles = 0x0,
     instructions, 
     reference_cycles,
@@ -45,8 +45,8 @@ enum class PerfEvent : char {
     llc_misses,
     branch_instructions,
     branch_misses,
-    fixed_cycles = FIXED_CTR_OFFSET,
-    fixed_instructions,
+    fixed_instructions = FIXED_CTR_OFFSET,
+    fixed_cycles,
     fixed_reference_cycles
 };
 
@@ -122,8 +122,9 @@ public:
   void Start();
   void Stop();
 private:
-  std::atomic<bool> is_running_;
   PerfEvent evt_;
+  bool is_running_;
+  uint64_t offset_;
   uint8_t pmc_gp_count_;
   uint8_t pmc_version_;
   uint8_t pmc_events_;

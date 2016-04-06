@@ -53,6 +53,12 @@ inline void wrmsr(uint64_t val, uint32_t msr){
                            "d"(val >> 32), "c"(msr));
 }
 
+inline uint64_t rdmsr(uint32_t msr){
+  uint64_t val;
+  asm volatile("rdmsr;" : "=A"(val) : "c" (msr));
+  return val;
+}
+
 }
 
 #endif  // BAREMETAL_SRC_INCLUDE_EBBRT_CPUASM_H_

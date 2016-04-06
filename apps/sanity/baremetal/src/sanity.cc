@@ -15,17 +15,56 @@ void AppMain() {
   printer->Print("SANITY BACKEND UP.\n"); 
 
   ebbrt::perf::PerfCounter c{ebbrt::perf::PerfEvent::fixed_cycles};
+  ebbrt::perf::PerfCounter i{ebbrt::perf::PerfEvent::fixed_instructions};
+
+  for( int i = 1; i<ITERATIONS; i++){
+    asm volatile(""); 
+  }
+  auto count = c.Read();
+  auto count2 = i.Read();
+  ebbrt::kprintf("Counters: c:%llu  i:%llu\n", count, count2);
 
   c.Start();
   for( int i = 1; i<ITERATIONS; i++){
     asm volatile(""); 
-    ebbrt::kprintf(".");
   }
-  printer->Print("GATHERING NUMBERS.\n"); 
+  c.Stop();
+  i.Start();
+  for( int i = 1; i<ITERATIONS; i++){
+    asm volatile(""); 
+  }
+  i.Stop();
+
+  count = c.Read();
+  count2 = i.Read();
+  ebbrt::kprintf("Counters: c:%llu  i:%llu\n", count, count2);
+
+  /// this should not be counted
+  for( int i = 1; i<ITERATIONS*100; i++){
+    asm volatile(""); 
+  }
+  //// 
+  
+  c.Start();
+  i.Start();
+  for( int i = 1; i<ITERATIONS; i++){
+    asm volatile(""); 
+  }
+  i.Stop();
+  for( int i = 1; i<ITERATIONS; i++){
+    asm volatile(""); 
+  }
   c.Stop();
 
-  auto count = c.Read();
-  ebbrt::kprintf("\nRead %llu cycles\n", count);
+  count = c.Read();
+  count2 = i.Read();
+  ebbrt::kprintf("Counters: c:%llu  i:%llu\n", count, count2);
+
+  c.Clear();
+  i.Clear();
+  count = c.Read();
+  count2 = i.Read();
+  ebbrt::kprintf("Counters: c:%llu  i:%llu\n", count, count2);
   //c.clear();
   //auto ofl = c.overflow();
 
