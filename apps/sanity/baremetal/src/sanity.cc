@@ -14,8 +14,8 @@
 void AppMain() { 
   printer->Print("SANITY BACKEND UP.\n"); 
 
-  ebbrt::perf::PerfCounter c{ebbrt::perf::PerfEvent::cycles};
-  ebbrt::perf::PerfCounter i{ebbrt::perf::PerfEvent::branch_misses};
+  ebbrt::perf::PerfCounter c{ebbrt::perf::PerfEvent::fixed_cycles};
+  ebbrt::perf::PerfCounter i{ebbrt::perf::PerfEvent::fixed_reference_cycles};
 
   for( int i = 1; i<ITERATIONS; i++){
     asm volatile(""); 

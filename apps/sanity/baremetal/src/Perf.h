@@ -19,12 +19,12 @@ namespace perf {
 #define IA32_PERF_GLOBAL_CTRL_MSR             0x38F
 #define IA32_PERF_GLOBAL_STATUS_MSR           0x38E
 #define IA32_PERF_GLOBAL_OVF_CTRL_MSR         0x390
-#define IA32_FXD_CTR(X)                       (0x309+(X))
+#define IA32_FXD_PMC(X)                       (0x309+(X))
 #define PERF_EVENT_BITMASK(X)                 (1 << X)
 
 #define IA32_PERFEVTSEL_MSR(X)                (0x186+(X))
-#define IA32_PERFEVTCNT_MSR                   0x4C1
-#define IA32_GP_CTR(X)                        (0x4C1+(X))
+#define IA32_PMC(X)                           (0x0C1+(X))
+#define IA32_A_PMC(X)                         (0x4C1+(X))
 
 #define PERFEVTSEL_EVT_CYCLES                 0x3C
 #define PERFEVTSEL_EVT_INSTRUCTIONS           0xC0

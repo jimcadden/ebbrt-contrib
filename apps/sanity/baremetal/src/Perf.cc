@@ -22,25 +22,31 @@ ebbrt::perf::PerfCounter::PerfCounter(ebbrt::perf::PerfEvent evt) : evt_{evt}, i
   pmc_count_ = (a>>8) & 0xFF; 
   pmc_width_ = (a>>16) & 0xFF; 
   pmc_events_ = (b) & 0xFF; 
+  kprintf("Supported Events:%x\n", pmc_events_);
+  for( int e=0; e<7; e++)
+    if((pmc_events_ >> e) & 1){
+      kprintf("Event %d is not supported\n",e);
+    }
   pmc_fixed_count_ = (d) & 0xF; 
   pmc_fixed_width_ = (d>>4) & 0xFF; 
 
   kassert( pmc_version_  >= 1 );
   kassert( pmc_count_ > 0 );
-  if( (uint8_t)evt_ >= FIXED_EVT_OFFSET )
+  if( static_cast<uint8_t>(evt_) >= FIXED_EVT_OFFSET )
     kassert( pmc_version_  >= 2 );
   else{
-    auto not_valid = (pmc_events_ >> (uint8_t)evt_);
+    auto not_valid = (pmc_events_ >> static_cast<uint8_t>(evt_)) & 0x1;
     kassert( not_valid == 0);
   }
 
+  offset_ = 0;
   ia32_fixed_ctr_ctrl_t fixed_ctrl;
   ia32_perfevtsel_t perfevtsel;
   fixed_ctrl.val = ebbrt::rdmsr(IA32_FIXED_CTR_CTRL_MSR); 
   perfevtsel.val = 0;
   perfevtsel.usermode = 1;
   perfevtsel.osmode = 1;
-  //perfevtsel.en = 1;
+  perfevtsel.en = 1;
   switch(evt_){
     case PerfEvent::cycles:
       perfevtsel.event = PERFEVTSEL_EVT_CYCLES;
@@ -110,6 +116,20 @@ ebbrt::perf::PerfCounter::PerfCounter(ebbrt::perf::PerfEvent evt) : evt_{evt}, i
 
 void ebbrt::perf::PerfCounter::Clear(){
   switch(evt_){
+    case PerfEvent::cycles:
+      break;
+    case PerfEvent::instructions:
+      break;
+    case PerfEvent::reference_cycles:
+      break;
+    case PerfEvent::llc_references:
+      break;
+    case PerfEvent::llc_misses:
+      break;
+    case PerfEvent::branch_instructions:
+      break;
+    case PerfEvent::branch_misses:
+      break;
     case PerfEvent::fixed_instructions: 
       offset_ = ebbrt::rdpmc((FAST_READ(0)));
       break;
@@ -125,7 +145,7 @@ void ebbrt::perf::PerfCounter::Clear(){
 }
 
 int8_t ebbrt::perf::PerfCounter::AvailablePMCs(){
-  return (( (int8_t)pmc_count_ - (int8_t)next_pmc ));
+  return (( static_cast<uint8_t>(pmc_count_) - static_cast<uint8_t>(next_pmc) ));
 }
 
 void ebbrt::perf::PerfCounter::Start(){
@@ -141,12 +161,33 @@ void ebbrt::perf::PerfCounter::Stop(){
 }
 uint64_t ebbrt::perf::PerfCounter::Read(){
   switch(evt_){
+    case PerfEvent::cycles:
+        return ebbrt::rdmsr(((IA32_PMC(0))));
+      break;
+    case PerfEvent::instructions:
+        return ebbrt::rdmsr(((IA32_PMC(1))));
+      break;
+    case PerfEvent::reference_cycles:
+        return ebbrt::rdmsr(((IA32_PMC(2))));
+      break;
+    case PerfEvent::llc_references:
+        return ebbrt::rdmsr(((IA32_PMC(3))));
+      break;
+    case PerfEvent::llc_misses:
+        return ebbrt::rdmsr(((IA32_PMC(4))));
+      break;
+    case PerfEvent::branch_instructions:
+        return ebbrt::rdmsr(((IA32_PMC(6))));
+      break;
+    case PerfEvent::branch_misses:
+        return ebbrt::rdmsr(((IA32_PMC(6))));
+      break;
     case PerfEvent::fixed_instructions: 
-      return ebbrt::rdpmc((FAST_READ(0))) - offset_;
+        return ebbrt::rdmsr((IA32_FXD_PMC(0)));
     case PerfEvent::fixed_cycles:
-      return ebbrt::rdpmc((FAST_READ(1))) - offset_;
+        return ebbrt::rdmsr((IA32_FXD_PMC(1)));
     case PerfEvent::fixed_reference_cycles: 
-      return ebbrt::rdpmc((FAST_READ(2))) - offset_;
+        return ebbrt::rdmsr((IA32_FXD_PMC(2)));
       break;
     default:
       break;
