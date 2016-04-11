@@ -20,7 +20,6 @@ ebbrt::perf::PerfCounter::PerfCounter(ebbrt::perf::PerfEvent evt) : evt_{evt} {
   ebbrt::cpuid(PERF_CPUID_LEAF,0,&a, &b, &c, &d);
   pmc_version_ = a & 0xFF;
   pmc_count_ = (a>>8) & 0xFF; 
-  pmc_width_ = (a>>16) & 0xFF; 
   pmc_events_ = (b) ;//& 0xFF; 
   pmc_fixed_count_ = (d) & 0xF; 
   pmc_fixed_width_ = (d>>4) & 0xFF; 
@@ -103,6 +102,7 @@ ebbrt::perf::PerfCounter::PerfCounter(ebbrt::perf::PerfEvent evt) : evt_{evt} {
   if( fixed_ctrl.val != 0 ){
     fixed_ctrl.val |= ebbrt::rdmsr(IA32_FIXED_CTR_CTRL_MSR); 
     ebbrt::wrmsr(fixed_ctrl.val, IA32_FIXED_CTR_CTRL_MSR);
+    kprintf("PMC setup complete. pmc:%d event:%d\n", pmc_num_, evt_num_ );
     return;
   }
   
@@ -112,6 +112,7 @@ ebbrt::perf::PerfCounter::PerfCounter(ebbrt::perf::PerfEvent evt) : evt_{evt} {
     perfevtsel.en = 1;
     ebbrt::wrmsr(perfevtsel.val, IA32_PERFEVTSEL_MSR(pmc_num_));
     counter_offset_ = ebbrt::rdmsr(IA32_PMC(pmc_num_));
+    kprintf("PMC setup complete. pmc:%d event:%d\n", pmc_num_, evt_num_ );
     return;
   }
     
@@ -159,23 +160,14 @@ void ebbrt::perf::PerfCounter::Stop(){
 }
 uint64_t ebbrt::perf::PerfCounter::Read(){
   switch(evt_){
-    case PerfEvent::cycles:
-    case PerfEvent::instructions:
-    case PerfEvent::reference_cycles:
-    case PerfEvent::llc_references:
-    case PerfEvent::llc_misses:
-    case PerfEvent::branch_instructions:
-    case PerfEvent::branch_misses:
-        return ebbrt::rdmsr(IA32_PMC(pmc_num_)) - counter_offset_;
     case PerfEvent::fixed_instructions: 
         return ebbrt::rdmsr((IA32_FXD_PMC(0))) - counter_offset_;
     case PerfEvent::fixed_cycles:
         return ebbrt::rdmsr((IA32_FXD_PMC(1))) - counter_offset_;
     case PerfEvent::fixed_reference_cycles: 
         return ebbrt::rdmsr((IA32_FXD_PMC(2))) - counter_offset_;
-      break;
     default:
-      break;
+        return ebbrt::rdmsr(IA32_PMC(pmc_num_)) - counter_offset_;
   };
   return 0;
 }
