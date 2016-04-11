@@ -12,33 +12,36 @@ namespace perf {
 #define FIXED_CTL_RING_LVL_OS                 0x1
 #define FIXED_CTL_RING_LVL_USR                0x2
 #define FIXED_CTL_RING_LVL_ALL                0x3
-#define FAST_READ(X)                          ((1 << 30)+X)
-#define FIXED_EVT_OFFSET                      0x20
-
 #define IA32_FIXED_CTR_CTRL_MSR               0x38D
 #define IA32_PERF_GLOBAL_CTRL_MSR             0x38F
 #define IA32_PERF_GLOBAL_STATUS_MSR           0x38E
 #define IA32_PERF_GLOBAL_OVF_CTRL_MSR         0x390
 #define IA32_FXD_PMC(X)                       (0x309+(X))
 #define PERF_EVENT_BITMASK(X)                 (1 << X)
-
 #define IA32_PERFEVTSEL_MSR(X)                (0x186+(X))
 #define IA32_PMC(X)                           (0x0C1+(X))
 #define IA32_A_PMC(X)                         (0x4C1+(X))
-
+#define FIXED_EVT_OFFSET(X)                   (0x20+(X))
+// cycles
 #define PERFEVTSEL_EVT_CYCLES                 0x3C
-#define PERFEVTSEL_EVT_INSTRUCTIONS           0xC0
-#define PERFEVTSEL_EVT_CYCLES_REF             0x3C
-#define PERFEVTSEL_EVT_LLC_REF                0x2E
-#define PERFEVTSEL_EVT_LLC_MISSES             0x2E
-#define PERFEVTSEL_EVT_BRANCH_INSTRUCTIONS    0xC4
-#define PERFEVTSEL_EVT_BRANCH_MISSES          0xC5
 #define PERFEVTSEL_UMASK_CYCLES               0x00
-#define PERFEVTSEL_UMASK_INSTRUCTIONS         0x00
+// reference cycles
+#define PERFEVTSEL_EVT_CYCLES_REF             0x3C
 #define PERFEVTSEL_UMASK_CYCLES_REF           0x01
-#define PERFEVTSEL_UMASK_LLC_REF              0x4f
+// instructions
+#define PERFEVTSEL_EVT_INSTRUCTIONS           0xC0
+#define PERFEVTSEL_UMASK_INSTRUCTIONS         0x00
+// last-level cache references
+#define PERFEVTSEL_EVT_LLC_REF                0x2E
+#define PERFEVTSEL_UMASK_LLC_REF              0x4F
+// last-level cache misses
+#define PERFEVTSEL_EVT_LLC_MISSES             0x2E
 #define PERFEVTSEL_UMASK_LLC_MISSES           0x41
+// branch instructions
+#define PERFEVTSEL_EVT_BRANCH_INSTRUCTIONS    0xC4
 #define PERFEVTSEL_UMASK_BRANCH_INSTRUCTIONS  0x00
+// branch misses
+#define PERFEVTSEL_EVT_BRANCH_MISSES          0xC5
 #define PERFEVTSEL_UMASK_BRANCH_MISSES        0x00
 
 enum class PerfEvent : uint8_t {
@@ -49,7 +52,7 @@ enum class PerfEvent : uint8_t {
     llc_misses,
     branch_instructions,
     branch_misses,
-    fixed_instructions = FIXED_EVT_OFFSET,
+    fixed_instructions = FIXED_EVT_OFFSET(0),
     fixed_cycles,
     fixed_reference_cycles
 };
@@ -128,15 +131,15 @@ public:
   int8_t AvailablePMCs();
 private:
   PerfEvent evt_;
-  bool is_running_;
-  uint64_t offset_;
+  uint8_t evt_num_;
+  uint8_t pmc_num_;
   uint8_t pmc_version_;
   uint8_t pmc_count_;
   uint8_t pmc_width_;
   uint8_t pmc_events_;
   uint8_t pmc_fixed_count_;
   uint8_t pmc_fixed_width_;
-  uint8_t overflow_cnt;
+  uint64_t counter_offset_;
 };
 
 }

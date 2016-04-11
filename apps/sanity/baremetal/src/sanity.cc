@@ -3,8 +3,8 @@
 //    (See accompanying file LICENSE_1_0.txt or copy at
 //          http://www.boost.org/LICENSE_1_0.txt)
 
-#define RUNS 100
-#define ITERATIONS 1000
+#define PRINT_ITERATIONS 100
+#define NIL_ITERATIONS 10000
 
 #include <ebbrt/Acpi.h>
 #include <ebbrt/EventManager.h>
@@ -14,62 +14,85 @@
 void AppMain() { 
   printer->Print("SANITY BACKEND UP.\n"); 
 
-  ebbrt::perf::PerfCounter c{ebbrt::perf::PerfEvent::fixed_cycles};
-  ebbrt::perf::PerfCounter i{ebbrt::perf::PerfEvent::fixed_reference_cycles};
+  ebbrt::perf::PerfCounter c{ebbrt::perf::PerfEvent::llc_misses};
+  ebbrt::perf::PerfCounter i{ebbrt::perf::PerfEvent::branch_misses};
+  ebbrt::perf::PerfCounter m{ebbrt::perf::PerfEvent::reference_cycles};
+  // llc_references
+  // reference_cycles
 
-  for( int i = 1; i<ITERATIONS; i++){
-    asm volatile(""); 
-  }
   auto count = c.Read();
   auto count2 = i.Read();
-  ebbrt::kprintf("Counters: c:%llu  i:%llu\n", count, count2);
+  auto count3 = m.Read();
+  ebbrt::kprintf("New: %llu %llu %llu \n", count, count2, count3);
 
   c.Start();
-  for( int i = 1; i<ITERATIONS; i++){
+  i.Start();
+  m.Start();
+  for( int i = 1; i<NIL_ITERATIONS; i++){
     asm volatile(""); 
   }
   c.Stop();
-  i.Start();
-  for( int i = 1; i<ITERATIONS; i++){
-    asm volatile(""); 
-  }
   i.Stop();
+  m.Stop();
 
   count = c.Read();
   count2 = i.Read();
-  ebbrt::kprintf("Counters: c:%llu  i:%llu\n", count, count2);
+  count3 = m.Read();
+  ebbrt::kprintf("Nil: %llu %llu %llu \n", count, count2, count3);
 
   /// this should not be counted
-  for( int i = 1; i<ITERATIONS*100; i++){
+  for( int i = 1; i<NIL_ITERATIONS*100; i++){
     asm volatile(""); 
   }
   //// 
+  count = c.Read();
+  count2 = i.Read();
+  count3 = m.Read();
+  ebbrt::kprintf("Stopped: %llu %llu %llu \n", count, count2, count3);
   
   c.Start();
   i.Start();
-  for( int i = 1; i<ITERATIONS; i++){
-    asm volatile(""); 
-  }
-  i.Stop();
-  for( int i = 1; i<ITERATIONS; i++){
+  m.Start();
+  for( int i = 1; i<NIL_ITERATIONS; i++){
     asm volatile(""); 
   }
   c.Stop();
+  i.Stop();
+  m.Stop();
 
   count = c.Read();
   count2 = i.Read();
-  ebbrt::kprintf("Counters: c:%llu  i:%llu\n", count, count2);
+  count3 = m.Read();
+  ebbrt::kprintf("Nil 2: %llu %llu %llu \n", count, count2, count3);
 
   c.Clear();
   i.Clear();
+  m.Clear();
   count = c.Read();
   count2 = i.Read();
-  ebbrt::kprintf("Counters: c:%llu  i:%llu\n", count, count2);
-  //c.clear();
-  //auto ofl = c.overflow();
+  count3 = m.Read();
+  ebbrt::kprintf("Clear: %llu %llu %llu \n", count, count2, count3);
+
+
+  c.Start();
+  i.Start();
+  m.Start();
+  for( int i = 1; i<PRINT_ITERATIONS; i++){
+    ebbrt::kprintf(".");
+  }
+  c.Stop();
+  i.Stop();
+  m.Stop();
+
+  count = c.Read();
+  count2 = i.Read();
+  count3 = m.Read();
+  ebbrt::kprintf("\nPrint: %llu %llu %llu \n", count, count2, count3);
+
+
 
   printer->Print("SANITY BACKEND FINISHED.\n"); 
-  ebbrt::event_manager->SpawnLocal([=]() { ebbrt::kprintf("Powering off...\n"); });
+  ebbrt::event_manager->SpawnLocal([=]() { ebbrt::kprintf("Shuting Down...\n"); });
   ebbrt::event_manager->SpawnLocal([=]() { ebbrt::acpi::PowerOff(); });
  }
 
