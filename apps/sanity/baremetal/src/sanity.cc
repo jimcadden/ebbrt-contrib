@@ -8,8 +8,9 @@
 
 #include <ebbrt/Acpi.h>
 #include <ebbrt/EventManager.h>
-#include "Printer.h"
+//#include <ebbrt/Perf.h>
 #include "Perf.h"
+#include "Printer.h"
 
 void AppMain() { 
   printer->Print("SANITY BACKEND UP.\n"); 

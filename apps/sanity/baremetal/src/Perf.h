@@ -1,11 +1,6 @@
 #ifndef SANITY_SRC_INCLUDE_EBBRT_PERF_H_
 #define SANITY_SRC_INCLUDE_EBBRT_PERF_H_
 
-#include <atomic>
-#include <cstdint>
-#include <string>
-#include "CpuAsm.h"
-
 namespace ebbrt {
 namespace perf {
 #define PERF_CPUID_LEAF                       0x0A
