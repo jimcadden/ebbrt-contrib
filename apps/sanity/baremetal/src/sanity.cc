@@ -8,8 +8,8 @@
 
 #include <ebbrt/Acpi.h>
 #include <ebbrt/EventManager.h>
-//#include <ebbrt/Perf.h>
-#include "Perf.h"
+#include <ebbrt/Perf.h>
+//#include "Perf.h"
 #include "Printer.h"
 
 void AppMain() { 
