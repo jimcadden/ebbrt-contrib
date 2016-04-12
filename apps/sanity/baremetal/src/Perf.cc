@@ -7,6 +7,8 @@
 #include "CpuAsm.h"
 #include "Perf.h"
 
+BROKEN!
+
 namespace {
 thread_local uint64_t perf_global_ctrl{0};
 thread_local uint8_t  next_pmc{0};

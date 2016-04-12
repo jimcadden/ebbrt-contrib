@@ -3,8 +3,13 @@
 //    (See accompanying file LICENSE_1_0.txt or copy at
 //          http://www.boost.org/LICENSE_1_0.txt)
 
-#define PAGES               10
-#define NIL_ITERATIONS 1000000
+#define PAGES                 4
+#define ELEMENTS           ((1<<17)) 
+#define M_LEN    PAGES*ELEMENTS
+#define NIL_ITERATIONS  1000000
+
+#define MATRIX_TEST     0
+#define NIL_LOOP        1
 
 #include <unordered_map>
 #include <ebbrt/Acpi.h>
@@ -14,29 +19,27 @@
 
 void AppMain() { 
 
-  printer->Print("BACKEND UP.\n"); 
-
-  uint64_t data[64 * PAGES];
-  for( auto i=0ull; i<(64*PAGES); i++){
+  auto data = new uint64_t[M_LEN];
+  for( auto i=0ull; i<(M_LEN); i++){
     data[i] = i;
   }
-  ebbrt::kprintf("array allocated: %d - %d\n", data[0], data[64*PAGES-1]);
 
   std::unordered_map<std::string, ebbrt::perf::PerfCounter> counters;
-  counters.emplace(std::make_pair(std::string("ref_cycles"), 
-        ebbrt::perf::PerfCounter{ebbrt::perf::PerfEvent::reference_cycles}));
+
+ // counters.emplace(std::make_pair(std::string("cycles      "), 
+ //       std::move(ebbrt::perf::PerfCounter{ebbrt::perf::PerfEvent::fixed_cycles})));
   counters.emplace(std::make_pair(std::string("instructions"), 
-        std::move(ebbrt::perf::PerfCounter{ebbrt::perf::PerfEvent::instructions})));
-  counters.emplace(std::make_pair(std::string("llc_misses"), 
-        std::move(ebbrt::perf::PerfCounter{ebbrt::perf::PerfEvent::llc_misses})));
-  counters.emplace(std::make_pair(std::string("branch_misses"), 
-        std::move(ebbrt::perf::PerfCounter{ebbrt::perf::PerfEvent::branch_misses})));
+        std::move(ebbrt::perf::PerfCounter{ebbrt::perf::PerfEvent::fixed_instructions})));
+ // counters.emplace(std::make_pair(std::string("tlb_load_miss"), 
+ //       std::move(ebbrt::perf::PerfCounter{ebbrt::perf::PerfEvent::tlb_load_misses})));
+ // counters.emplace(std::make_pair(std::string("tlb_store_miss"), 
+ //       std::move(ebbrt::perf::PerfCounter{ebbrt::perf::PerfEvent::tlb_store_misses})));
+ // counters.emplace(std::make_pair(std::string("llc_misses"), 
+ //       std::move(ebbrt::perf::PerfCounter{ebbrt::perf::PerfEvent::llc_misses})));
+ // counters.emplace(std::make_pair(std::string("llc_references"), 
+ //       std::move(ebbrt::perf::PerfCounter{ebbrt::perf::PerfEvent::llc_references})));
 
-  ebbrt::kprintf("\nInital counter values:\n");
-  for( auto& i : counters ){
-    ebbrt::kprintf("%s\t\t%llu\n", i.first.c_str(), i.second.Read());
-  }
-
+#if NIL_LOOP
   ebbrt::kprintf("\n Nil counter:\n");
   for( auto& i : counters ){
     i.second.Start();
@@ -47,21 +50,68 @@ void AppMain() {
     ebbrt::kprintf("%s\t\t%llu\n", i.first.c_str(), i.second.Read());
     i.second.Clear();
   }
+#endif
 
-  ebbrt::kprintf("\n Sum matrix counter:\n");
+#if MATRIX_TEST
+  ebbrt::kprintf("\n Sum matrix counter w/ clflush:\n");
   for( auto& i : counters ){
     i.second.Start();
+    asm volatile ("cpuid" : : : "eax", "ebx", "ecx", "edx");
     auto sum = 0ull;
-    for( auto j=0ull; j<(64*PAGES); j++){
-      sum += data[j];
+    for( auto j=0ull; j<(M_LEN); j++){
+      auto addr=&data[j];
+      asm volatile("clflush %[addr]" : [addr] "+m" (addr)); 
+      //asm volatile("invlpg %[addr]" : [addr] "+m" (addr) : : "memory"); 
+      sum += data[j]; 
     }
     i.second.Stop();
     ebbrt::kprintf("%s\t\t%llu\t\t%llu\n", i.first.c_str(), i.second.Read(), sum);
     i.second.Clear();
   }
 
+  ebbrt::kprintf("\n Sum matrix counter w/ clear cr3:\n");
+  for( auto& i : counters ){
+      unsigned long val;
+      asm volatile("mov %%cr3, %[val]" : [val] "=r" (val));
+      asm volatile("mov %[val], %%cr3" : : [val] "r" (val));
+    i.second.Start();
+    asm volatile ("cpuid" : : : "eax", "ebx", "ecx", "edx");
+    auto sum = 0ull;
+    for( auto j=0ull; j<(M_LEN); j++){
+      //auto addr=&data[j];
+      ////asm volatile("clflush %[addr]" : [addr] "+m" (addr)); 
+      //asm volatile("invlpg %[addr]" : [addr] "+m" (addr) : : "memory"); 
+      sum += data[j]; 
+    }
+    i.second.Stop();
+    ebbrt::kprintf("%s\t\t%llu\t\t%llu\n", i.first.c_str(), i.second.Read(), sum);
+    i.second.Clear();
+  }
+
+  ebbrt::kprintf("\n Write matrix counter w/ clear cr3:\n");
+  for( auto& i : counters ){
+      unsigned long val;
+      asm volatile("mov %%cr3, %[val]" : [val] "=r" (val));
+      asm volatile("mov %[val], %%cr3" : : [val] "r" (val));
+    i.second.Start();
+    asm volatile ("cpuid" : : : "eax", "ebx", "ecx", "edx");
+    auto sum = 0ull;
+    for( auto j=0ull; j<(M_LEN); j++){
+      //auto addr=&data[j];
+      ////asm volatile("clflush %[addr]" : [addr] "+m" (addr)); 
+      //asm volatile("invlpg %[addr]" : [addr] "+m" (addr) : : "memory"); 
+      data[j]=0; 
+    }
+    i.second.Stop();
+    ebbrt::kprintf("%s\t\t%llu\t\t%llu\n", i.first.c_str(), i.second.Read(), sum);
+    i.second.Clear();
+  }
+#endif
+
+  delete[] data;
+
   printer->Print("BACKEND FINISHED.\n"); 
-  ebbrt::event_manager->SpawnLocal([=]() { ebbrt::kprintf("Shuting Down...\n"); });
+//  ebbrt::event_manager->SpawnLocal([=]() { ebbrt::kprintf("Shuting Down...\n"); });
   ebbrt::event_manager->SpawnLocal([=]() { ebbrt::acpi::PowerOff(); });
  }
 

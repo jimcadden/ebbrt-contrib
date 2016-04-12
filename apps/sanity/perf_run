@@ -1,0 +1,5 @@
+#!/bin/bash
+set -x
+export PERF_EVENTS=cycles:G,instructions:G,branch-misses:G,context-switches:G,page-faults:G,cpu-migrations:G,kvm:*
+export EBBRT_NODE_ALLOCATOR_DEFAULT_ARGUMENTS="--pin='0-6' --perf=\"--guest stat -o /tmp/perf.out -e '$PERF_EVENTS' -a\""
+./hosted/build/Debug/sanity
