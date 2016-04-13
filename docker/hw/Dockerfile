@@ -2,19 +2,26 @@ FROM ubuntu:trusty
 
 RUN apt-get update -yqq
 RUN apt-get install -yqq \
-software-properties-common \
-git \
-wget \
+autoconf \
 automake \
+bridge-utils \
 build-essential \
-libtool  \
-libfdt-dev \
 cmake  \
+dnsmasq \
+git \
+libboost-coroutine-dev  \
 libboost-dev  \
 libboost-filesystem-dev  \
-libboost-coroutine-dev  \
+libfdt-dev \
+libglib2.0-dev \
 libtbb-dev \
-dnsmasq 
+libtool  \
+libtool \
+pkg-config \
+python-git \
+software-properties-common \
+wget \
+zlib1g-dev
 
 # GCC 5.x
 RUN add-apt-repository ppa:ubuntu-toolchain-r/test
@@ -24,7 +31,26 @@ RUN apt-get install -yqq g++-5
 RUN mkdir -p /tmp
 
 #
-# Build and install capnproto
+# QEMU
+#
+RUN git clone -b pin-threads https://github.com/SESA/qemu.git /tmp/qemu
+WORKDIR /tmp/qemu
+RUN git submodule update --init pixman
+RUN ./configure --target-list=x86_64-softmmu --enable-vhost-net --enable-kvm
+RUN make -j
+RUN make install
+
+#
+# Khpy
+#
+RUN mkdir -p /opt
+RUN git clone https://github.com/SESA/khpy.git /opt/khpy
+RUN cp /opt/khpy/initd /etc/init.d/khpy
+RUN chmod +x /etc/init.d/khpy
+RUN service khpy start
+
+#
+# CAPNPROTO
 #
 RUN wget -O /tmp/capnproto.tar.gz https://github.com/sandstorm-io/capnproto/archive/v0.4.0.tar.gz
 WORKDIR /tmp
@@ -35,13 +61,12 @@ RUN ./configure
 RUN make -j
 RUN make install
 
-# switch to gcc 5.x
+#
+# EbbRT
+# we need to switch to gcc 5.x
 RUN ln -f -s /usr/bin/g++-5 /usr/bin/g++
-
-# install EbbRT + toolchain
 RUN git clone --recursive https://github.com/sesa/ebbrt.git /tmp/EbbRT
 RUN make -C /tmp/EbbRT/baremetal/ext/EbbRT-toolchain
 ENV EBBRT_SRCDIR /tmp/EbbRT
 RUN make -j -C /tmp/EbbRT/apps/helloworld Debug
-
 
