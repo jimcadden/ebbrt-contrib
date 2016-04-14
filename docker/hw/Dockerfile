@@ -70,3 +70,4 @@ RUN make -C /tmp/EbbRT/baremetal/ext/EbbRT-toolchain
 ENV EBBRT_SRCDIR /tmp/EbbRT
 RUN make -j -C /tmp/EbbRT/apps/helloworld Debug
 
+CMD ["service", "khpy", "start"]
