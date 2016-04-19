@@ -18,8 +18,8 @@ public:
   uint64_t GetLocal() { return count_; };
   uint64_t Get() {
     auto sum = 0ull;
-    auto reps = this->root_->GetReps();
-    auto refs = reps->ref;
+    auto root = this->GetRoot();
+    auto refs = root->GetReps();
     for (size_t core = 0; core < ebbrt::Cpu::Count(); ++core) {
       auto it = refs->find(core);
       if (it != refs->end()) {
@@ -28,12 +28,13 @@ public:
     }
     return sum;
   };
+
 private:
   uint64_t count_ = 0;
 };
 
 namespace {
- ebbrt::MulticoreEbbRoot<Counter> counter_root;
+ebbrt::MulticoreEbbRoot<Counter> counter_root;
 ebbrt::EbbRef<Counter> counter = Counter::Create(&counter_root);
 auto barrier = new ebbrt::SpinBarrier(ebbrt::Cpu::Count());
 }
@@ -49,6 +50,7 @@ void AppMain() {
         },
         core);
   }
+  counter->Up();
   barrier->Wait();
   ebbrt::event_manager->SpawnLocal(
       [=]() { ebbrt::kprintf("Sum: %llu\n", counter->Get()); });
