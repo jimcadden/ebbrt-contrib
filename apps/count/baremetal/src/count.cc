@@ -41,7 +41,6 @@ auto barrier = new ebbrt::SpinBarrier(ebbrt::Cpu::Count());
 
 void AppMain() {
   printer->Print("COUNT BACKEND UP.\n");
-
   for (size_t core = 1; core < ebbrt::Cpu::Count(); ++core) {
     ebbrt::event_manager->SpawnRemote(
         [core]() {
