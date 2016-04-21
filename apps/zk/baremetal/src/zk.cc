@@ -4,5 +4,6 @@
 //          http://www.boost.org/LICENSE_1_0.txt)
 
 #include "Printer.h"
+#include <zookeeper.h>
 
 void AppMain() { printer->Print("ZK BACKEND UP.\n"); }

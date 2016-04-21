@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <errno.h>
 
-#define EBBRT_UNIMPLEMENTED()                                                  \
+#define UNIMPLEMENTED()                                                  \
   do {                                                                         \
     abort();                            \
   } while (0)

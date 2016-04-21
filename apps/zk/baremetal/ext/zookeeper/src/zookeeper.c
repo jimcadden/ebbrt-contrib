@@ -476,7 +476,7 @@ static int getaddrinfo_errno(int rc) {
  */
 int getaddrs(zhandle_t *zh)
 {
-  EBBRT_UNIMPLEMENTED();
+  UNIMPLEMENTED();
   return 0;
 //
 //    char *hosts = strdup(zh->hostname);
@@ -706,7 +706,7 @@ watcher_fn zoo_set_watcher(zhandle_t *zh,watcher_fn newFn)
 struct sockaddr* zookeeper_get_connected_host(zhandle_t *zh,
                  struct sockaddr *addr, socklen_t *addr_len)
 {
-  EBBRT_UNIMPLEMENTED();
+  UNIMPLEMENTED();
   return NULL;
 //    
 //    if (zh->state!=ZOO_CONNECTED_STATE) {
@@ -1104,7 +1104,7 @@ static int recv_buffer(int fd, buffer_list_t *buff)
 #endif
 {
 
-  EBBRT_UNIMPLEMENTED();
+  UNIMPLEMENTED();
   return 0;
 //    int off = buff->curr_offset;
 //    int rc = 0;
@@ -1568,7 +1568,7 @@ int zookeeper_interest(zhandle_t *zh, int *fd, int *interest,
      struct timeval *tv)
 {
 #endif
-  EBBRT_UNIMPLEMENTED();
+  UNIMPLEMENTED();
   return 0;
 //    struct timeval now;
 //    if(zh==0 || fd==0 ||interest==0 || tv==0)
@@ -1719,7 +1719,7 @@ int zookeeper_interest(zhandle_t *zh, int *fd, int *interest,
 
 static int check_events(zhandle_t *zh, int events)
 {
-  EBBRT_UNIMPLEMENTED();
+  UNIMPLEMENTED();
   return 0;
 //    if (zh->fd == -1)
 //        return ZINVALIDSTATE;
@@ -2156,7 +2156,7 @@ void process_completions(zhandle_t *zh)
 
 static void isSocketReadable(zhandle_t* zh)
 {
-  EBBRT_UNIMPLEMENTED();
+  UNIMPLEMENTED();
   return; 
 //#ifndef WIN32
 //
@@ -3289,7 +3289,7 @@ int zoo_multi(zhandle_t *zh, int count, const zoo_op_t *ops, zoo_op_result_t *re
 int flush_send_queue(zhandle_t*zh, int timeout)
 {
 
-  EBBRT_UNIMPLEMENTED();
+  UNIMPLEMENTED();
   return 0; 
 //    int rc= ZOK;
 //    struct timeval started;
@@ -3459,7 +3459,7 @@ int zoo_add_auth(zhandle_t *zh,const char* scheme,const char* cert,
 
 static const char* format_endpoint_info(const struct sockaddr_storage* ep)
 {
-  EBBRT_UNIMPLEMENTED();
+  UNIMPLEMENTED();
   return NULL; 
 //    static char buf[128];
 //    char addrstr[128];
@@ -3494,7 +3494,7 @@ static const char* format_endpoint_info(const struct sockaddr_storage* ep)
 
 static const char* format_current_endpoint_info(zhandle_t* zh)
 {
-  EBBRT_UNIMPLEMENTED();
+  UNIMPLEMENTED();
   return NULL; 
   //  return format_endpoint_info(&zh->addrs[zh->connect_index]);
 }
