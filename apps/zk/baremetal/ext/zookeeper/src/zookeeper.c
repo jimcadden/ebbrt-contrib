@@ -214,7 +214,8 @@ static ssize_t zookeeper_send(int s, const void* buf, size_t len)
 #ifdef __linux__
   return send(s, buf, len, MSG_NOSIGNAL);
 #else
-  return send(s, buf, len, 0);
+  //return send(s, buf, len, 0);
+  return 0;
 #endif
 }
 
@@ -475,210 +476,213 @@ static int getaddrinfo_errno(int rc) {
  */
 int getaddrs(zhandle_t *zh)
 {
-    char *hosts = strdup(zh->hostname);
-    char *host;
-    char *strtok_last;
-    struct sockaddr_storage *addr;
-    int i;
-    int rc;
-    int alen = 0; /* the allocated length of the addrs array */
-
-    zh->addrs_count = 0;
-    if (zh->addrs) {
-        free(zh->addrs);
-        zh->addrs = 0;
-    }
-    if (!hosts) {
-         LOG_ERROR(("out of memory"));
-        errno=ENOMEM;
-        return ZSYSTEMERROR;
-    }
-    zh->addrs = 0;
-    host=strtok_r(hosts, ",", &strtok_last);
-    while(host) {
-        char *port_spec = strrchr(host, ':');
-        char *end_port_spec;
-        int port;
-        if (!port_spec) {
-            LOG_ERROR(("no port in %s", host));
-            errno=EINVAL;
-            rc=ZBADARGUMENTS;
-            goto fail;
-        }
-        *port_spec = '\0';
-        port_spec++;
-        port = strtol(port_spec, &end_port_spec, 0);
-        if (!*port_spec || *end_port_spec || port == 0) {
-            LOG_ERROR(("invalid port in %s", host));
-            errno=EINVAL;
-            rc=ZBADARGUMENTS;
-            goto fail;
-        }
-#if defined(__CYGWIN__)
-        // sadly CYGWIN doesn't have getaddrinfo
-        // but happily gethostbyname is threadsafe in windows
-        {
-        struct hostent *he;
-        char **ptr;
-        struct sockaddr_in *addr4;
-
-        he = gethostbyname(host);
-        if (!he) {
-            LOG_ERROR(("could not resolve %s", host));
-            errno=ENOENT;
-            rc=ZBADARGUMENTS;
-            goto fail;
-        }
-
-        /* Setup the address array */
-        for(ptr = he->h_addr_list;*ptr != 0; ptr++) {
-            if (zh->addrs_count == alen) {
-                alen += 16;
-                zh->addrs = realloc(zh->addrs, sizeof(*zh->addrs)*alen);
-                if (zh->addrs == 0) {
-                    LOG_ERROR(("out of memory"));
-                    errno=ENOMEM;
-                    rc=ZSYSTEMERROR;
-                    goto fail;
-                }
-            }
-            addr = &zh->addrs[zh->addrs_count];
-            addr4 = (struct sockaddr_in*)addr;
-            addr->ss_family = he->h_addrtype;
-            if (addr->ss_family == AF_INET) {
-                addr4->sin_port = htons(port);
-                memset(&addr4->sin_zero, 0, sizeof(addr4->sin_zero));
-                memcpy(&addr4->sin_addr, *ptr, he->h_length);
-                zh->addrs_count++;
-            }
-#if defined(AF_INET6)
-            else if (addr->ss_family == AF_INET6) {
-                struct sockaddr_in6 *addr6;
-
-                addr6 = (struct sockaddr_in6*)addr;
-                addr6->sin6_port = htons(port);
-                addr6->sin6_scope_id = 0;
-                addr6->sin6_flowinfo = 0;
-                memcpy(&addr6->sin6_addr, *ptr, he->h_length);
-                zh->addrs_count++;
-            }
-#endif
-            else {
-                LOG_WARN(("skipping unknown address family %x for %s",
-                         addr->ss_family, zh->hostname));
-            }
-        }
-        host = strtok_r(0, ",", &strtok_last);
-        }
-#else
-        {
-        struct addrinfo hints, *res, *res0;
-
-        memset(&hints, 0, sizeof(hints));
-#ifdef AI_ADDRCONFIG
-        hints.ai_flags = AI_ADDRCONFIG;
-#else
-        hints.ai_flags = 0;
-#endif
-        hints.ai_family = AF_UNSPEC;
-        hints.ai_socktype = SOCK_STREAM;
-        hints.ai_protocol = IPPROTO_TCP;
-
-        while(isspace(*host) && host != strtok_last)
-            host++;
-
-        if ((rc = getaddrinfo(host, port_spec, &hints, &res0)) != 0) {
-            //bug in getaddrinfo implementation when it returns
-            //EAI_BADFLAGS or EAI_ADDRFAMILY with AF_UNSPEC and 
-            // ai_flags as AI_ADDRCONFIG
-#ifdef AI_ADDRCONFIG
-            if ((hints.ai_flags == AI_ADDRCONFIG) && 
-// ZOOKEEPER-1323 EAI_NODATA and EAI_ADDRFAMILY are deprecated in FreeBSD.
-#ifdef EAI_ADDRFAMILY
-                ((rc ==EAI_BADFLAGS) || (rc == EAI_ADDRFAMILY))) {
-#else
-                (rc == EAI_BADFLAGS)) {
-#endif
-                //reset ai_flags to null
-                hints.ai_flags = 0;
-                //retry getaddrinfo
-                rc = getaddrinfo(host, port_spec, &hints, &res0);
-            }
-#endif
-            if (rc != 0) {
-                errno = getaddrinfo_errno(rc);
-#ifdef WIN32
-                LOG_ERROR(("Win32 message: %s\n", gai_strerror(rc)));
-#else
-                LOG_ERROR(("getaddrinfo: %s\n", strerror(errno)));
-#endif
-                rc=ZSYSTEMERROR;
-                goto fail;
-            }
-        }
-
-        for (res = res0; res; res = res->ai_next) {
-            // Expand address list if needed
-            if (zh->addrs_count == alen) {
-                void *tmpaddr;
-                alen += 16;
-                tmpaddr = realloc(zh->addrs, sizeof(*zh->addrs)*alen);
-                if (tmpaddr == 0) {
-                    LOG_ERROR(("out of memory"));
-                    errno=ENOMEM;
-                    rc=ZSYSTEMERROR;
-                    goto fail;
-                }
-                zh->addrs=tmpaddr;
-            }
-
-            // Copy addrinfo into address list
-            addr = &zh->addrs[zh->addrs_count];
-            switch (res->ai_family) {
-            case AF_INET:
-#if defined(AF_INET6)
-            case AF_INET6:
-#endif
-                memcpy(addr, res->ai_addr, res->ai_addrlen);
-                ++zh->addrs_count;
-                break;
-            default:
-                LOG_WARN(("skipping unknown address family %x for %s",
-                res->ai_family, zh->hostname));
-                break;
-            }
-        }
-
-        freeaddrinfo(res0);
-
-        host = strtok_r(0, ",", &strtok_last);
-        }
-#endif
-    }
-    free(hosts);
-
-    if(!disable_conn_permute){
-        setup_random();
-        /* Permute */
-        for (i = zh->addrs_count - 1; i > 0; --i) {
-            long int j = random()%(i+1);
-            if (i != j) {
-                struct sockaddr_storage t = zh->addrs[i];
-                zh->addrs[i] = zh->addrs[j];
-                zh->addrs[j] = t;
-            }
-        }
-    }
-    return ZOK;
-fail:
-    if (zh->addrs) {
-        free(zh->addrs);
-        zh->addrs=0;
-    }
-    if (hosts) {
-        free(hosts);
-    }
-    return rc;
+  EBBRT_UNIMPLEMENTED();
+  return 0;
+//
+//    char *hosts = strdup(zh->hostname);
+//    char *host;
+//    char *strtok_last;
+//    struct sockaddr_storage *addr;
+//    int i;
+//    int rc;
+//    int alen = 0; /* the allocated length of the addrs array */
+//
+//    zh->addrs_count = 0;
+//    if (zh->addrs) {
+//        free(zh->addrs);
+//        zh->addrs = 0;
+//    }
+//    if (!hosts) {
+//         LOG_ERROR(("out of memory"));
+//        errno=ENOMEM;
+//        return ZSYSTEMERROR;
+//    }
+//    zh->addrs = 0;
+//    host=strtok_r(hosts, ",", &strtok_last);
+//    while(host) {
+//        char *port_spec = strrchr(host, ':');
+//        char *end_port_spec;
+//        int port;
+//        if (!port_spec) {
+//            LOG_ERROR(("no port in %s", host));
+//            errno=EINVAL;
+//            rc=ZBADARGUMENTS;
+//            goto fail;
+//        }
+//        *port_spec = '\0';
+//        port_spec++;
+//        port = strtol(port_spec, &end_port_spec, 0);
+//        if (!*port_spec || *end_port_spec || port == 0) {
+//            LOG_ERROR(("invalid port in %s", host));
+//            errno=EINVAL;
+//            rc=ZBADARGUMENTS;
+//            goto fail;
+//        }
+//#if defined(__CYGWIN__)
+//        // sadly CYGWIN doesn't have getaddrinfo
+//        // but happily gethostbyname is threadsafe in windows
+//        {
+//        struct hostent *he;
+//        char **ptr;
+//        struct sockaddr_in *addr4;
+//
+//        he = gethostbyname(host);
+//        if (!he) {
+//            LOG_ERROR(("could not resolve %s", host));
+//            errno=ENOENT;
+//            rc=ZBADARGUMENTS;
+//            goto fail;
+//        }
+//
+//        /* Setup the address array */
+//        for(ptr = he->h_addr_list;*ptr != 0; ptr++) {
+//            if (zh->addrs_count == alen) {
+//                alen += 16;
+//                zh->addrs = realloc(zh->addrs, sizeof(*zh->addrs)*alen);
+//                if (zh->addrs == 0) {
+//                    LOG_ERROR(("out of memory"));
+//                    errno=ENOMEM;
+//                    rc=ZSYSTEMERROR;
+//                    goto fail;
+//                }
+//            }
+//            addr = &zh->addrs[zh->addrs_count];
+//            addr4 = (struct sockaddr_in*)addr;
+//            addr->ss_family = he->h_addrtype;
+//            if (addr->ss_family == AF_INET) {
+//                addr4->sin_port = htons(port);
+//                memset(&addr4->sin_zero, 0, sizeof(addr4->sin_zero));
+//                memcpy(&addr4->sin_addr, *ptr, he->h_length);
+//                zh->addrs_count++;
+//            }
+//#if defined(AF_INET6)
+//            else if (addr->ss_family == AF_INET6) {
+//                struct sockaddr_in6 *addr6;
+//
+//                addr6 = (struct sockaddr_in6*)addr;
+//                addr6->sin6_port = htons(port);
+//                addr6->sin6_scope_id = 0;
+//                addr6->sin6_flowinfo = 0;
+//                memcpy(&addr6->sin6_addr, *ptr, he->h_length);
+//                zh->addrs_count++;
+//            }
+//#endif
+//            else {
+//                LOG_WARN(("skipping unknown address family %x for %s",
+//                         addr->ss_family, zh->hostname));
+//            }
+//        }
+//        host = strtok_r(0, ",", &strtok_last);
+//        }
+//#else
+//        {
+//        struct addrinfo hints, *res, *res0;
+//
+//        memset(&hints, 0, sizeof(hints));
+//#ifdef AI_ADDRCONFIG
+//        hints.ai_flags = AI_ADDRCONFIG;
+//#else
+//        hints.ai_flags = 0;
+//#endif
+//        hints.ai_family = AF_UNSPEC;
+//        hints.ai_socktype = SOCK_STREAM;
+//        hints.ai_protocol = IPPROTO_TCP;
+//
+//        while(isspace(*host) && host != strtok_last)
+//            host++;
+//
+//        if ((rc = getaddrinfo(host, port_spec, &hints, &res0)) != 0) {
+//            //bug in getaddrinfo implementation when it returns
+//            //EAI_BADFLAGS or EAI_ADDRFAMILY with AF_UNSPEC and 
+//            // ai_flags as AI_ADDRCONFIG
+//#ifdef AI_ADDRCONFIG
+//            if ((hints.ai_flags == AI_ADDRCONFIG) && 
+//// ZOOKEEPER-1323 EAI_NODATA and EAI_ADDRFAMILY are deprecated in FreeBSD.
+//#ifdef EAI_ADDRFAMILY
+//                ((rc ==EAI_BADFLAGS) || (rc == EAI_ADDRFAMILY))) {
+//#else
+//                (rc == EAI_BADFLAGS)) {
+//#endif
+//                //reset ai_flags to null
+//                hints.ai_flags = 0;
+//                //retry getaddrinfo
+//                rc = getaddrinfo(host, port_spec, &hints, &res0);
+//            }
+//#endif
+//            if (rc != 0) {
+//                errno = getaddrinfo_errno(rc);
+//#ifdef WIN32
+//                LOG_ERROR(("Win32 message: %s\n", gai_strerror(rc)));
+//#else
+//                LOG_ERROR(("getaddrinfo: %s\n", strerror(errno)));
+//#endif
+//                rc=ZSYSTEMERROR;
+//                goto fail;
+//            }
+//        }
+//
+//        for (res = res0; res; res = res->ai_next) {
+//            // Expand address list if needed
+//            if (zh->addrs_count == alen) {
+//                void *tmpaddr;
+//                alen += 16;
+//                tmpaddr = realloc(zh->addrs, sizeof(*zh->addrs)*alen);
+//                if (tmpaddr == 0) {
+//                    LOG_ERROR(("out of memory"));
+//                    errno=ENOMEM;
+//                    rc=ZSYSTEMERROR;
+//                    goto fail;
+//                }
+//                zh->addrs=tmpaddr;
+//            }
+//
+//            // Copy addrinfo into address list
+//            addr = &zh->addrs[zh->addrs_count];
+//            switch (res->ai_family) {
+//            case AF_INET:
+//#if defined(AF_INET6)
+//            case AF_INET6:
+//#endif
+//                memcpy(addr, res->ai_addr, res->ai_addrlen);
+//                ++zh->addrs_count;
+//                break;
+//            default:
+//                LOG_WARN(("skipping unknown address family %x for %s",
+//                res->ai_family, zh->hostname));
+//                break;
+//            }
+//        }
+//
+//        freeaddrinfo(res0);
+//
+//        host = strtok_r(0, ",", &strtok_last);
+//        }
+//#endif
+//    }
+//    free(hosts);
+//
+//    if(!disable_conn_permute){
+//        setup_random();
+//        /* Permute */
+//        for (i = zh->addrs_count - 1; i > 0; --i) {
+//            long int j = random()%(i+1);
+//            if (i != j) {
+//                struct sockaddr_storage t = zh->addrs[i];
+//                zh->addrs[i] = zh->addrs[j];
+//                zh->addrs[j] = t;
+//            }
+//        }
+//    }
+//    return ZOK;
+//fail:
+//    if (zh->addrs) {
+//        free(zh->addrs);
+//        zh->addrs=0;
+//    }
+//    if (hosts) {
+//        free(hosts);
+//    }
+//    return rc;
 }
 
 const clientid_t *zoo_client_id(zhandle_t *zh)
@@ -702,13 +706,16 @@ watcher_fn zoo_set_watcher(zhandle_t *zh,watcher_fn newFn)
 struct sockaddr* zookeeper_get_connected_host(zhandle_t *zh,
                  struct sockaddr *addr, socklen_t *addr_len)
 {
-    if (zh->state!=ZOO_CONNECTED_STATE) {
-        return NULL;
-    }
-    if (getpeername(zh->fd, addr, addr_len)==-1) {
-        return NULL;
-    }
-    return addr;
+  EBBRT_UNIMPLEMENTED();
+  return NULL;
+//    
+//    if (zh->state!=ZOO_CONNECTED_STATE) {
+//        return NULL;
+//    }
+//    if (getpeername(zh->fd, addr, addr_len)==-1) {
+//        return NULL;
+//    }
+//    return addr;
 }
 
 static void log_env() {
@@ -1096,58 +1103,61 @@ static int recv_buffer(SOCKET fd, buffer_list_t *buff)
 static int recv_buffer(int fd, buffer_list_t *buff)
 #endif
 {
-    int off = buff->curr_offset;
-    int rc = 0;
-    //fprintf(LOGSTREAM, "rc = %d, off = %d, line %d\n", rc, off, __LINE__);
 
-    /* if buffer is less than 4, we are reading in the length */
-    if (off < 4) {
-        char *buffer = (char*)&(buff->len);
-        rc = recv(fd, buffer+off, sizeof(int)-off, 0);
-        //fprintf(LOGSTREAM, "rc = %d, off = %d, line %d\n", rc, off, __LINE__);
-        switch(rc) {
-        case 0:
-            errno = EHOSTDOWN;
-        case -1:
-#ifndef _WINDOWS
-            if (errno == EAGAIN) {
-#else
-            if (WSAGetLastError() == WSAEWOULDBLOCK) {
-#endif
-                return 0;
-            }
-            return -1;
-        default:
-            buff->curr_offset += rc;
-        }
-        off = buff->curr_offset;
-        if (buff->curr_offset == sizeof(buff->len)) {
-            buff->len = ntohl(buff->len);
-            buff->buffer = calloc(1, buff->len);
-        }
-    }
-    if (buff->buffer) {
-        /* want off to now represent the offset into the buffer */
-        off -= sizeof(buff->len);
-
-        rc = recv(fd, buff->buffer+off, buff->len-off, 0);
-        switch(rc) {
-        case 0:
-            errno = EHOSTDOWN;
-        case -1:
-#ifndef _WINDOWS
-            if (errno == EAGAIN) {
-#else
-            if (WSAGetLastError() == WSAEWOULDBLOCK) {
-#endif
-                break;
-            }
-            return -1;
-        default:
-            buff->curr_offset += rc;
-        }
-    }
-    return buff->curr_offset == buff->len + sizeof(buff->len);
+  EBBRT_UNIMPLEMENTED();
+  return 0;
+//    int off = buff->curr_offset;
+//    int rc = 0;
+//    //fprintf(LOGSTREAM, "rc = %d, off = %d, line %d\n", rc, off, __LINE__);
+//
+//    /* if buffer is less than 4, we are reading in the length */
+//    if (off < 4) {
+//        char *buffer = (char*)&(buff->len);
+//        rc = recv(fd, buffer+off, sizeof(int)-off, 0);
+//        //fprintf(LOGSTREAM, "rc = %d, off = %d, line %d\n", rc, off, __LINE__);
+//        switch(rc) {
+//        case 0:
+//            errno = EHOSTDOWN;
+//        case -1:
+//#ifndef _WINDOWS
+//            if (errno == EAGAIN) {
+//#else
+//            if (WSAGetLastError() == WSAEWOULDBLOCK) {
+//#endif
+//                return 0;
+//            }
+//            return -1;
+//        default:
+//            buff->curr_offset += rc;
+//        }
+//        off = buff->curr_offset;
+//        if (buff->curr_offset == sizeof(buff->len)) {
+//            buff->len = ntohl(buff->len);
+//            buff->buffer = calloc(1, buff->len);
+//        }
+//    }
+//    if (buff->buffer) {
+//        /* want off to now represent the offset into the buffer */
+//        off -= sizeof(buff->len);
+//
+//        rc = recv(fd, buff->buffer+off, buff->len-off, 0);
+//        switch(rc) {
+//        case 0:
+//            errno = EHOSTDOWN;
+//        case -1:
+//#ifndef _WINDOWS
+//            if (errno == EAGAIN) {
+//#else
+//            if (WSAGetLastError() == WSAEWOULDBLOCK) {
+//#endif
+//                break;
+//            }
+//            return -1;
+//        default:
+//            buff->curr_offset += rc;
+//        }
+//    }
+//    return buff->curr_offset == buff->len + sizeof(buff->len);
 }
 
 void free_buffers(buffer_head_t *list)
@@ -1558,239 +1568,243 @@ int zookeeper_interest(zhandle_t *zh, int *fd, int *interest,
      struct timeval *tv)
 {
 #endif
-    struct timeval now;
-    if(zh==0 || fd==0 ||interest==0 || tv==0)
-        return ZBADARGUMENTS;
-    if (is_unrecoverable(zh))
-        return ZINVALIDSTATE;
-    gettimeofday(&now, 0);
-    if(zh->next_deadline.tv_sec!=0 || zh->next_deadline.tv_usec!=0){
-        int time_left = calculate_interval(&zh->next_deadline, &now);
-        if (time_left > 10)
-            LOG_WARN(("Exceeded deadline by %dms", time_left));
-    }
-    api_prolog(zh);
-    *fd = zh->fd;
-    *interest = 0;
-    tv->tv_sec = 0;
-    tv->tv_usec = 0;
-    if (*fd == -1) {
-        if (zh->connect_index == zh->addrs_count) {
-            /* Wait a bit before trying again so that we don't spin */
-            zh->connect_index = 0;
-        }else {
-            int rc;
-#ifdef WIN32
-            char enable_tcp_nodelay = 1;
-#else
-            int enable_tcp_nodelay = 1;
-#endif
-            int ssoresult;
-
-            zh->fd = socket(zh->addrs[zh->connect_index].ss_family, SOCK_STREAM, 0);
-            if (zh->fd < 0) {
-                return api_epilog(zh,handle_socket_error_msg(zh,__LINE__,
-                                                             ZSYSTEMERROR, "socket() call failed"));
-            }
-            ssoresult = setsockopt(zh->fd, IPPROTO_TCP, TCP_NODELAY, &enable_tcp_nodelay, sizeof(enable_tcp_nodelay));
-            if (ssoresult != 0) {
-                LOG_WARN(("Unable to set TCP_NODELAY, operation latency may be effected"));
-            }
-#ifdef WIN32
-            ioctlsocket(zh->fd, FIONBIO, &nonblocking_flag);                    
-#else
-            fcntl(zh->fd, F_SETFL, O_NONBLOCK|fcntl(zh->fd, F_GETFL, 0));
-#endif
-#if defined(AF_INET6)
-            if (zh->addrs[zh->connect_index].ss_family == AF_INET6) {
-                rc = connect(zh->fd, (struct sockaddr*) &zh->addrs[zh->connect_index], sizeof(struct sockaddr_in6));
-            } else {
-#else
-               LOG_DEBUG(("[zk] connect()\n"));
-            {
-#endif
-                rc = connect(zh->fd, (struct sockaddr*) &zh->addrs[zh->connect_index], sizeof(struct sockaddr_in));
-#ifdef WIN32
-                get_errno();
-#if _MSC_VER >= 1600
-                switch (errno) {
-                case WSAEWOULDBLOCK:
-                    errno = EWOULDBLOCK;
-                    break;
-                case WSAEINPROGRESS:
-                    errno = EINPROGRESS;
-                    break;
-                }
-#endif
-#endif
-            }
-            if (rc == -1) {
-                /* we are handling the non-blocking connect according to
-                 * the description in section 16.3 "Non-blocking connect"
-                 * in UNIX Network Programming vol 1, 3rd edition */
-                if (errno == EWOULDBLOCK || errno == EINPROGRESS)
-                    zh->state = ZOO_CONNECTING_STATE;
-                else
-                    return api_epilog(zh,handle_socket_error_msg(zh,__LINE__,
-                            ZCONNECTIONLOSS,"connect() call failed"));
-            } else {
-                if((rc=prime_connection(zh))!=0)
-                    return api_epilog(zh,rc);
-
-                LOG_INFO(("Initiated connection to server [%s]",
-                        format_endpoint_info(&zh->addrs[zh->connect_index])));
-            }
-        }
-        *fd = zh->fd;
-        *tv = get_timeval(zh->recv_timeout/3);
-        zh->last_recv = now;
-        zh->last_send = now;
-        zh->last_ping = now;
-    }
-    if (zh->fd != -1) {
-        int idle_recv = calculate_interval(&zh->last_recv, &now);
-        int idle_send = calculate_interval(&zh->last_send, &now);
-        int recv_to = zh->recv_timeout*2/3 - idle_recv;
-        int send_to = zh->recv_timeout/3;
-        // have we exceeded the receive timeout threshold?
-        if (recv_to <= 0) {
-            // We gotta cut our losses and connect to someone else
-#ifdef WIN32
-            errno = WSAETIMEDOUT;
-#else
-            errno = ETIMEDOUT;
-#endif
-            *interest=0;
-            *tv = get_timeval(0);
-            return api_epilog(zh,handle_socket_error_msg(zh,
-                    __LINE__,ZOPERATIONTIMEOUT,
-                    "connection to %s timed out (exceeded timeout by %dms)",
-                    format_endpoint_info(&zh->addrs[zh->connect_index]),
-                    -recv_to));
-
-        }
-        // We only allow 1/3 of our timeout time to expire before sending
-        // a PING
-        if (zh->state==ZOO_CONNECTED_STATE) {
-            send_to = zh->recv_timeout/3 - idle_send;
-            if (send_to <= 0) {
-                if (zh->sent_requests.head==0) {
-//                    LOG_DEBUG(("Sending PING to %s (exceeded idle by %dms)",
-//                                    format_current_endpoint_info(zh),-send_to));
-                    int rc=send_ping(zh);
-                    if (rc < 0){
-                        LOG_ERROR(("failed to send PING request (zk retcode=%d)",rc));
-                        return api_epilog(zh,rc);
-                    }
-                }
-                send_to = zh->recv_timeout/3;
-            }
-        }
-        // choose the lesser value as the timeout
-        *tv = get_timeval(recv_to < send_to? recv_to:send_to);
-        zh->next_deadline.tv_sec = now.tv_sec + tv->tv_sec;
-        zh->next_deadline.tv_usec = now.tv_usec + tv->tv_usec;
-        if (zh->next_deadline.tv_usec > 1000000) {
-            zh->next_deadline.tv_sec += zh->next_deadline.tv_usec / 1000000;
-            zh->next_deadline.tv_usec = zh->next_deadline.tv_usec % 1000000;
-        }
-        *interest = ZOOKEEPER_READ;
-        /* we are interested in a write if we are connected and have something
-         * to send, or we are waiting for a connect to finish. */
-        if ((zh->to_send.head && (zh->state == ZOO_CONNECTED_STATE))
-        || zh->state == ZOO_CONNECTING_STATE) {
-            *interest |= ZOOKEEPER_WRITE;
-        }
-    }
-    return api_epilog(zh,ZOK);
+  EBBRT_UNIMPLEMENTED();
+  return 0;
+//    struct timeval now;
+//    if(zh==0 || fd==0 ||interest==0 || tv==0)
+//        return ZBADARGUMENTS;
+//    if (is_unrecoverable(zh))
+//        return ZINVALIDSTATE;
+//    gettimeofday(&now, 0);
+//    if(zh->next_deadline.tv_sec!=0 || zh->next_deadline.tv_usec!=0){
+//        int time_left = calculate_interval(&zh->next_deadline, &now);
+//        if (time_left > 10)
+//            LOG_WARN(("Exceeded deadline by %dms", time_left));
+//    }
+//    api_prolog(zh);
+//    *fd = zh->fd;
+//    *interest = 0;
+//    tv->tv_sec = 0;
+//    tv->tv_usec = 0;
+//    if (*fd == -1) {
+//        if (zh->connect_index == zh->addrs_count) {
+//            /* Wait a bit before trying again so that we don't spin */
+//            zh->connect_index = 0;
+//        }else {
+//            int rc;
+//#ifdef WIN32
+//            char enable_tcp_nodelay = 1;
+//#else
+//            int enable_tcp_nodelay = 1;
+//#endif
+//            int ssoresult;
+//
+//            zh->fd = socket(zh->addrs[zh->connect_index].ss_family, SOCK_STREAM, 0);
+//            if (zh->fd < 0) {
+//                return api_epilog(zh,handle_socket_error_msg(zh,__LINE__,
+//                                                             ZSYSTEMERROR, "socket() call failed"));
+//            }
+//            ssoresult = setsockopt(zh->fd, IPPROTO_TCP, TCP_NODELAY, &enable_tcp_nodelay, sizeof(enable_tcp_nodelay));
+//            if (ssoresult != 0) {
+//                LOG_WARN(("Unable to set TCP_NODELAY, operation latency may be effected"));
+//            }
+//#ifdef WIN32
+//            ioctlsocket(zh->fd, FIONBIO, &nonblocking_flag);                    
+//#else
+//            fcntl(zh->fd, F_SETFL, O_NONBLOCK|fcntl(zh->fd, F_GETFL, 0));
+//#endif
+//#if defined(AF_INET6)
+//            if (zh->addrs[zh->connect_index].ss_family == AF_INET6) {
+//                rc = connect(zh->fd, (struct sockaddr*) &zh->addrs[zh->connect_index], sizeof(struct sockaddr_in6));
+//            } else {
+//#else
+//               LOG_DEBUG(("[zk] connect()\n"));
+//            {
+//#endif
+//                rc = connect(zh->fd, (struct sockaddr*) &zh->addrs[zh->connect_index], sizeof(struct sockaddr_in));
+//#ifdef WIN32
+//                get_errno();
+//#if _MSC_VER >= 1600
+//                switch (errno) {
+//                case WSAEWOULDBLOCK:
+//                    errno = EWOULDBLOCK;
+//                    break;
+//                case WSAEINPROGRESS:
+//                    errno = EINPROGRESS;
+//                    break;
+//                }
+//#endif
+//#endif
+//            }
+//            if (rc == -1) {
+//                /* we are handling the non-blocking connect according to
+//                 * the description in section 16.3 "Non-blocking connect"
+//                 * in UNIX Network Programming vol 1, 3rd edition */
+//                if (errno == EWOULDBLOCK || errno == EINPROGRESS)
+//                    zh->state = ZOO_CONNECTING_STATE;
+//                else
+//                    return api_epilog(zh,handle_socket_error_msg(zh,__LINE__,
+//                            ZCONNECTIONLOSS,"connect() call failed"));
+//            } else {
+//                if((rc=prime_connection(zh))!=0)
+//                    return api_epilog(zh,rc);
+//
+//                LOG_INFO(("Initiated connection to server [%s]",
+//                        format_endpoint_info(&zh->addrs[zh->connect_index])));
+//            }
+//        }
+//        *fd = zh->fd;
+//        *tv = get_timeval(zh->recv_timeout/3);
+//        zh->last_recv = now;
+//        zh->last_send = now;
+//        zh->last_ping = now;
+//    }
+//    if (zh->fd != -1) {
+//        int idle_recv = calculate_interval(&zh->last_recv, &now);
+//        int idle_send = calculate_interval(&zh->last_send, &now);
+//        int recv_to = zh->recv_timeout*2/3 - idle_recv;
+//        int send_to = zh->recv_timeout/3;
+//        // have we exceeded the receive timeout threshold?
+//        if (recv_to <= 0) {
+//            // We gotta cut our losses and connect to someone else
+//#ifdef WIN32
+//            errno = WSAETIMEDOUT;
+//#else
+//            errno = ETIMEDOUT;
+//#endif
+//            *interest=0;
+//            *tv = get_timeval(0);
+//            return api_epilog(zh,handle_socket_error_msg(zh,
+//                    __LINE__,ZOPERATIONTIMEOUT,
+//                    "connection to %s timed out (exceeded timeout by %dms)",
+//                    format_endpoint_info(&zh->addrs[zh->connect_index]),
+//                    -recv_to));
+//
+//        }
+//        // We only allow 1/3 of our timeout time to expire before sending
+//        // a PING
+//        if (zh->state==ZOO_CONNECTED_STATE) {
+//            send_to = zh->recv_timeout/3 - idle_send;
+//            if (send_to <= 0) {
+//                if (zh->sent_requests.head==0) {
+////                    LOG_DEBUG(("Sending PING to %s (exceeded idle by %dms)",
+////                                    format_current_endpoint_info(zh),-send_to));
+//                    int rc=send_ping(zh);
+//                    if (rc < 0){
+//                        LOG_ERROR(("failed to send PING request (zk retcode=%d)",rc));
+//                        return api_epilog(zh,rc);
+//                    }
+//                }
+//                send_to = zh->recv_timeout/3;
+//            }
+//        }
+//        // choose the lesser value as the timeout
+//        *tv = get_timeval(recv_to < send_to? recv_to:send_to);
+//        zh->next_deadline.tv_sec = now.tv_sec + tv->tv_sec;
+//        zh->next_deadline.tv_usec = now.tv_usec + tv->tv_usec;
+//        if (zh->next_deadline.tv_usec > 1000000) {
+//            zh->next_deadline.tv_sec += zh->next_deadline.tv_usec / 1000000;
+//            zh->next_deadline.tv_usec = zh->next_deadline.tv_usec % 1000000;
+//        }
+//        *interest = ZOOKEEPER_READ;
+//        /* we are interested in a write if we are connected and have something
+//         * to send, or we are waiting for a connect to finish. */
+//        if ((zh->to_send.head && (zh->state == ZOO_CONNECTED_STATE))
+//        || zh->state == ZOO_CONNECTING_STATE) {
+//            *interest |= ZOOKEEPER_WRITE;
+//        }
+//    }
+//    return api_epilog(zh,ZOK);
 }
 
 static int check_events(zhandle_t *zh, int events)
 {
-    if (zh->fd == -1)
-        return ZINVALIDSTATE;
-    if ((events&ZOOKEEPER_WRITE)&&(zh->state == ZOO_CONNECTING_STATE)) {
-        int rc, error;
-        socklen_t len = sizeof(error);
-        rc = getsockopt(zh->fd, SOL_SOCKET, SO_ERROR, &error, &len);
-        /* the description in section 16.4 "Non-blocking connect"
-         * in UNIX Network Programming vol 1, 3rd edition, points out
-         * that sometimes the error is in errno and sometimes in error */
-        if (rc < 0 || error) {
-            if (rc == 0)
-                errno = error;
-            return handle_socket_error_msg(zh, __LINE__,ZCONNECTIONLOSS,
-                "server refused to accept the client");
-        }
-        if((rc=prime_connection(zh))!=0)
-            return rc;
-        LOG_INFO(("initiated connection to server [%s]",
-                format_endpoint_info(&zh->addrs[zh->connect_index])));
-        return ZOK;
-    }
-    if (zh->to_send.head && (events&ZOOKEEPER_WRITE)) {
-        /* make the flush call non-blocking by specifying a 0 timeout */
-        int rc=flush_send_queue(zh,0);
-        if (rc < 0)
-            return handle_socket_error_msg(zh,__LINE__,ZCONNECTIONLOSS,
-                "failed while flushing send queue");
-    }
-    if (events&ZOOKEEPER_READ) {
-        int rc;
-        if (zh->input_buffer == 0) {
-            zh->input_buffer = allocate_buffer(0,0);
-        }
-
-        rc = recv_buffer(zh->fd, zh->input_buffer);
-        if (rc < 0) {
-            return handle_socket_error_msg(zh, __LINE__,ZCONNECTIONLOSS,
-                "failed while receiving a server response");
-        }
-        if (rc > 0) {
-            gettimeofday(&zh->last_recv, 0);
-            if (zh->input_buffer != &zh->primer_buffer) {
-                queue_buffer(&zh->to_process, zh->input_buffer, 0);
-            } else  {
-                int64_t oldid,newid;
-                //deserialize
-                deserialize_prime_response(&zh->primer_storage, zh->primer_buffer.buffer);
-                /* We are processing the primer_buffer, so we need to finish
-                 * the connection handshake */
-                oldid = zh->client_id.client_id;
-                newid = zh->primer_storage.sessionId;
-                if (oldid != 0 && oldid != newid) {
-                    zh->state = ZOO_EXPIRED_SESSION_STATE;
-                    errno = ESTALE;
-                    return handle_socket_error_msg(zh,__LINE__,ZSESSIONEXPIRED,
-                            "sessionId=%#llx has expired.",oldid);
-                } else {
-                    zh->recv_timeout = zh->primer_storage.timeOut;
-                    zh->client_id.client_id = newid;
-                 
-                    memcpy(zh->client_id.passwd, &zh->primer_storage.passwd,
-                           sizeof(zh->client_id.passwd));
-                    zh->state = ZOO_CONNECTED_STATE;
-                    LOG_INFO(("session establishment complete on server [%s], sessionId=%#llx, negotiated timeout=%d",
-                              format_endpoint_info(&zh->addrs[zh->connect_index]),
-                              newid, zh->recv_timeout));
-                    /* we want the auth to be sent for, but since both call push to front
-                       we need to call send_watch_set first */
-                    send_set_watches(zh);
-                    /* send the authentication packet now */
-                    send_auth_info(zh);
-                    LOG_DEBUG(("Calling a watcher for a ZOO_SESSION_EVENT and the state=ZOO_CONNECTED_STATE"));
-                    zh->input_buffer = 0; // just in case the watcher calls zookeeper_process() again
-                    PROCESS_SESSION_EVENT(zh, ZOO_CONNECTED_STATE);
-                }
-            }
-            zh->input_buffer = 0;
-        } else {
-            // zookeeper_process was called but there was nothing to read
-            // from the socket
-            return ZNOTHING;
-        }
-    }
-    return ZOK;
+  EBBRT_UNIMPLEMENTED();
+  return 0;
+//    if (zh->fd == -1)
+//        return ZINVALIDSTATE;
+//    if ((events&ZOOKEEPER_WRITE)&&(zh->state == ZOO_CONNECTING_STATE)) {
+//        int rc, error;
+//        socklen_t len = sizeof(error);
+//        rc = getsockopt(zh->fd, SOL_SOCKET, SO_ERROR, &error, &len);
+//        /* the description in section 16.4 "Non-blocking connect"
+//         * in UNIX Network Programming vol 1, 3rd edition, points out
+//         * that sometimes the error is in errno and sometimes in error */
+//        if (rc < 0 || error) {
+//            if (rc == 0)
+//                errno = error;
+//            return handle_socket_error_msg(zh, __LINE__,ZCONNECTIONLOSS,
+//                "server refused to accept the client");
+//        }
+//        if((rc=prime_connection(zh))!=0)
+//            return rc;
+//        LOG_INFO(("initiated connection to server [%s]",
+//                format_endpoint_info(&zh->addrs[zh->connect_index])));
+//        return ZOK;
+//    }
+//    if (zh->to_send.head && (events&ZOOKEEPER_WRITE)) {
+//        /* make the flush call non-blocking by specifying a 0 timeout */
+//        int rc=flush_send_queue(zh,0);
+//        if (rc < 0)
+//            return handle_socket_error_msg(zh,__LINE__,ZCONNECTIONLOSS,
+//                "failed while flushing send queue");
+//    }
+//    if (events&ZOOKEEPER_READ) {
+//        int rc;
+//        if (zh->input_buffer == 0) {
+//            zh->input_buffer = allocate_buffer(0,0);
+//        }
+//
+//        rc = recv_buffer(zh->fd, zh->input_buffer);
+//        if (rc < 0) {
+//            return handle_socket_error_msg(zh, __LINE__,ZCONNECTIONLOSS,
+//                "failed while receiving a server response");
+//        }
+//        if (rc > 0) {
+//            gettimeofday(&zh->last_recv, 0);
+//            if (zh->input_buffer != &zh->primer_buffer) {
+//                queue_buffer(&zh->to_process, zh->input_buffer, 0);
+//            } else  {
+//                int64_t oldid,newid;
+//                //deserialize
+//                deserialize_prime_response(&zh->primer_storage, zh->primer_buffer.buffer);
+//                /* We are processing the primer_buffer, so we need to finish
+//                 * the connection handshake */
+//                oldid = zh->client_id.client_id;
+//                newid = zh->primer_storage.sessionId;
+//                if (oldid != 0 && oldid != newid) {
+//                    zh->state = ZOO_EXPIRED_SESSION_STATE;
+//                    errno = ESTALE;
+//                    return handle_socket_error_msg(zh,__LINE__,ZSESSIONEXPIRED,
+//                            "sessionId=%#llx has expired.",oldid);
+//                } else {
+//                    zh->recv_timeout = zh->primer_storage.timeOut;
+//                    zh->client_id.client_id = newid;
+//                 
+//                    memcpy(zh->client_id.passwd, &zh->primer_storage.passwd,
+//                           sizeof(zh->client_id.passwd));
+//                    zh->state = ZOO_CONNECTED_STATE;
+//                    LOG_INFO(("session establishment complete on server [%s], sessionId=%#llx, negotiated timeout=%d",
+//                              format_endpoint_info(&zh->addrs[zh->connect_index]),
+//                              newid, zh->recv_timeout));
+//                    /* we want the auth to be sent for, but since both call push to front
+//                       we need to call send_watch_set first */
+//                    send_set_watches(zh);
+//                    /* send the authentication packet now */
+//                    send_auth_info(zh);
+//                    LOG_DEBUG(("Calling a watcher for a ZOO_SESSION_EVENT and the state=ZOO_CONNECTED_STATE"));
+//                    zh->input_buffer = 0; // just in case the watcher calls zookeeper_process() again
+//                    PROCESS_SESSION_EVENT(zh, ZOO_CONNECTED_STATE);
+//                }
+//            }
+//            zh->input_buffer = 0;
+//        } else {
+//            // zookeeper_process was called but there was nothing to read
+//            // from the socket
+//            return ZNOTHING;
+//        }
+//    }
+//    return ZOK;
 }
 
 void api_prolog(zhandle_t* zh)
@@ -2142,27 +2156,30 @@ void process_completions(zhandle_t *zh)
 
 static void isSocketReadable(zhandle_t* zh)
 {
-#ifndef WIN32
-    struct pollfd fds;
-    fds.fd = zh->fd;
-    fds.events = POLLIN;
-    if (poll(&fds,1,0)<=0) {
-        // socket not readable -- no more responses to process
-        zh->socket_readable.tv_sec=zh->socket_readable.tv_usec=0;
-    }
-#else
-    fd_set rfds;
-    struct timeval waittime = {0, 0};
-    FD_ZERO(&rfds);
-    FD_SET( zh->fd , &rfds);
-    if (select(0, &rfds, NULL, NULL, &waittime) <= 0){
-        // socket not readable -- no more responses to process
-        zh->socket_readable.tv_sec=zh->socket_readable.tv_usec=0;
-    }
-#endif
-    else{
-        gettimeofday(&zh->socket_readable,0);
-    }
+  EBBRT_UNIMPLEMENTED();
+  return; 
+//#ifndef WIN32
+//
+//    struct pollfd fds;
+//    fds.fd = zh->fd;
+//    fds.events = POLLIN;
+//    if (poll(&fds,1,0)<=0) {
+//        // socket not readable -- no more responses to process
+//        zh->socket_readable.tv_sec=zh->socket_readable.tv_usec=0;
+//    }
+//#else
+//    fd_set rfds;
+//    struct timeval waittime = {0, 0};
+//    FD_ZERO(&rfds);
+//    FD_SET( zh->fd , &rfds);
+//    if (select(0, &rfds, NULL, NULL, &waittime) <= 0){
+//        // socket not readable -- no more responses to process
+//        zh->socket_readable.tv_sec=zh->socket_readable.tv_usec=0;
+//    }
+//#endif
+//    else{
+//        gettimeofday(&zh->socket_readable,0);
+//    }
 }
 
 static void checkResponseLatency(zhandle_t* zh)
@@ -3271,67 +3288,70 @@ int zoo_multi(zhandle_t *zh, int count, const zoo_op_t *ops, zoo_op_result_t *re
 /* timeout is in milliseconds */
 int flush_send_queue(zhandle_t*zh, int timeout)
 {
-    int rc= ZOK;
-    struct timeval started;
-#ifdef WIN32
-    fd_set pollSet; 
-    struct timeval wait;
-#endif
-    gettimeofday(&started,0);
-    // we can't use dequeue_buffer() here because if (non-blocking) send_buffer()
-    // returns EWOULDBLOCK we'd have to put the buffer back on the queue.
-    // we use a recursive lock instead and only dequeue the buffer if a send was
-    // successful
-    lock_buffer_list(&zh->to_send);
-    while (zh->to_send.head != 0&& zh->state == ZOO_CONNECTED_STATE) {
-        if(timeout!=0){
-            int elapsed;
-            struct timeval now;
-            gettimeofday(&now,0);
-            elapsed=calculate_interval(&started,&now);
-            if (elapsed>timeout) {
-                rc = ZOPERATIONTIMEOUT;
-                break;
-            }
 
-#ifdef WIN32
-            wait = get_timeval(timeout-elapsed);
-            FD_ZERO(&pollSet);
-            FD_SET(zh->fd, &pollSet);
-            // Poll the socket
-            rc = select((int)(zh->fd)+1, NULL,  &pollSet, NULL, &wait);      
-#else
-            struct pollfd fds;
-            fds.fd = zh->fd;
-            fds.events = POLLOUT;
-            fds.revents = 0;
-            rc = poll(&fds, 1, timeout-elapsed);
-#endif
-            if (rc<=0) {
-                /* timed out or an error or POLLERR */
-                rc = rc==0 ? ZOPERATIONTIMEOUT : ZSYSTEMERROR;
-                break;
-            }
-        }
-
-        rc = send_buffer(zh->fd, zh->to_send.head);
-        if(rc==0 && timeout==0){
-            /* send_buffer would block while sending this buffer */
-            rc = ZOK;
-            break;
-        }
-        if (rc < 0) {
-            rc = ZCONNECTIONLOSS;
-            break;
-        }
-        // if the buffer has been sent successfully, remove it from the queue
-        if (rc > 0)
-            remove_buffer(&zh->to_send);
-        gettimeofday(&zh->last_send, 0);
-        rc = ZOK;
-    }
-    unlock_buffer_list(&zh->to_send);
-    return rc;
+  EBBRT_UNIMPLEMENTED();
+  return 0; 
+//    int rc= ZOK;
+//    struct timeval started;
+//#ifdef WIN32
+//    fd_set pollSet; 
+//    struct timeval wait;
+//#endif
+//    gettimeofday(&started,0);
+//    // we can't use dequeue_buffer() here because if (non-blocking) send_buffer()
+//    // returns EWOULDBLOCK we'd have to put the buffer back on the queue.
+//    // we use a recursive lock instead and only dequeue the buffer if a send was
+//    // successful
+//    lock_buffer_list(&zh->to_send);
+//    while (zh->to_send.head != 0&& zh->state == ZOO_CONNECTED_STATE) {
+//        if(timeout!=0){
+//            int elapsed;
+//            struct timeval now;
+//            gettimeofday(&now,0);
+//            elapsed=calculate_interval(&started,&now);
+//            if (elapsed>timeout) {
+//                rc = ZOPERATIONTIMEOUT;
+//                break;
+//            }
+//
+//#ifdef WIN32
+//            wait = get_timeval(timeout-elapsed);
+//            FD_ZERO(&pollSet);
+//            FD_SET(zh->fd, &pollSet);
+//            // Poll the socket
+//            rc = select((int)(zh->fd)+1, NULL,  &pollSet, NULL, &wait);      
+//#else
+//            struct pollfd fds;
+//            fds.fd = zh->fd;
+//            fds.events = POLLOUT;
+//            fds.revents = 0;
+//            rc = poll(&fds, 1, timeout-elapsed);
+//#endif
+//            if (rc<=0) {
+//                /* timed out or an error or POLLERR */
+//                rc = rc==0 ? ZOPERATIONTIMEOUT : ZSYSTEMERROR;
+//                break;
+//            }
+//        }
+//
+//        rc = send_buffer(zh->fd, zh->to_send.head);
+//        if(rc==0 && timeout==0){
+//            /* send_buffer would block while sending this buffer */
+//            rc = ZOK;
+//            break;
+//        }
+//        if (rc < 0) {
+//            rc = ZCONNECTIONLOSS;
+//            break;
+//        }
+//        // if the buffer has been sent successfully, remove it from the queue
+//        if (rc > 0)
+//            remove_buffer(&zh->to_send);
+//        gettimeofday(&zh->last_send, 0);
+//        rc = ZOK;
+//    }
+//    unlock_buffer_list(&zh->to_send);
+//    return rc;
 }
 
 const char* zerror(int c)
@@ -3439,40 +3459,44 @@ int zoo_add_auth(zhandle_t *zh,const char* scheme,const char* cert,
 
 static const char* format_endpoint_info(const struct sockaddr_storage* ep)
 {
-    static char buf[128];
-    char addrstr[128];
-    void *inaddr;
-#ifdef WIN32
-    char * addrstring;
-#endif
-    int port;
-    if(ep==0)
-        return "null";
-
-#if defined(AF_INET6)
-    if(ep->ss_family==AF_INET6){
-        inaddr=&((struct sockaddr_in6*)ep)->sin6_addr;
-        port=((struct sockaddr_in6*)ep)->sin6_port;
-    } else {
-#endif
-        inaddr=&((struct sockaddr_in*)ep)->sin_addr;
-        port=((struct sockaddr_in*)ep)->sin_port;
-#if defined(AF_INET6)
-    }
-#endif
-#ifdef WIN32
-    addrstring = inet_ntoa (*(struct in_addr*)inaddr); 
-    sprintf(buf,"%s:%d",addrstring,ntohs(port));
-#else
-    inet_ntop(ep->ss_family,inaddr,addrstr,sizeof(addrstr)-1);
-    sprintf(buf,"%s:%d",addrstr,ntohs(port));
-#endif    
-    return buf;
+  EBBRT_UNIMPLEMENTED();
+  return NULL; 
+//    static char buf[128];
+//    char addrstr[128];
+//    void *inaddr;
+//#ifdef WIN32
+//    char * addrstring;
+//#endif
+//    int port;
+//    if(ep==0)
+//        return "null";
+//
+//#if defined(AF_INET6)
+//    if(ep->ss_family==AF_INET6){
+//        inaddr=&((struct sockaddr_in6*)ep)->sin6_addr;
+//        port=((struct sockaddr_in6*)ep)->sin6_port;
+//    } else {
+//#endif
+//        inaddr=&((struct sockaddr_in*)ep)->sin_addr;
+//        port=((struct sockaddr_in*)ep)->sin_port;
+//#if defined(AF_INET6)
+//    }
+//#endif
+//#ifdef WIN32
+//    addrstring = inet_ntoa (*(struct in_addr*)inaddr); 
+//    sprintf(buf,"%s:%d",addrstring,ntohs(port));
+//#else
+//    inet_ntop(ep->ss_family,inaddr,addrstr,sizeof(addrstr)-1);
+//    sprintf(buf,"%s:%d",addrstr,ntohs(port));
+//#endif    
+//    return buf;
 }
 
 static const char* format_current_endpoint_info(zhandle_t* zh)
 {
-    return format_endpoint_info(&zh->addrs[zh->connect_index]);
+  EBBRT_UNIMPLEMENTED();
+  return NULL; 
+  //  return format_endpoint_info(&zh->addrs[zh->connect_index]);
 }
 
 void zoo_deterministic_conn_order(int yesOrNo)

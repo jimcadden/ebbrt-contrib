@@ -2,7 +2,7 @@
 /* config.h.in.  Generated from configure.ac by autoheader.  */
 
 /* Define to 1 if you have the <arpa/inet.h> header file. */
-#define HAVE_ARPA_INET_H 0
+//#define HAVE_ARPA_INET_H 0
 
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #define HAVE_DLFCN_H 1
@@ -17,25 +17,25 @@
 #define HAVE_GENERATED_ZOOKEEPER_JUTE_H 1
 
 /* Define to 1 if you have the `getcwd' function. */
-#define HAVE_GETCWD 1
+//#define HAVE_GETCWD 1
 
 /* Define to 1 if you have the `gethostbyname' function. */
-#define HAVE_GETHOSTBYNAME 1
+//#define HAVE_GETHOSTBYNAME 0
 
 /* Define to 1 if you have the `gethostname' function. */
-#define HAVE_GETHOSTNAME 1
+//#define HAVE_GETHOSTNAME 0
 
 /* Define to 1 if you have the `getlogin' function. */
-#define HAVE_GETLOGIN 1
+//#define HAVE_GETLOGIN 0
 
 /* Define to 1 if you have the `getpwuid_r' function. */
-#define HAVE_GETPWUID_R 1
+//#define HAVE_GETPWUID_R 1
 
 /* Define to 1 if you have the `gettimeofday' function. */
 #define HAVE_GETTIMEOFDAY 1
 
 /* Define to 1 if you have the `getuid' function. */
-#define HAVE_GETUID 1
+//#define HAVE_GETUID 1
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #define HAVE_INTTYPES_H 1
@@ -50,16 +50,16 @@
 #define HAVE_MEMSET 1
 
 /* Define to 1 if you have the <netdb.h> header file. */
-#define HAVE_NETDB_H 0
+//#define HAVE_NETDB_H 0
 
 /* Define to 1 if you have the <netinet/in.h> header file. */
-#define HAVE_NETINET_IN_H 0
+//#define HAVE_NETINET_IN_H 0
 
 /* Define to 1 if you have the `poll' function. */
-#define HAVE_POLL 0
+//#define HAVE_POLL 0
 
 /* Define to 1 if you have the `socket' function. */
-#define HAVE_SOCKET 0
+//#define HAVE_SOCKET 0
 
 /* Define to 1 if you have the <stdint.h> header file. */
 #define HAVE_STDINT_H 1
@@ -86,7 +86,7 @@
 #define HAVE_STRTOL 1
 
 /* Define to 1 if you have the <sys/socket.h> header file. */
-#define HAVE_SYS_SOCKET_H 0
+//#define HAVE_SYS_SOCKET_H 0
 
 /* Define to 1 if you have the <sys/stat.h> header file. */
 #define HAVE_SYS_STAT_H 1
@@ -98,7 +98,7 @@
 #define HAVE_SYS_TYPES_H 1
 
 /* Define to 1 if you have the <sys/utsname.h> header file. */
-#define HAVE_SYS_UTSNAME_H 0
+//#define HAVE_SYS_UTSNAME_H 0
 
 /* Define to 1 if you have the <unistd.h> header file. */
 #define HAVE_UNISTD_H 1

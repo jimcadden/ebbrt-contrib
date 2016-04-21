@@ -35,6 +35,7 @@
 #include "zookeeper.jute.h"
 
 #include "kludge.h"
+#include "config.h"
 
 /**
  * \file zookeeper.h 

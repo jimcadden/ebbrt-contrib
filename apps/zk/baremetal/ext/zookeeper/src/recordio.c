@@ -25,6 +25,7 @@
 #ifndef WIN32
 //#include <netinet/in.h>
 #endif
+#include <zookeeper.h>
 
 void deallocate_String(char **s)
 {
