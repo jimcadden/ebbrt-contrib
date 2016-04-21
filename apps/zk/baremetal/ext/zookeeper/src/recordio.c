@@ -21,8 +21,9 @@
 #include <stdio.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <stdint.h>
 #ifndef WIN32
-#include <netinet/in.h>
+//#include <netinet/in.h>
 #endif
 
 void deallocate_String(char **s)

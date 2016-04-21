@@ -21,7 +21,7 @@
 
 #include <stdlib.h>
 #ifndef WIN32
-#include <sys/socket.h>
+//#include <sys/socket.h>
 #include <sys/time.h>
 #else
 #include "winconfig.h"
@@ -33,6 +33,8 @@
 #include "zookeeper_version.h"
 #include "recordio.h"
 #include "zookeeper.jute.h"
+
+#include "kludge.h"
 
 /**
  * \file zookeeper.h 

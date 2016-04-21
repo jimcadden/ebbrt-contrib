@@ -43,18 +43,18 @@
 
 #ifndef WIN32
 #include <sys/time.h>
-#include <sys/socket.h>
-#include <poll.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
-#include <arpa/inet.h>
-#include <netdb.h>
+//#include <sys/socket.h>
+//#include <poll.h>
+//#include <netinet/in.h>
+//#include <netinet/tcp.h>
+//#include <arpa/inet.h>
+//#include <netdb.h>
 #include <unistd.h>
-#include "config.h"
+#include <config.h>
 #endif
 
 #ifdef HAVE_SYS_UTSNAME_H
-#include <sys/utsname.h>
+//#include <sys/utsname.h>
 #endif
 
 #ifdef HAVE_GETPWUID_R
