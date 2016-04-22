@@ -3,23 +3,29 @@
 //    (See accompanying file LICENSE_1_0.txt or copy at
 //          http://www.boost.org/LICENSE_1_0.txt)
 
+#include <chrono>
+#include <cstdio>
+#include <ebbrt/Clock.h>
+#include <string.h>
+#include <thread>
+
 #include "Printer.h"
-#include <zookeeper.h>
+#include "zookeeper.hpp"
 
-void AppMain() { 
-  
-  printer->Print("ZK BACKEND UP.\n"); 
+void AppMain() {
 
-  zhandle_t* zoo_handle_ = nullptr;
-  zoo_handle_ = zookeeper_init("localhost:2181",
-                               nullptr,
-                               5000,
-                               nullptr, // client id
-                               nullptr,
-                               0);
+  printer->Print("ZK BACKEND UP.\n");
+  ebbrt::kprintf("Connecting\n");
 
-  if( zoo_state(zoo_handle_) == ZOO_CONNECTED_STATE ){
-      ebbrt::kprintf("We are connected");
+  zookeeper::ZooKeeper zk("localhost:2181");
+  auto t1 = ebbrt::clock::Wall::Now();
+  while ((ebbrt::clock::Wall::Now() - t1) < std::chrono::seconds(1)) {
+  }
+
+  if (zk.is_connected()) {
+    ebbrt::kprintf("We are connected\n");
+  } else {
+    ebbrt::kprintf("Connection failed\n");
   }
   return;
 }
