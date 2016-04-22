@@ -6,4 +6,20 @@
 #include "Printer.h"
 #include <zookeeper.h>
 
-void AppMain() { printer->Print("ZK BACKEND UP.\n"); }
+void AppMain() { 
+  
+  printer->Print("ZK BACKEND UP.\n"); 
+
+  zhandle_t* zoo_handle_ = nullptr;
+  zoo_handle_ = zookeeper_init("localhost:2181",
+                               nullptr,
+                               5000,
+                               nullptr, // client id
+                               nullptr,
+                               0);
+
+  if( zoo_state(zoo_handle_) == ZOO_CONNECTED_STATE ){
+      ebbrt::kprintf("We are connected");
+  }
+  return;
+}

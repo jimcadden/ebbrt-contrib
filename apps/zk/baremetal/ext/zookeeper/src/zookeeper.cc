@@ -806,7 +806,7 @@ zhandle_t *zookeeper_init(const char *host, watcher_fn watcher,
               context,
               flags));
 
-    zh = calloc(1, sizeof(*zh));
+    //zh = calloc(1, sizeof(*zh));
     if (!zh) {
         return 0;
     }
@@ -938,7 +938,9 @@ char* sub_string(zhandle_t *zh, const char* server_path) {
 
 static buffer_list_t *allocate_buffer(char *buff, int len)
 {
-    buffer_list_t *buffer = calloc(1, sizeof(*buffer));
+    //buffer_list_t *buffer = calloc(1, sizeof(*buffer));
+    buffer_list_t *buffer = NULL; 
+    UNIMPLEMENTED();
     if (buffer == 0)
         return 0;
 
@@ -1199,7 +1201,9 @@ void free_completions(zhandle_t *zh,int callCompletion,int reason)
                 h.err = reason;
                 oa = create_buffer_oarchive();
                 serialize_ReplyHeader(oa, "header", &h);
-                bptr = calloc(sizeof(*bptr), 1);
+                bptr = NULL;
+                //bptr = calloc(sizeof(*bptr), 1);
+                UNIMPLEMENTED();
                 assert(bptr);
                 bptr->len = get_buffer_len(oa);
                 bptr->buffer = get_buffer(oa);
@@ -3589,7 +3593,8 @@ int zoo_wget(zhandle_t *zh, const char *path,
 
     sc->u.data.buffer = buffer;
     sc->u.data.buff_len = *buffer_len;
-    rc=zoo_awget(zh, path, watcher, watcherCtx, SYNCHRONOUS_MARKER, sc);
+    //rc=zoo_awget(zh, path, watcher, watcherCtx, SYNCHRONOUS_MARKER, sc);
+    UNIMPLEMENTED();
     if(rc==ZOK){
         wait_sync_completion(sc);
         rc = sc->rc;
@@ -3751,3 +3756,4 @@ int zoo_set_acl(zhandle_t *zh, const char *path, int version,
     free_sync_completion(sc);
     return rc;
 }
+
