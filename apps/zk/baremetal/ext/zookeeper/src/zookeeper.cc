@@ -476,8 +476,7 @@ static int getaddrinfo_errno(int rc) {
  */
 int getaddrs(zhandle_t *zh)
 {
-  UNIMPLEMENTED();
-  return 0;
+    return ZOK;
 //
 //    char *hosts = strdup(zh->hostname);
 //    char *host;
@@ -657,7 +656,7 @@ int getaddrs(zhandle_t *zh)
 //
 //        host = strtok_r(0, ",", &strtok_last);
 //        }
-//#endif
+////#endif
 //    }
 //    free(hosts);
 //
@@ -785,7 +784,7 @@ zhandle_t *zookeeper_init(const char *host, watcher_fn watcher,
   int recv_timeout, const clientid_t *clientid, void *context, int flags)
 {
     int errnosave = 0;
-    zhandle_t *zh = NULL;
+    zhandle_t *zh = new zhandle_t();
     char *index_chroot = NULL;
 
     log_env();

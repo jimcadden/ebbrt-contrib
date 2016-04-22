@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include<ebbrt/Debug.h>
 
 #ifndef DLL_EXPORT
 #  define USE_STATIC_LIB
@@ -131,10 +132,10 @@ void log_message(ZooLogLevel curLevel,int line,const char* funcName,
 #ifdef WIN32
     char timebuf [TIME_NOW_BUF_SIZE];
 #endif
-    if(pid==0)pid=getpid();
+    //if(pid==0)pid=getpid();
 #ifndef THREADED
     // pid_t is long on Solaris
-    fprintf(LOGSTREAM, "%s:%ld:%s@%s@%d: %s\n", time_now(get_time_buffer()),(long)pid,
+    ebbrt::kprintf("%s:%ld:%s@%s@%d: %s\n", time_now(get_time_buffer()),(long)pid,
             dbgLevelStr[curLevel],funcName,line,message);
 #else
 #ifdef WIN32
