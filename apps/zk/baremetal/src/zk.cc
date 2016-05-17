@@ -15,12 +15,9 @@
 
 void AppMain() {
 
-//  printer->Print("ZK BACKEND UP.\n");
-  ebbrt::kprintf("Connecting\n");
+  ebbrt::kprintf("Connecting...\n");
 
   ebbrt::Zookeeper zk("172.17.0.4:2181");
 
-  ebbrt::kprintf("INIT PASSES\n");
-  ebbrt::kprintf("INTEREST PASSES\n");
   return;
 }

@@ -59,22 +59,26 @@ public:
     void Close(){}
     void Abort(){}
     void Receive(std::unique_ptr<MutIOBuf> b);
+
   private:
     std::unique_ptr<ebbrt::MutIOBuf> buf_;
     ebbrt::NetworkManager::TcpPcb pcb_;
     Zookeeper *zk_;
   };
 
-  Zookeeper();
+  Zookeeper(){};
   Zookeeper(const std::string& server_hosts,
             void* global_watcher = nullptr,
-            int timeout_ms = 5 * 1000){ };
+            int timeout_ms = 5 * 1000);
   Zookeeper(const Zookeeper&) = delete;
   Zookeeper& operator=(const Zookeeper&) = delete;
 
 private:
-  zhandle_t* zoo_handle_ = nullptr;
-  clientid_t myid;
+  clientid_t myid_;
+  std::mutex m_;
+  zhandle_t* zk_ = nullptr;
+  std::unordered_map<std::string, ebbrt::Promise<std::string>> promise_map_;
+  ebbrt::Zookeeper::TcpSession *tcp_session_;
 };
 
 

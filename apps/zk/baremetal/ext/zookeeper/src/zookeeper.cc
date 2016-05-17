@@ -16,6 +16,13 @@
  * limitations under the License.
  */
 
+#include <ebbrt/Debug.h>
+#include <ebbrt/NetMisc.h>
+extern "C" uint32_t htonl(uint32_t data) { return ebbrt::htonl(data); }
+extern "C" uint16_t htons(uint16_t data) { return ebbrt::htons(data); }
+extern "C" uint32_t ntohl(uint32_t data) { return ebbrt::ntohl(data); }
+extern "C" uint16_t ntohs(uint16_t data) { return ebbrt::ntohs(data); }
+
 #ifndef DLL_EXPORT
 #  define USE_STATIC_LIB
 #endif
@@ -24,7 +31,6 @@
 #define USE_IPV6
 #endif
 
-#include <ebbrt/Debug.h>
 
 #include <zookeeper.h>
 #include <zookeeper.jute.h>
