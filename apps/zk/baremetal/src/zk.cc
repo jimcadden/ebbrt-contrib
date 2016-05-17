@@ -5,27 +5,22 @@
 
 #include <chrono>
 #include <cstdio>
-#include <ebbrt/Clock.h>
-#include <string.h>
-#include <thread>
+//#include <ebbrt/Clock.h>
+#include <ebbrt/Debug.h>
+//#include <string.h>
+//#include <thread>
 
-#include "Printer.h"
-#include "zookeeper.hpp"
+#include "Zookeeper.h"
+
 
 void AppMain() {
 
-  printer->Print("ZK BACKEND UP.\n");
+//  printer->Print("ZK BACKEND UP.\n");
   ebbrt::kprintf("Connecting\n");
 
-  zookeeper::ZooKeeper zk("localhost:2181");
-  auto t1 = ebbrt::clock::Wall::Now();
-  while ((ebbrt::clock::Wall::Now() - t1) < std::chrono::seconds(1)) {
-  }
+  ebbrt::Zookeeper zk("172.17.0.4:2181");
 
-  if (zk.is_connected()) {
-    ebbrt::kprintf("We are connected\n");
-  } else {
-    ebbrt::kprintf("Connection failed\n");
-  }
+  ebbrt::kprintf("INIT PASSES\n");
+  ebbrt::kprintf("INTEREST PASSES\n");
   return;
 }

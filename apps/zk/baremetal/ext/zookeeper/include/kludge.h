@@ -9,10 +9,6 @@
     abort();                            \
   } while (0)
 
-#define htonl(X) ((X)) 
-#define ntohl(X) ((X)) 
-#define htons(X) ((X)) 
-#define ntohs(X) ((X)) 
 #define srandom(X) 
 
 typedef unsigned int socklen_t;

@@ -24,6 +24,8 @@
 #define USE_IPV6
 #endif
 
+#include <ebbrt/Debug.h>
+
 #include <zookeeper.h>
 #include <zookeeper.jute.h>
 #include <proto.h>
@@ -1571,153 +1573,158 @@ int zookeeper_interest(zhandle_t *zh, int *fd, int *interest,
      struct timeval *tv)
 {
 #endif
+    struct timeval now;
+    if(zh==0 || fd==0 ||interest==0 || tv==0)
+        return ZBADARGUMENTS;
+    if (is_unrecoverable(zh))
+        return ZINVALIDSTATE;
+    gettimeofday(&now, 0);
+    if(zh->next_deadline.tv_sec!=0 || zh->next_deadline.tv_usec!=0){
+        int time_left = calculate_interval(&zh->next_deadline, &now);
+        if (time_left > 10)
+            LOG_WARN(("Exceeded deadline by %dms", time_left));
+    }
+    api_prolog(zh);
+    *fd = zh->fd;
+    *interest = 0;
+    tv->tv_sec = 0;
+    tv->tv_usec = 0;
+    if (*fd == -1) {
+        if (zh->connect_index == zh->addrs_count) {
+            /* Wait a bit before trying again so that we don't spin */
+            zh->connect_index = 0;
+        }else {
+            int rc;
+#ifdef WIN32
+            char enable_tcp_nodelay = 1;
+#else
+            int enable_tcp_nodelay = 1;
+#endif
+            int ssoresult;
+
+  ebbrt::kprintf("END OF ZK INTEREST \n");
   UNIMPLEMENTED();
+        }
+    }
   return 0;
-//    struct timeval now;
-//    if(zh==0 || fd==0 ||interest==0 || tv==0)
-//        return ZBADARGUMENTS;
-//    if (is_unrecoverable(zh))
-//        return ZINVALIDSTATE;
-//    gettimeofday(&now, 0);
-//    if(zh->next_deadline.tv_sec!=0 || zh->next_deadline.tv_usec!=0){
-//        int time_left = calculate_interval(&zh->next_deadline, &now);
-//        if (time_left > 10)
-//            LOG_WARN(("Exceeded deadline by %dms", time_left));
-//    }
-//    api_prolog(zh);
-//    *fd = zh->fd;
-//    *interest = 0;
-//    tv->tv_sec = 0;
-//    tv->tv_usec = 0;
-//    if (*fd == -1) {
-//        if (zh->connect_index == zh->addrs_count) {
-//            /* Wait a bit before trying again so that we don't spin */
-//            zh->connect_index = 0;
-//        }else {
-//            int rc;
-//#ifdef WIN32
-//            char enable_tcp_nodelay = 1;
-//#else
-//            int enable_tcp_nodelay = 1;
-//#endif
-//            int ssoresult;
-//
-//            zh->fd = socket(zh->addrs[zh->connect_index].ss_family, SOCK_STREAM, 0);
-//            if (zh->fd < 0) {
-//                return api_epilog(zh,handle_socket_error_msg(zh,__LINE__,
-//                                                             ZSYSTEMERROR, "socket() call failed"));
-//            }
-//            ssoresult = setsockopt(zh->fd, IPPROTO_TCP, TCP_NODELAY, &enable_tcp_nodelay, sizeof(enable_tcp_nodelay));
-//            if (ssoresult != 0) {
-//                LOG_WARN(("Unable to set TCP_NODELAY, operation latency may be effected"));
-//            }
-//#ifdef WIN32
-//            ioctlsocket(zh->fd, FIONBIO, &nonblocking_flag);                    
-//#else
-//            fcntl(zh->fd, F_SETFL, O_NONBLOCK|fcntl(zh->fd, F_GETFL, 0));
-//#endif
-//#if defined(AF_INET6)
-//            if (zh->addrs[zh->connect_index].ss_family == AF_INET6) {
-//                rc = connect(zh->fd, (struct sockaddr*) &zh->addrs[zh->connect_index], sizeof(struct sockaddr_in6));
-//            } else {
-//#else
-//               LOG_DEBUG(("[zk] connect()\n"));
-//            {
-//#endif
-//                rc = connect(zh->fd, (struct sockaddr*) &zh->addrs[zh->connect_index], sizeof(struct sockaddr_in));
-//#ifdef WIN32
-//                get_errno();
-//#if _MSC_VER >= 1600
-//                switch (errno) {
-//                case WSAEWOULDBLOCK:
-//                    errno = EWOULDBLOCK;
-//                    break;
-//                case WSAEINPROGRESS:
-//                    errno = EINPROGRESS;
-//                    break;
-//                }
-//#endif
-//#endif
-//            }
-//            if (rc == -1) {
-//                /* we are handling the non-blocking connect according to
-//                 * the description in section 16.3 "Non-blocking connect"
-//                 * in UNIX Network Programming vol 1, 3rd edition */
-//                if (errno == EWOULDBLOCK || errno == EINPROGRESS)
-//                    zh->state = ZOO_CONNECTING_STATE;
-//                else
-//                    return api_epilog(zh,handle_socket_error_msg(zh,__LINE__,
-//                            ZCONNECTIONLOSS,"connect() call failed"));
-//            } else {
-//                if((rc=prime_connection(zh))!=0)
-//                    return api_epilog(zh,rc);
-//
-//                LOG_INFO(("Initiated connection to server [%s]",
-//                        format_endpoint_info(&zh->addrs[zh->connect_index])));
-//            }
-//        }
-//        *fd = zh->fd;
-//        *tv = get_timeval(zh->recv_timeout/3);
-//        zh->last_recv = now;
-//        zh->last_send = now;
-//        zh->last_ping = now;
-//    }
-//    if (zh->fd != -1) {
-//        int idle_recv = calculate_interval(&zh->last_recv, &now);
-//        int idle_send = calculate_interval(&zh->last_send, &now);
-//        int recv_to = zh->recv_timeout*2/3 - idle_recv;
-//        int send_to = zh->recv_timeout/3;
-//        // have we exceeded the receive timeout threshold?
-//        if (recv_to <= 0) {
-//            // We gotta cut our losses and connect to someone else
-//#ifdef WIN32
-//            errno = WSAETIMEDOUT;
-//#else
-//            errno = ETIMEDOUT;
-//#endif
-//            *interest=0;
-//            *tv = get_timeval(0);
-//            return api_epilog(zh,handle_socket_error_msg(zh,
-//                    __LINE__,ZOPERATIONTIMEOUT,
-//                    "connection to %s timed out (exceeded timeout by %dms)",
-//                    format_endpoint_info(&zh->addrs[zh->connect_index]),
-//                    -recv_to));
-//
-//        }
-//        // We only allow 1/3 of our timeout time to expire before sending
-//        // a PING
-//        if (zh->state==ZOO_CONNECTED_STATE) {
-//            send_to = zh->recv_timeout/3 - idle_send;
-//            if (send_to <= 0) {
-//                if (zh->sent_requests.head==0) {
-////                    LOG_DEBUG(("Sending PING to %s (exceeded idle by %dms)",
-////                                    format_current_endpoint_info(zh),-send_to));
-//                    int rc=send_ping(zh);
-//                    if (rc < 0){
-//                        LOG_ERROR(("failed to send PING request (zk retcode=%d)",rc));
-//                        return api_epilog(zh,rc);
-//                    }
-//                }
-//                send_to = zh->recv_timeout/3;
-//            }
-//        }
-//        // choose the lesser value as the timeout
-//        *tv = get_timeval(recv_to < send_to? recv_to:send_to);
-//        zh->next_deadline.tv_sec = now.tv_sec + tv->tv_sec;
-//        zh->next_deadline.tv_usec = now.tv_usec + tv->tv_usec;
-//        if (zh->next_deadline.tv_usec > 1000000) {
-//            zh->next_deadline.tv_sec += zh->next_deadline.tv_usec / 1000000;
-//            zh->next_deadline.tv_usec = zh->next_deadline.tv_usec % 1000000;
-//        }
-//        *interest = ZOOKEEPER_READ;
-//        /* we are interested in a write if we are connected and have something
-//         * to send, or we are waiting for a connect to finish. */
-//        if ((zh->to_send.head && (zh->state == ZOO_CONNECTED_STATE))
-//        || zh->state == ZOO_CONNECTING_STATE) {
-//            *interest |= ZOOKEEPER_WRITE;
-//        }
-//    }
-//    return api_epilog(zh,ZOK);
+#if 0
+            zh->fd = socket(zh->addrs[zh->connect_index].ss_family, SOCK_STREAM, 0);
+            if (zh->fd < 0) {
+                return api_epilog(zh,handle_socket_error_msg(zh,__LINE__,
+                                                             ZSYSTEMERROR, "socket() call failed"));
+            }
+            ssoresult = setsockopt(zh->fd, IPPROTO_TCP, TCP_NODELAY, &enable_tcp_nodelay, sizeof(enable_tcp_nodelay));
+            if (ssoresult != 0) {
+                LOG_WARN(("Unable to set TCP_NODELAY, operation latency may be effected"));
+            }
+#ifdef WIN32
+            ioctlsocket(zh->fd, FIONBIO, &nonblocking_flag);                    
+#else
+            fcntl(zh->fd, F_SETFL, O_NONBLOCK|fcntl(zh->fd, F_GETFL, 0));
+#endif
+#if defined(AF_INET6)
+            if (zh->addrs[zh->connect_index].ss_family == AF_INET6) {
+                rc = connect(zh->fd, (struct sockaddr*) &zh->addrs[zh->connect_index], sizeof(struct sockaddr_in6));
+            } else {
+#else
+               LOG_DEBUG(("[zk] connect()\n"));
+            {
+#endif
+                rc = connect(zh->fd, (struct sockaddr*) &zh->addrs[zh->connect_index], sizeof(struct sockaddr_in));
+#ifdef WIN32
+                get_errno();
+#if _MSC_VER >= 1600
+                switch (errno) {
+                case WSAEWOULDBLOCK:
+                    errno = EWOULDBLOCK;
+                    break;
+                case WSAEINPROGRESS:
+                    errno = EINPROGRESS;
+                    break;
+                }
+#endif
+#endif
+            }
+            if (rc == -1) {
+                /* we are handling the non-blocking connect according to
+                 * the description in section 16.3 "Non-blocking connect"
+                 * in UNIX Network Programming vol 1, 3rd edition */
+                if (errno == EWOULDBLOCK || errno == EINPROGRESS)
+                    zh->state = ZOO_CONNECTING_STATE;
+                else
+                    return api_epilog(zh,handle_socket_error_msg(zh,__LINE__,
+                            ZCONNECTIONLOSS,"connect() call failed"));
+            } else {
+                if((rc=prime_connection(zh))!=0)
+                    return api_epilog(zh,rc);
+
+                LOG_INFO(("Initiated connection to server [%s]",
+                        format_endpoint_info(&zh->addrs[zh->connect_index])));
+            }
+        }
+        *fd = zh->fd;
+        *tv = get_timeval(zh->recv_timeout/3);
+        zh->last_recv = now;
+        zh->last_send = now;
+        zh->last_ping = now;
+    }
+    if (zh->fd != -1) {
+        int idle_recv = calculate_interval(&zh->last_recv, &now);
+        int idle_send = calculate_interval(&zh->last_send, &now);
+        int recv_to = zh->recv_timeout*2/3 - idle_recv;
+        int send_to = zh->recv_timeout/3;
+        // have we exceeded the receive timeout threshold?
+        if (recv_to <= 0) {
+            // We gotta cut our losses and connect to someone else
+#ifdef WIN32
+            errno = WSAETIMEDOUT;
+#else
+            errno = ETIMEDOUT;
+#endif
+            *interest=0;
+            *tv = get_timeval(0);
+            return api_epilog(zh,handle_socket_error_msg(zh,
+                    __LINE__,ZOPERATIONTIMEOUT,
+                    "connection to %s timed out (exceeded timeout by %dms)",
+                    format_endpoint_info(&zh->addrs[zh->connect_index]),
+                    -recv_to));
+
+        }
+        // We only allow 1/3 of our timeout time to expire before sending
+        // a PING
+        if (zh->state==ZOO_CONNECTED_STATE) {
+            send_to = zh->recv_timeout/3 - idle_send;
+            if (send_to <= 0) {
+                if (zh->sent_requests.head==0) {
+//                    LOG_DEBUG(("Sending PING to %s (exceeded idle by %dms)",
+//                                    format_current_endpoint_info(zh),-send_to));
+                    int rc=send_ping(zh);
+                    if (rc < 0){
+                        LOG_ERROR(("failed to send PING request (zk retcode=%d)",rc));
+                        return api_epilog(zh,rc);
+                    }
+                }
+                send_to = zh->recv_timeout/3;
+            }
+        }
+        // choose the lesser value as the timeout
+        *tv = get_timeval(recv_to < send_to? recv_to:send_to);
+        zh->next_deadline.tv_sec = now.tv_sec + tv->tv_sec;
+        zh->next_deadline.tv_usec = now.tv_usec + tv->tv_usec;
+        if (zh->next_deadline.tv_usec > 1000000) {
+            zh->next_deadline.tv_sec += zh->next_deadline.tv_usec / 1000000;
+            zh->next_deadline.tv_usec = zh->next_deadline.tv_usec % 1000000;
+        }
+        *interest = ZOOKEEPER_READ;
+        /* we are interested in a write if we are connected and have something
+         * to send, or we are waiting for a connect to finish. */
+        if ((zh->to_send.head && (zh->state == ZOO_CONNECTED_STATE))
+        || zh->state == ZOO_CONNECTING_STATE) {
+            *interest |= ZOOKEEPER_WRITE;
+        }
+    }
+    return api_epilog(zh,ZOK);
+#endif
 }
 
 static int check_events(zhandle_t *zh, int events)
