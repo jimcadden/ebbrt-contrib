@@ -4,5 +4,42 @@
 //          http://www.boost.org/LICENSE_1_0.txt)
 
 #include "Printer.h"
+#include "SocketManager.h"
+#include "Vfs.h"
 
-void AppMain() { printer->Print("SOCKET BACKEND UP.\n"); }
+#include <sys/socket.h>
+
+void AppMain() { 
+  
+  int fd;
+  const struct sockaddr *saddr = nullptr;
+  socklen_t namelen = {};
+  
+
+  // socket.h
+  fd = accept(0, nullptr, nullptr);      
+  fd = bind(0, nullptr, namelen);      
+  fd = connect(0, saddr, namelen);      
+  fd = closesocket(fd); // WIN32
+  fd = getpeername(0, nullptr, nullptr);      
+  fd = getsockname(0, nullptr, nullptr);      
+  fd = getsockopt(0, SOL_SOCKET, SO_ERROR, nullptr, nullptr);
+  fd = ioctlsocket(0,0,nullptr); // WIN32
+  fd = listen(0,0);      
+  fd = recv(0, nullptr, 0, 0);      
+  fd = recvfrom(0, nullptr, 0, 0, nullptr, nullptr);      
+  fd = send(0, nullptr, 0, 0);      
+  fd = sendto(0, nullptr, 0, 0, nullptr, namelen);      
+  fd = setsockopt(0, SOL_SOCKET, SO_ERROR, saddr, namelen);
+  fd = shutdown(0,0);
+  fd = socket(0,0,0);
+
+  // fcntl.h
+  fd = read(0,nullptr,0);
+  fd = write(0,nullptr,0);
+  fd = close(0);
+  fd = fcntl(0,0,0);
+
+  printer->Print("SOCKET BACKEND UP.\n"); 
+
+}
