@@ -13,11 +13,11 @@
 #include "Zookeeper.h"
 
 
+  ebbrt::Zookeeper *zk;
+
 void AppMain() {
 
-  ebbrt::kprintf("Connecting...\n");
-
-  ebbrt::Zookeeper zk("172.17.0.4:2181");
-
+  zk = new ebbrt::Zookeeper("172.17.0.4:2181");
+  ebbrt::kprintf("End of App.\n");
   return;
 }

@@ -72,13 +72,13 @@ public:
             int timeout_ms = 5 * 1000);
   Zookeeper(const Zookeeper&) = delete;
   Zookeeper& operator=(const Zookeeper&) = delete;
+  ebbrt::Zookeeper::TcpSession *tcp_session_;
 
 private:
   clientid_t myid_;
   std::mutex m_;
   zhandle_t* zk_ = nullptr;
   std::unordered_map<std::string, ebbrt::Promise<std::string>> promise_map_;
-  ebbrt::Zookeeper::TcpSession *tcp_session_;
 };
 
 

@@ -23,8 +23,13 @@ ebbrt::Zookeeper::Zookeeper(const std::string &server_hosts, void *global_watche
   pcb.Connect(ebbrt::Ipv4Address({172, 17, 0, 4}), 2181);
   tcp_session_ = new ebbrt::Zookeeper::TcpSession(this,std::move(pcb));
   tcp_session_->Install();
-  
-  
+  ebbrt::kprintf("Connecting...\n");
 
+        int fd;
+        int interest;
+        int events;
+        struct timeval tv;
+        int rc;
+        zookeeper_interest(zk_, &fd, &interest, &tv);
   return;
 }

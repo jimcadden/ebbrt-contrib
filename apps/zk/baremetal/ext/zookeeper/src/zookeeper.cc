@@ -18,10 +18,17 @@
 
 #include <ebbrt/Debug.h>
 #include <ebbrt/NetMisc.h>
+#include <ebbrt/IOBufRef.h>
+#include <ebbrt/SharedIOBufRef.h>
+#include <ebbrt/UniqueIOBuf.h>
+#include <ebbrt/StaticIOBuf.h>
 extern "C" uint32_t htonl(uint32_t data) { return ebbrt::htonl(data); }
 extern "C" uint16_t htons(uint16_t data) { return ebbrt::htons(data); }
 extern "C" uint32_t ntohl(uint32_t data) { return ebbrt::ntohl(data); }
 extern "C" uint16_t ntohs(uint16_t data) { return ebbrt::ntohs(data); }
+
+#include "Zookeeper.h"
+extern ebbrt::Zookeeper zk;
 
 #ifndef DLL_EXPORT
 #  define USE_STATIC_LIB
@@ -222,6 +229,11 @@ static ssize_t zookeeper_send(int s, const void* buf, size_t len)
 #ifdef __linux__
   return send(s, buf, len, MSG_NOSIGNAL);
 #else
+
+  auto b = ebbrt::IOBuf::Create<ebbrt::StaticIOBuf>((uint8_t*)buf, len);
+  zk.tcp_session_->Send(std::move(b));
+
+
   //return send(s, buf, len, 0);
   return 0;
 #endif
@@ -1608,49 +1620,6 @@ int zookeeper_interest(zhandle_t *zh, int *fd, int *interest,
 #endif
             int ssoresult;
 
-  ebbrt::kprintf("END OF ZK INTEREST \n");
-  UNIMPLEMENTED();
-        }
-    }
-  return 0;
-#if 0
-            zh->fd = socket(zh->addrs[zh->connect_index].ss_family, SOCK_STREAM, 0);
-            if (zh->fd < 0) {
-                return api_epilog(zh,handle_socket_error_msg(zh,__LINE__,
-                                                             ZSYSTEMERROR, "socket() call failed"));
-            }
-            ssoresult = setsockopt(zh->fd, IPPROTO_TCP, TCP_NODELAY, &enable_tcp_nodelay, sizeof(enable_tcp_nodelay));
-            if (ssoresult != 0) {
-                LOG_WARN(("Unable to set TCP_NODELAY, operation latency may be effected"));
-            }
-#ifdef WIN32
-            ioctlsocket(zh->fd, FIONBIO, &nonblocking_flag);                    
-#else
-            fcntl(zh->fd, F_SETFL, O_NONBLOCK|fcntl(zh->fd, F_GETFL, 0));
-#endif
-#if defined(AF_INET6)
-            if (zh->addrs[zh->connect_index].ss_family == AF_INET6) {
-                rc = connect(zh->fd, (struct sockaddr*) &zh->addrs[zh->connect_index], sizeof(struct sockaddr_in6));
-            } else {
-#else
-               LOG_DEBUG(("[zk] connect()\n"));
-            {
-#endif
-                rc = connect(zh->fd, (struct sockaddr*) &zh->addrs[zh->connect_index], sizeof(struct sockaddr_in));
-#ifdef WIN32
-                get_errno();
-#if _MSC_VER >= 1600
-                switch (errno) {
-                case WSAEWOULDBLOCK:
-                    errno = EWOULDBLOCK;
-                    break;
-                case WSAEINPROGRESS:
-                    errno = EINPROGRESS;
-                    break;
-                }
-#endif
-#endif
-            }
             if (rc == -1) {
                 /* we are handling the non-blocking connect according to
                  * the description in section 16.3 "Non-blocking connect"
@@ -1664,8 +1633,8 @@ int zookeeper_interest(zhandle_t *zh, int *fd, int *interest,
                 if((rc=prime_connection(zh))!=0)
                     return api_epilog(zh,rc);
 
-                LOG_INFO(("Initiated connection to server [%s]",
-                        format_endpoint_info(&zh->addrs[zh->connect_index])));
+           //     LOG_INFO(("Initiated connection to server [%s]",
+            //            format_endpoint_info(&zh->addrs[zh->connect_index])));
             }
         }
         *fd = zh->fd;
@@ -1689,11 +1658,12 @@ int zookeeper_interest(zhandle_t *zh, int *fd, int *interest,
 #endif
             *interest=0;
             *tv = get_timeval(0);
-            return api_epilog(zh,handle_socket_error_msg(zh,
-                    __LINE__,ZOPERATIONTIMEOUT,
-                    "connection to %s timed out (exceeded timeout by %dms)",
-                    format_endpoint_info(&zh->addrs[zh->connect_index]),
-                    -recv_to));
+            return 0;
+            //return api_epilog(zh,handle_socket_error_msg(zh,
+            //        __LINE__,ZOPERATIONTIMEOUT,
+            //        "connection to %s timed out (exceeded timeout by %dms)",
+            //        format_endpoint_info(&zh->addrs[zh->connect_index]),
+            //        -recv_to));
 
         }
         // We only allow 1/3 of our timeout time to expire before sending
@@ -1730,7 +1700,6 @@ int zookeeper_interest(zhandle_t *zh, int *fd, int *interest,
         }
     }
     return api_epilog(zh,ZOK);
-#endif
 }
 
 static int check_events(zhandle_t *zh, int events)
