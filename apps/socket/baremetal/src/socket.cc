@@ -4,9 +4,6 @@
 //          http://www.boost.org/LICENSE_1_0.txt)
 
 #include "Printer.h"
-#include "SocketManager.h"
-#include "Vfs.h"
-
 #include <sys/socket.h>
 
 void AppMain() { 
@@ -15,7 +12,6 @@ void AppMain() {
   const struct sockaddr *saddr = nullptr;
   socklen_t namelen = {};
   
-
   // socket.h
   fd = accept(0, nullptr, nullptr);      
   fd = bind(0, nullptr, namelen);      

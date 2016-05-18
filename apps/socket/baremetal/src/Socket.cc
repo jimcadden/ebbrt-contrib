@@ -3,9 +3,11 @@
 //    (See accompanying file LICENSE_1_0.txt or copy at
 //          http://www.boost.org/LICENSE_1_0.txt)
 
+#include "SocketManager.h"
+#include "Vfs.h"
+
 #include <ebbrt/Debug.h>
 #include <sys/socket.h>
-
 
 int lwip_accept(int s, struct sockaddr *addr, socklen_t *addrlen){
   EBBRT_UNIMPLEMENTED();
