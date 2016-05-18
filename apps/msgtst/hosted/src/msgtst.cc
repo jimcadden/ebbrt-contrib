@@ -36,41 +36,38 @@ int main(int argc, char **argv) {
     auto node_desc = node_allocator->AllocateNode(bindir.string());
     node_desc.NetworkId().Then([msgtst_ebb](Future<Messenger::NetworkId> f) {
       auto nid = f.Get();
-      std::cout << "Begin Messenger Tests:\n";
+      std::cout << "Begin Messenger Tests" << std::endl;
 
-      std::cout << "1. single small message (4 bytes)\n";
+      std::cout << "1. single small message (4 bytes)... " << std::endl;
       // block on first msg is a require work-around to ensure the initial then
       // has been completed.
       msgtst_ebb->SendMessages(nid, 1, 4)[0].Block();
-      std::cout << "success!\n";
+      std::cout << "success" << std::endl;
 
-      std::cout << "2. many small message (1000 x 4 bytes)\n";
+      std::cout << "2. many small message (1000 x 4 bytes)... " << std::endl;
       auto v2 = msgtst_ebb->SendMessages(nid, 1000, 4);
       when_all(v2).Block().Then([](Future<std::vector<uint32_t> > vf) {
-        std::cout << "success!\n";
+        std::cout << "success!" << std::endl;
       });
 
-      std::cout << "3. single medium message (1 x  4000 bytes)\n";
+      std::cout << "3. single medium message (1 x  4000 bytes)... "<< std::endl;
       auto v3 = msgtst_ebb->SendMessages(nid, 1, 4000);
-      when_all(v3).Then([](Future<std::vector<uint32_t> > vf) {
-        vf.Block();
-        std::cout << "success!\n";
+      when_all(v3).Block().Then([](Future<std::vector<uint32_t> > vf) {
+        std::cout << "success!"<< std::endl;
       });
 
-      std::cout << "4. many medium message (100000 x  4000 bytes)\n";
+      std::cout << "4. many medium message (100000 x  4000 bytes)... "<< std::endl;
       auto v4 = msgtst_ebb->SendMessages(nid, 100000, 4000);
-      when_all(v4).Then([](Future<std::vector<uint32_t> > vf) {
-        vf.Block();
-        std::cout << "success!\n";
+      when_all(v4).Block().Then([](Future<std::vector<uint32_t> > vf) {
+        std::cout << "success!"<< std::endl;
       });
 
-      std::cout << "4. one large message (1 x  4000000 bytes)\n";
+      std::cout << "4. one large message (1 x  4000000 bytes)... "<< std::endl;
       auto v5 = msgtst_ebb->SendMessages(nid, 1, 4000000);
-      when_all(v5).Then([](Future<std::vector<uint32_t> > vf) {
-        vf.Block();
-        std::cout << "success!\n";
+      when_all(v5).Block().Then([](Future<std::vector<uint32_t> > vf) {
+        std::cout << "success!"<< std::endl;
       });
-      std::cout << "\nAll tests finished. Ctl+c to exit. \n";
+      std::cout << "All tests finished. Ctl+c to exit." << std::endl;
       return;
     });
   }
