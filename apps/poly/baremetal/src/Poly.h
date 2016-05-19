@@ -10,9 +10,9 @@ namespace ebbrt {
 
 class Poly {
 public:
-  struct Root {
-    virtual Poly &HandleFault(EbbID id) = 0;
-    virtual ~Root(){};
+  class Root {
+  public:
+    virtual Poly &HandleFault(EbbId id) = 0;
   private:
     friend class Poly;
   };
@@ -22,7 +22,7 @@ public:
     if (!found)
       throw std::runtime_error("Failed to find root for Poly");
 
-    auto rep = boost::any_cast<Poly *>(accessor->second);
+    auto rep = boost::any_cast<Root *>(accessor->second);
     return rep->HandleFault(id);
   };
   virtual void Foo() = 0;
@@ -31,15 +31,17 @@ public:
 
 class PolyFoo : Poly {
 public:
+  PolyFoo(){};
   static EbbRef<Poly> Create(EbbId id = ebb_allocator->Allocate()) {
     auto root = new PolyFoo::Root();
-    local_id_map->Insert(std::make_pair(id, root));
+    local_id_map->Insert(std::make_pair(id, dynamic_cast<Poly::Root*>(root)));
     return EbbRef<Poly>(id);
   }
-  struct Root : Poly::Root {
+  class Root : public Poly::Root {
+  public:
     Poly &HandleFault(EbbId id) override {
       PolyFoo *rep;
-      rep = new PolyFoo(id);
+      rep = new PolyFoo();
       // Cache the reference to the rep in the local translation table
       EbbRef<PolyFoo>::CacheRef(id, *rep);
       return *rep;
