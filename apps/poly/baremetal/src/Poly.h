@@ -13,6 +13,7 @@ public:
   class Root {
   public:
     virtual Poly &HandleFault(EbbId id) = 0;
+
   private:
     friend class Poly;
   };
@@ -34,11 +35,11 @@ public:
   PolyFoo(){};
   static EbbRef<PolyFoo> Create(EbbId id = ebb_allocator->Allocate()) {
     auto root = new PolyFoo::Root();
-    local_id_map->Insert(std::make_pair(id, static_cast<Poly::Root*>(root)));
+    local_id_map->Insert(std::make_pair(id, static_cast<Poly::Root *>(root)));
     return EbbRef<PolyFoo>(id);
   }
   static PolyFoo &HandleFault(EbbId id) {
-    return static_cast<PolyFoo&>(Poly::HandleFault(id));
+    return static_cast<PolyFoo &>(Poly::HandleFault(id));
   }
   class Root : public Poly::Root {
   public:
@@ -51,7 +52,7 @@ public:
   };
   void Foo() override { kprintf("Foo!\n"); }
   void Bar() override { kprintf("Bar!\n"); }
-  void Foobar()  { kprintf("fooBar!\n"); }
+  void Foobar() { kprintf("fooBar!\n"); }
 };
 
 } // namespace ebbrt
