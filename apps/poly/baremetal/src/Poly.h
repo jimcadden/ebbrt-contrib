@@ -29,19 +29,21 @@ public:
   virtual void Bar() = 0;
 };
 
-class PolyFoo : Poly {
+class PolyFoo : public Poly {
 public:
   PolyFoo(){};
-  static EbbRef<Poly> Create(EbbId id = ebb_allocator->Allocate()) {
+  static EbbRef<PolyFoo> Create(EbbId id = ebb_allocator->Allocate()) {
     auto root = new PolyFoo::Root();
-    local_id_map->Insert(std::make_pair(id, dynamic_cast<Poly::Root*>(root)));
-    return EbbRef<Poly>(id);
+    local_id_map->Insert(std::make_pair(id, static_cast<Poly::Root*>(root)));
+    return EbbRef<PolyFoo>(id);
+  }
+  static PolyFoo &HandleFault(EbbId id) {
+    return static_cast<PolyFoo&>(Poly::HandleFault(id));
   }
   class Root : public Poly::Root {
   public:
     Poly &HandleFault(EbbId id) override {
-      PolyFoo *rep;
-      rep = new PolyFoo();
+      auto rep = new PolyFoo();
       // Cache the reference to the rep in the local translation table
       EbbRef<PolyFoo>::CacheRef(id, *rep);
       return *rep;
@@ -49,78 +51,8 @@ public:
   };
   void Foo() override { kprintf("Foo!\n"); }
   void Bar() override { kprintf("Bar!\n"); }
+  void Foobar()  { kprintf("fooBar!\n"); }
 };
 
 } // namespace ebbrt
 #endif
-
-// class Poly {
-//    class Root {
-//        virtual Poly* HandleFault(EbbId id) = 0;
-//    };
-//    static Poly *HandleFault(EbbId id) {
-//        // Look for Poly::Root * in LocalIdMap
-//        auto root = ...;
-//        return root->HandleFault(id);
-//    }
-//
-//    virtual void foo() = 0;
-//};
-//
-// class MyPoly : Poly {
-//    class Root : Poly::Root {
-//        Poly* HandleFault(EbbId id) override {
-//            //Construct Rep
-//        }
-//        //members...
-//    }
-//    static EbbRef<Poly> Create() {
-//        //alloc EbbId
-//        // Construct MyPoly::Root and store pointer in LocalIdMap
-//        // Return EbbRef
-//    }
-//    void foo() override {
-//        // My Impl
-//    }
-//};
-//
-
-// EbbRef<Poly> my_ref
-// Poly::HandleFault(ebbid)
-
-//// more
-// class Poly {
-//    class Root {
-//        virtual Poly* HandleFault(EbbId id) = 0;
-//    };
-//    static Poly *HandleFault(EbbId id) {
-//        // Look for Poly::Root * in LocalIdMap
-//        auto root = ...;
-//        return root->HandleFault(id);
-//    }
-//
-//    virtual void foo() = 0;
-//};
-//
-// class MyPoly : Poly {
-//    class Root : Poly::Root {
-//        Poly* HandleFault(EbbId id) override {
-//            //Construct Rep
-//        }
-//        //members...
-//    }
-//    static EbbRef<Poly> Create() {
-//        //alloc EbbId
-//        // Construct MyPoly::Root and store pointer in LocalIdMap
-//        // Return EbbRef
-//    }
-//    void foo() override {
-//        // My Impl
-//    }
-//};
-//
-
-// EbbRef<Poly> my_ref
-// Poly::HandleFault(ebbid)
-// This is *IMPORTANT*, it allows the messenger to resolve remote HandleFaults
-// TODO: EBBRT_PUBLISH_TYPE(, Poly);
