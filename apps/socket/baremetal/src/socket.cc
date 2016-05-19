@@ -11,7 +11,12 @@ void AppMain() {
   int fd;
   const struct sockaddr *saddr = nullptr;
   socklen_t namelen = {};
+
+  fd = socket(AF_INET, SOCK_STREAM, 0);
+  fd = recv(fd, nullptr, 0, 0);      
+
   
+  // ALL
   // socket.h
   fd = accept(0, nullptr, nullptr);      
   fd = bind(0, nullptr, namelen);      
@@ -35,6 +40,9 @@ void AppMain() {
   fd = write(0,nullptr,0);
   fd = close(0);
   fd = fcntl(0,0,0);
+
+  // newlib
+   //fd = fstat();
 
   printer->Print("SOCKET BACKEND UP.\n"); 
 

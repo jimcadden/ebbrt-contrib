@@ -1,6 +1,7 @@
 #ifndef APPS_POLY_SRC_POLY_H_
 #define APPS_POLY_SRC_POLY_H_
 
+#include <ebbrt/EbbAllocator.h>
 #include <ebbrt/LocalIdMap.h>
 #include <ebbrt/Message.h>
 #include <ebbrt/StaticIds.h>

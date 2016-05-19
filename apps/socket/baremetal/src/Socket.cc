@@ -60,7 +60,8 @@ int lwip_listen(int s, int backlog){
 }
 
 int lwip_recv(int s, void *mem, size_t len, int flags){
-  EBBRT_UNIMPLEMENTED();
+  auto fd = ebbrt::root_vfs->Lookup(s);
+  fd->Read();
   return 0;
 }
 
@@ -85,8 +86,11 @@ int lwip_sendto(int s, const void *dataptr, size_t size, int flags, const struct
 }
 
 int lwip_socket(int domain, int type, int protocol){
-  EBBRT_UNIMPLEMENTED();
-  return 0;
+  if ( domain != AF_INET || type != SOCK_STREAM || protocol != 0 ){
+    ebbrt::kabort("Socket type not supported");
+    return -1;
+  }
+  return ebbrt::socket_manager->NewIpv4Socket();
 }
 
 int lwip_write(int s, const void *dataptr, size_t size){
