@@ -3,11 +3,18 @@
 //    (See accompanying file LICENSE_1_0.txt or copy at
 //          http://www.boost.org/LICENSE_1_0.txt)
 
+
 #include "SocketManager.h"
 #include "Vfs.h"
 
 #include <ebbrt/Debug.h>
+#include <ebbrt/NetMisc.h>
 #include <sys/socket.h>
+
+void lwip_assert(const char* fmt, ...){
+  EBBRT_UNIMPLEMENTED();
+  return;
+}
 
 int lwip_accept(int s, struct sockaddr *addr, socklen_t *addrlen){
   EBBRT_UNIMPLEMENTED();
@@ -50,7 +57,16 @@ int lwip_close(int s){
 }
 
 int lwip_connect(int s, const struct sockaddr *name, socklen_t namelen){
-  EBBRT_UNIMPLEMENTED();
+
+  auto saddr = reinterpret_cast<const struct sockaddr_in *>(name);
+  auto ip_addr = saddr->sin_addr.s_addr;
+  auto port = saddr->sin_port;
+  ebbrt::NetworkManager::TcpPcb pcb;
+  pcb.Connect(ebbrt::Ipv4Address(ip_addr), port);
+
+  // TODO: verify fd is right for connecting
+  auto fd = ebbrt::root_vfs->Lookup(s);
+  static_cast<ebbrt::EbbRef<ebbrt::SocketManager::SocketFd>>(fd)->Install(std::move(pcb));
   return 0;
 }
 
@@ -112,4 +128,13 @@ int lwip_fcntl(int s, int cmd, int val){
   EBBRT_UNIMPLEMENTED();
   return 0;
 }
+
+#undef htons
+u16_t lwip_htons(u16_t x){ return ebbrt::htons(x); }
+#undef ntohs
+u16_t lwip_ntohs(u16_t x){ return ebbrt::ntohs(x); }
+#undef htonl
+u32_t lwip_htonl(u32_t x){ return ebbrt::htonl(x); }
+#undef ntohl
+u32_t lwip_ntohl(u32_t x){ return ebbrt::ntohl(x); }
 
