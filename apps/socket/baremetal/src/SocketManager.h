@@ -9,32 +9,48 @@
 #include "Vfs.h"
 #include <ebbrt/CacheAligned.h>
 #include <ebbrt/EbbAllocator.h>
+#include <ebbrt/EventManager.h>
 #include <ebbrt/LocalIdMap.h>
 #include <ebbrt/Net.h>
 #include <ebbrt/NetTcpHandler.h>
+#include <ebbrt/SharedIOBufRef.h>
+#include <ebbrt/SpinLock.h>
 #include <ebbrt/StaticSharedEbb.h>
+#include <ebbrt/UniqueIOBuf.h>
 
 namespace ebbrt {
 
 class SocketManager : public ebbrt::StaticSharedEbb<SocketManager>,
                       public CacheAligned {
 public:
-  class SocketFd : public Vfs::Fd {
+  class SocketFd : public Vfs::Fd,
+                       public ebbrt::Timer::Hook {
   public:
     class TcpSession : public ebbrt::TcpHandler {
     public:
       TcpSession(SocketFd *fd, ebbrt::NetworkManager::TcpPcb pcb)
           : ebbrt::TcpHandler(std::move(pcb)), fd_(fd) {}
-      void Close() {}
-      void Abort() {}
-      void Receive(std::unique_ptr<MutIOBuf> b) {}
+      void Connected() override {
+        fd_->Connected();
+      }
+      void Receive(std::unique_ptr<ebbrt::MutIOBuf> buf) override;
+
+      void Close() override {
+        Shutdown();
+      }
+
+      void Abort() override {}
 
     private:
       friend class SocketFd;
-      std::unique_ptr<ebbrt::MutIOBuf> buf_;
-      ebbrt::NetworkManager::TcpPcb pcb_;
       SocketFd *fd_;
+      ebbrt::NetworkManager::TcpPcb pcb_;
+      //std::unique_ptr<ebbrt::MutIOBuf> received_buf_;
+      Promise<std::unique_ptr<ebbrt::MutSharedIOBufRef>> in_;
+      ebbrt::SpinLock buf_lock_;
     };
+
+    void Fire() override;
     SocketFd(){};
     static EbbRef<SocketFd> Create(EbbId id = ebb_allocator->Allocate()) {
       auto root = new SocketFd::Root();
@@ -54,23 +70,25 @@ public:
         return *rep;
       }
     };
-    // void Close() override { kprintf("called SocketFd::Close()\n"); }
-    // void IsReady() override { kprintf("called SocketFd::IsReady()\n"); };
-    // void Lseek() override { kprintf("called SocketFd::Lseek()\n"); };
-    // void Write() override { kprintf("called SocketFd::Write()\n"); }
-    void Read() override { kprintf("called SocketFd::Read()\n"); }
 
-    void Install(ebbrt::NetworkManager::TcpPcb pcb) {
-      // TODO: prevent twice install
-      tcp_session_ = new TcpSession(this, std::move(pcb));
-      tcp_session_->Install();
-    }
+
+    std::unique_ptr<ebbrt::MutSharedIOBufRef> Read(size_t len) override;
+    ebbrt::Future<bool> Connect(ebbrt::NetworkManager::TcpPcb pcb);
+    void Connected();
 
   private:
     TcpSession *tcp_session_;
+      enum states {
+        DISCONNECTED,
+        CONNECTING,
+        READY,
+        READ_BOCKED,
+      };
+      enum states state_;
+      Promise<bool> connected_;
   };
-explicit SocketManager(){};
-int NewIpv4Socket();
+  explicit SocketManager(){};
+  int NewIpv4Socket();
 };
 
 constexpr auto socket_manager = EbbRef<SocketManager>(kSocketManagerEbbId);

@@ -13,8 +13,8 @@ void AppMain() {
   int sockfd = 0, n = 0;
   char recvBuff[1024];
   struct sockaddr_in serv_addr;
-  char ip[15] = "10.3.124.1"; 
-
+  char ip[15] = "0.0.0.0"; 
+  
   memset(recvBuff, '0', sizeof(recvBuff));
 
   if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
@@ -24,35 +24,29 @@ void AppMain() {
   memset(&serv_addr, '0', sizeof(serv_addr));
 
   serv_addr.sin_family = AF_INET;
-  serv_addr.sin_port = 5000;
+  serv_addr.sin_port = htons(5000); 
   
-  int stop=1;
-  while(stop)
-    ;
-
   if (inet_pton(AF_INET, ip, &serv_addr.sin_addr) <= 0) {
     printf("\n inet_pton error occured\n");
     return;
   }
   
-
   if (connect(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-    ebbrt::kprintf("\n Error : Connect Failed \n");
+    ebbrt::kprintf("Error : Connect Failed \n");
     return;
   }
-
-  int stop2=1;
-  while(stop2)
-    ;
 
   while ((n = read(sockfd, recvBuff, sizeof(recvBuff) - 1)) > 0) {
     recvBuff[n] = '\0';
-    ebbrt::kprintf(" Read: %s \n", recvBuff);
+    ebbrt::kprintf("> %s \n", recvBuff);
   }
   if (n < 0) {
-    ebbrt::kprintf("\n Read error \n");
+    ebbrt::kprintf("Read error \n");
     return;
   }
+  ebbrt::kprintf("Finished Read.\n");
+
+  // TODO:disconnect
 #if 0
   int fd;
   const struct sockaddr *saddr = nullptr;

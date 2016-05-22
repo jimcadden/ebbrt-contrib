@@ -10,7 +10,10 @@
 #include <ebbrt/CacheAligned.h>
 #include <ebbrt/LocalIdMap.h>
 #include <ebbrt/StaticSharedEbb.h>
+#include <ebbrt/SpinLock.h>
 #include "../../src/StaticEbbIds.h"
+#include <ebbrt/SharedIOBufRef.h>
+#include <ebbrt/UniqueIOBuf.h>
 
 namespace ebbrt {
 
@@ -33,11 +36,13 @@ public:
       auto rep = boost::any_cast<Root *>(accessor->second);
       return rep->HandleFault(id);
     };
+     virtual std::unique_ptr<ebbrt::MutSharedIOBufRef> Read(size_t len) = 0;
     // virtual void Close() = 0;
     // virtual void IsReady() = 0;
     // virtual void Lseek() = 0;
-     virtual void Read() = 0;
     // virtual void Write() = 0;
+  protected:
+      ebbrt::SpinLock fd_lock_;
   };
   explicit Vfs() : fd_{0} {};
   int RegisterFd(ebbrt::EbbRef<ebbrt::Vfs::Fd>);
