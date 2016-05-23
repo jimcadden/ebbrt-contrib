@@ -27,7 +27,6 @@ int lwip_connect(int s, const struct sockaddr *name, socklen_t namelen){
   // TODO: verify fd is right for connecting
   auto connection = static_cast<ebbrt::EbbRef<ebbrt::SocketManager::SocketFd>>(fd)->Connect(std::move(pcb)).Block();
   auto  is_connected = connection.Get();
-
   if( is_connected ){
     return 0;
   }
@@ -44,12 +43,18 @@ int lwip_socket(int domain, int type, int protocol){
 
 int lwip_read(int s, void *mem, size_t len){
   auto fd = ebbrt::root_vfs->Lookup(s);
-  auto buf = fd->Read(len);
-  auto chain_len = buf->ComputeChainDataLength();
-  assert(chain_len <= len);
-  auto dptr = buf->GetDataPointer();
-  std::memcpy(mem, dptr.Data(), chain_len);
-  return chain_len;
+  auto fbuf = fd->Read(len).Block();
+  auto buf = std::move(fbuf.Get());
+  if( buf ){
+    auto chain_len = buf->ComputeChainDataLength();
+    assert(chain_len <= len);
+    auto dptr = buf->GetDataPointer();
+    std::memcpy(mem, dptr.Data(), chain_len);
+    return chain_len;
+  }else{
+    ebbrt::kabort("error: NULL IOBuf");
+    return -1;
+  }
 }
 
 

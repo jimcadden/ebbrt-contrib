@@ -11,9 +11,11 @@
 #include <ebbrt/LocalIdMap.h>
 #include <ebbrt/StaticSharedEbb.h>
 #include <ebbrt/SpinLock.h>
-#include "../../src/StaticEbbIds.h"
 #include <ebbrt/SharedIOBufRef.h>
 #include <ebbrt/UniqueIOBuf.h>
+#include <ebbrt/Future.h>
+
+#include "../../src/StaticEbbIds.h"
 
 namespace ebbrt {
 
@@ -36,7 +38,7 @@ public:
       auto rep = boost::any_cast<Root *>(accessor->second);
       return rep->HandleFault(id);
     };
-     virtual std::unique_ptr<ebbrt::MutSharedIOBufRef> Read(size_t len) = 0;
+     virtual ebbrt::Future<std::unique_ptr<IOBuf>> Read(size_t len) = 0;
     // virtual void Close() = 0;
     // virtual void IsReady() = 0;
     // virtual void Lseek() = 0;

@@ -14,46 +14,67 @@ int ebbrt::SocketManager::NewIpv4Socket() {
 
 void ebbrt::SocketManager::SocketFd::TcpSession::Receive(
     std::unique_ptr<ebbrt::MutIOBuf> b) {
-  kassert(b->Length() != 0);
-  // restore any queued buffers
+  {
+    ebbrt::kprintf("received data");
+    std::lock_guard<ebbrt::SpinLock> guard(buf_lock_);
+    if (inbuf_) {
+      inbuf_->PrependChain(std::move(b));
+    } else {
+      inbuf_ = std::move(b);
+    }
+  } // unlocked
+  check_read();
+  return;
+}
+
+void ebbrt::SocketManager::SocketFd::TcpSession::check_read() {
+
   std::lock_guard<ebbrt::SpinLock> guard(buf_lock_);
-  //if (received_buf_) {
-
-  if( in_.GetFuture().Ready()){
-    EBBRT_UNIMPLEMENTED();
+  if (!inbuf_ || !read_.second || read_.first.GetFuture().Ready()) {
+    return;
   }
-  //  received_buf_->PrependChain(std::move(b));
-  //} else {
-    in_.SetValue(IOBuf::Create<MutSharedIOBufRef>(SharedIOBufRef::CloneView, std::move(b)));
+    ebbrt::kprintf("requesting %d bytes\n", read_.second);
+
+  std::unique_ptr<MutIOBuf> rbuf(nullptr);
+  auto len = read_.second;
+  auto chain_len = inbuf_->ComputeChainDataLength();
+
+  if (len >= chain_len) {
+    read_.first.SetValue(std::move(inbuf_));
+  } else {
+    // we have more data then whats being requested
+    ebbrt::kabort("split buffer not yet supported");
+  }
+  return;
 }
 
-std::unique_ptr<ebbrt::MutSharedIOBufRef>
-ebbrt::SocketManager::SocketFd::Read(size_t message_len) {
-  kprintf("called SocketFd::Read()\n");
-
-  auto pbuf = tcp_session_->in_.GetFuture().Block();
-
-  kprintf("Read data!\n");
-  std::lock_guard<ebbrt::SpinLock> guard(tcp_session_->buf_lock_);
-  // FIXME: spin lock
-  std::unique_ptr<MutIOBuf> read_in = nullptr;
-  auto buf = std::move(pbuf.Get());
-  kassert(buf);
-  
-  auto chain_len = buf->ComputeChainDataLength();
-
-  if (likely(chain_len <= message_len)) {
-    // we have exactly the amount of data to read
-  } else if (chain_len > message_len) {
-    // we have additional data to read so we will need to split the
-    // buffer and return only the amount we need
-    EBBRT_UNIMPLEMENTED();
-  }
-  return std::move(buf);
+void ebbrt::SocketManager::SocketFd::TcpSession::Close() {
+  Shutdown();
+  return;
 }
 
-void ebbrt::SocketManager::SocketFd::Fire() {
-  // connection timeout
+void ebbrt::SocketManager::SocketFd::TcpSession::Abort() {
+  Shutdown();
+  return;
+}
+
+ebbrt::Future<std::unique_ptr<ebbrt::IOBuf>>
+ebbrt::SocketManager::SocketFd::Read(size_t len) {
+
+  // std::lock_guard<ebbrt::SpinLock> guard(tcpbuf_lock_);
+  // check state
+  // TODO: locking out concurrent receives
+  Promise<std::unique_ptr<ebbrt::IOBuf>> p;
+  auto f = p.GetFuture();
+
+  tcp_session_->read_ = std::make_pair(std::move(p), len);
+  tcp_session_->check_read();
+  return std::move(f);
+}
+
+void ebbrt::SocketManager::SocketFd::TcpSession::Fire() {
+  // TODO: check state
+  // if connection timeout
   auto state = connected_.GetFuture();
   if (!state.Ready()) {
     connected_.SetValue(false);
@@ -62,16 +83,15 @@ void ebbrt::SocketManager::SocketFd::Fire() {
 
 ebbrt::Future<bool>
 ebbrt::SocketManager::SocketFd::Connect(ebbrt::NetworkManager::TcpPcb pcb) {
-  // TODO: prevent twice install
+  // TODO: check state
   tcp_session_ = new TcpSession(this, std::move(pcb));
   tcp_session_->Install();
-  // connection timeout
-  timer->Start(*this, std::chrono::seconds(16), /* repeat */ false);
-  return connected_.GetFuture();
+  // XXX: is timeout nessessary, does't TCP close or abort?
+  timer->Start(*tcp_session_, std::chrono::seconds(5), /* repeat */ false);
+  return tcp_session_->connected_.GetFuture();
 }
 
-void ebbrt::SocketManager::SocketFd::Connected() {
-        ebbrt::kprintf(" TCP connected.\n");
+void ebbrt::SocketManager::SocketFd::TcpSession::Connected() {
   connected_.SetValue(true);
   return;
 }

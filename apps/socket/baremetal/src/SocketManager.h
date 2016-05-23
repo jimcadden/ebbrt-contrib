@@ -5,12 +5,15 @@
 #ifndef APPS_SOCKET_BAREMETAL_SRC_SOCKETMANAGER_H_
 #define APPS_SOCKET_BAREMETAL_SRC_SOCKETMANAGER_H_
 
+#include <utility> // std::pair
+
 #include "../../src/StaticEbbIds.h"
 #include "Vfs.h"
 #include <ebbrt/CacheAligned.h>
 #include <ebbrt/EbbAllocator.h>
 #include <ebbrt/EventManager.h>
 #include <ebbrt/LocalIdMap.h>
+#include <ebbrt/Future.h>
 #include <ebbrt/Net.h>
 #include <ebbrt/NetTcpHandler.h>
 #include <ebbrt/SharedIOBufRef.h>
@@ -23,34 +26,31 @@ namespace ebbrt {
 class SocketManager : public ebbrt::StaticSharedEbb<SocketManager>,
                       public CacheAligned {
 public:
-  class SocketFd : public Vfs::Fd,
-                       public ebbrt::Timer::Hook {
+  class SocketFd : public Vfs::Fd {
   public:
-    class TcpSession : public ebbrt::TcpHandler {
+    class TcpSession : public ebbrt::TcpHandler,
+                       public ebbrt::Timer::Hook {
     public:
+      void Fire() override;
       TcpSession(SocketFd *fd, ebbrt::NetworkManager::TcpPcb pcb)
           : ebbrt::TcpHandler(std::move(pcb)), fd_(fd) {}
-      void Connected() override {
-        fd_->Connected();
-      }
+      void Connected() override; 
       void Receive(std::unique_ptr<ebbrt::MutIOBuf> buf) override;
-
-      void Close() override {
-        Shutdown();
-      }
-
-      void Abort() override {}
+      void Close() override;
+      void Abort() override;
 
     private:
+      typedef std::pair<Promise<std::unique_ptr<ebbrt::IOBuf>>, size_t> PendingRead;
       friend class SocketFd;
       SocketFd *fd_;
       ebbrt::NetworkManager::TcpPcb pcb_;
-      //std::unique_ptr<ebbrt::MutIOBuf> received_buf_;
-      Promise<std::unique_ptr<ebbrt::MutSharedIOBufRef>> in_;
+      std::unique_ptr<ebbrt::MutIOBuf> inbuf_;
       ebbrt::SpinLock buf_lock_;
+      PendingRead read_;
+      Promise<bool> connected_;
+      void check_read();
     };
 
-    void Fire() override;
     SocketFd(){};
     static EbbRef<SocketFd> Create(EbbId id = ebb_allocator->Allocate()) {
       auto root = new SocketFd::Root();
@@ -72,20 +72,20 @@ public:
     };
 
 
-    std::unique_ptr<ebbrt::MutSharedIOBufRef> Read(size_t len) override;
+    ebbrt::Future<std::unique_ptr<IOBuf>> Read(size_t len) override;
     ebbrt::Future<bool> Connect(ebbrt::NetworkManager::TcpPcb pcb);
     void Connected();
 
   private:
     TcpSession *tcp_session_;
-      enum states {
+      enum state {
         DISCONNECTED,
         CONNECTING,
-        READY,
         READ_BOCKED,
+        WRITE_BLOCKED,
+        READY
       };
-      enum states state_;
-      Promise<bool> connected_;
+      enum state state_;
   };
   explicit SocketManager(){};
   int NewIpv4Socket();
