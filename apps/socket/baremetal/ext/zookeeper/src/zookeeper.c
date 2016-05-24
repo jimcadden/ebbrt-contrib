@@ -24,6 +24,9 @@
 #define USE_IPV6
 #endif
 
+#include "zk_config.h"
+#include "zk_kludge.h"
+
 #include <zookeeper.h>
 #include <zookeeper.jute.h>
 #include <proto.h>
@@ -44,13 +47,12 @@
 #ifndef WIN32
 #include <sys/time.h>
 #include <sys/socket.h>
-#include <poll.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
-#include <arpa/inet.h>
+//#include <poll.h>
+//#include <netinet/in.h>
+//#include <netinet/tcp.h>
+//#include <arpa/inet.h>
 #include <netdb.h>
 #include <unistd.h>
-#include "config.h"
 #endif
 
 #ifdef HAVE_SYS_UTSNAME_H
@@ -2139,6 +2141,7 @@ void process_completions(zhandle_t *zh)
         close_buffer_iarchive(&ia);
     }
 }
+
 
 static void isSocketReadable(zhandle_t* zh)
 {

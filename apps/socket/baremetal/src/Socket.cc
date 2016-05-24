@@ -13,6 +13,7 @@
 #include <ebbrt/Runtime.h>
 
 #include <sys/socket.h>
+#include <netdb.h>
 #include <errno.h>
 
 int lwip_connect(int s, const struct sockaddr *name, socklen_t namelen){
@@ -72,6 +73,25 @@ int lwip_close(int s){
 void lwip_assert(const char* fmt, ...){
   EBBRT_UNIMPLEMENTED();
   return;
+}
+
+
+int lwip_gethostbyname_r(const char *name, struct hostent *ret, char *buf,
+                size_t buflen, struct hostent **result, int *h_errnop){
+  EBBRT_UNIMPLEMENTED();
+  return 0;
+}
+
+void lwip_freeaddrinfo(struct addrinfo *ai){
+  EBBRT_UNIMPLEMENTED();
+}
+
+int lwip_getaddrinfo(const char *nodename,
+       const char *servname,
+       const struct addrinfo *hints,
+       struct addrinfo **res){
+  EBBRT_UNIMPLEMENTED();
+  return 0;
 }
 
 int lwip_accept(int s, struct sockaddr *addr, socklen_t *addrlen){

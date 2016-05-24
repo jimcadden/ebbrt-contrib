@@ -16,13 +16,15 @@
  * limitations under the License.
  */
 
+#include <sys/socket.h>
+
 #include <recordio.h>
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
 #include <stdlib.h>
 #ifndef WIN32
-#include <netinet/in.h>
+//#include <netinet/in.h>
 #endif
 
 void deallocate_String(char **s)

@@ -54,7 +54,8 @@ void time_server() {
     std::cout << "New connection!" << std::endl;
     ticks = time(NULL);
     snprintf(sendBuff, sizeof(sendBuff), "%.24s\r\n", ctime(&ticks));
-    write(connfd, sendBuff, strlen(sendBuff));
+    auto w = write(connfd, sendBuff, strlen(sendBuff));
+    std::cout << w << std::endl;
 
     close(connfd);
     sleep(1);

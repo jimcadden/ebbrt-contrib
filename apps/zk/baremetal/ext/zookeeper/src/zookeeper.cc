@@ -63,7 +63,7 @@ extern ebbrt::Zookeeper zk;
 //#include <netinet/in.h>
 //#include <netinet/tcp.h>
 //#include <arpa/inet.h>
-//#include <netdb.h>
+#include <netdb.h>
 #include <unistd.h>
 #include <config.h>
 #endif

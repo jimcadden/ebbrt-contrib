@@ -2,13 +2,13 @@
 /* config.h.in.  Generated from configure.ac by autoheader.  */
 
 /* Define to 1 if you have the <arpa/inet.h> header file. */
-#define HAVE_ARPA_INET_H 1
+//#define HAVE_ARPA_INET_H 1
 
 /* Define to 1 if you have the <dlfcn.h> header file. */
-#define HAVE_DLFCN_H 1
+//#define HAVE_DLFCN_H 1
 
 /* Define to 1 if you have the <fcntl.h> header file. */
-#define HAVE_FCNTL_H 1
+//#define HAVE_FCNTL_H 1
 
 /* Define to 1 if you have the file `generated/zookeeper.jute.c'. */
 #define HAVE_GENERATED_ZOOKEEPER_JUTE_C 1
@@ -17,16 +17,16 @@
 #define HAVE_GENERATED_ZOOKEEPER_JUTE_H 1
 
 /* Define to 1 if you have the `getcwd' function. */
-#define HAVE_GETCWD 1
+//#define HAVE_GETCWD 1
 
 /* Define to 1 if you have the `gethostbyname' function. */
-#define HAVE_GETHOSTBYNAME 1
+//#define HAVE_GETHOSTBYNAME 1
 
 /* Define to 1 if you have the `gethostname' function. */
-#define HAVE_GETHOSTNAME 1
+//#define HAVE_GETHOSTNAME 1
 
 /* Define to 1 if you have the `getlogin' function. */
-#define HAVE_GETLOGIN 1
+//#define HAVE_GETLOGIN 1
 
 /* Define to 1 if you have the `getpwuid_r' function. */
 //#define HAVE_GETPWUID_R 1

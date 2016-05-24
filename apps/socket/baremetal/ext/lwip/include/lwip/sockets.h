@@ -30,6 +30,7 @@
  *
  */
 
+#include <sys/time.h>
 
 #ifndef __LWIP_SOCKETS_H__
 #define __LWIP_SOCKETS_H__
@@ -368,6 +369,7 @@ int lwip_fcntl(int s, int cmd, int val);
 #define fcntl(a,b,c)          lwip_fcntl(a,b,c)
 #endif /* LWIP_POSIX_SOCKETS_IO_NAMES */
 
+// CUSTOM
 #if LWIP_IPV6
 #define inet_ntop(af,src,dst,size) \
     (((af) == AF_INET6) ? ip6addr_ntoa_r((src),(dst),(size)) \
@@ -383,6 +385,19 @@ int lwip_fcntl(int s, int cmd, int val);
 #endif /* LWIP_IPV6 */
 
 #endif /* LWIP_COMPAT_SOCKETS */
+
+struct sockaddr_storage {
+  u8_t        s2_len;
+  u8_t        ss_family;
+  char        s2_data1[2];
+  u32_t       s2_data2[3];
+#if LWIP_IPV6
+  u32_t       s2_data3[2];
+#endif /* LWIP_IPV6 */
+};
+
+
+
 
 #ifdef __cplusplus
 }
