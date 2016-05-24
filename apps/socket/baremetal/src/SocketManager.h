@@ -47,7 +47,8 @@ public:
       std::unique_ptr<ebbrt::MutIOBuf> inbuf_;
       ebbrt::SpinLock buf_lock_;
       PendingRead read_;
-      Promise<bool> connected_;
+      Promise<uint8_t> disconnected_;
+      Promise<uint8_t> connected_;
       void check_read();
     };
 
@@ -72,20 +73,13 @@ public:
     };
 
 
+    ebbrt::Future<uint8_t> Close() override;
+    ebbrt::Future<uint8_t> Connect(ebbrt::NetworkManager::TcpPcb pcb);
     ebbrt::Future<std::unique_ptr<IOBuf>> Read(size_t len) override;
-    ebbrt::Future<bool> Connect(ebbrt::NetworkManager::TcpPcb pcb);
-    void Connected();
 
   private:
     TcpSession *tcp_session_;
-      enum state {
-        DISCONNECTED,
-        CONNECTING,
-        READ_BOCKED,
-        WRITE_BLOCKED,
-        READY
-      };
-      enum state state_;
+    bool connected_;
   };
   explicit SocketManager(){};
   int NewIpv4Socket();

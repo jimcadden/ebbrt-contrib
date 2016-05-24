@@ -5,8 +5,11 @@
 
 #include <cstring>
 #include <sys/socket.h>
+#include <errno.h>
+
 
 #include <ebbrt/Debug.h>
+#include <ebbrt/Clock.h>
 
 void AppMain() {
 
@@ -15,10 +18,11 @@ void AppMain() {
   struct sockaddr_in serv_addr;
   char ip[15] = "0.0.0.0"; 
   
+  ebbrt::kprintf("The time is: \n");
   memset(recvBuff, '0', sizeof(recvBuff));
 
   if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-    ebbrt::kprintf("\n Error : Could not create socket \n");
+    ebbrt::kprintf("\n Error : Could not create socket (%d)\n", errno);
     return;
   }
   memset(&serv_addr, '0', sizeof(serv_addr));
@@ -27,7 +31,8 @@ void AppMain() {
   serv_addr.sin_port = htons(5000); 
   
   if (inet_pton(AF_INET, ip, &serv_addr.sin_addr) <= 0) {
-    printf("\n inet_pton error occured\n");
+    ebbrt::kprintf("\n inet_on error occured (%d)\n");
+
     return;
   }
   
@@ -40,13 +45,10 @@ void AppMain() {
     recvBuff[n] = '\0';
     ebbrt::kprintf("> %s \n", recvBuff);
   }
-  if (n < 0) {
-    ebbrt::kprintf("Read error \n");
-    return;
-  }
-  ebbrt::kprintf("Finished Read.\n");
+  close(sockfd);
+}
 
-  // TODO:disconnect
+
 #if 0
   int fd;
   const struct sockaddr *saddr = nullptr;
@@ -83,4 +85,4 @@ void AppMain() {
   // newlib
   //fd = fstat();
 #endif
-}
+

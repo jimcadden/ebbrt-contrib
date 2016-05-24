@@ -10,14 +10,17 @@
 #include <ebbrt/Clock.h>
 #include <ebbrt/Debug.h>
 #include <ebbrt/NetMisc.h>
-#include <sys/socket.h>
 #include <ebbrt/Runtime.h>
+
+#include <sys/socket.h>
+#include <errno.h>
 
 int lwip_connect(int s, const struct sockaddr *name, socklen_t namelen){
 
   // TODO: verify socket domain/type is valid
   auto saddr = reinterpret_cast<const struct sockaddr_in *>(name);
   auto ip_addr = saddr->sin_addr.s_addr;
+  // XXX: hard-coded front-end
   ip_addr = ebbrt::runtime::Frontend();
   auto port = ntohs(saddr->sin_port); // port arrives in network order
   ebbrt::NetworkManager::TcpPcb pcb;
@@ -25,7 +28,8 @@ int lwip_connect(int s, const struct sockaddr *name, socklen_t namelen){
   auto fd = ebbrt::root_vfs->Lookup(s);
 
   // TODO: verify fd is right for connecting
-  auto connection = static_cast<ebbrt::EbbRef<ebbrt::SocketManager::SocketFd>>(fd)->Connect(std::move(pcb)).Block();
+  auto connection =
+    static_cast<ebbrt::EbbRef<ebbrt::SocketManager::SocketFd>>(fd)->Connect(std::move(pcb)).Block();
   auto  is_connected = connection.Get();
   if( is_connected ){
     return 0;
@@ -45,16 +49,23 @@ int lwip_read(int s, void *mem, size_t len){
   auto fd = ebbrt::root_vfs->Lookup(s);
   auto fbuf = fd->Read(len).Block();
   auto buf = std::move(fbuf.Get());
-  if( buf ){
-    auto chain_len = buf->ComputeChainDataLength();
-    assert(chain_len <= len);
+  auto chain_len = buf->ComputeChainDataLength();
+  assert(chain_len <= len);
+  if( chain_len > 0  ){
     auto dptr = buf->GetDataPointer();
     std::memcpy(mem, dptr.Data(), chain_len);
     return chain_len;
-  }else{
-    ebbrt::kabort("error: NULL IOBuf");
+  }{
+    // TODO: set ERRNO
+    errno = 1;
     return -1;
   }
+}
+
+int lwip_close(int s){
+  auto fd = ebbrt::root_vfs->Lookup(s);
+ fd->Close().Block();
+  return 0;
 }
 
 
@@ -94,11 +105,6 @@ int lwip_getsockopt (int s, int level, int optname, void *optval, socklen_t *opt
 }
 
 int lwip_setsockopt (int s, int level, int optname, const void *optval, socklen_t optlen){
-  EBBRT_UNIMPLEMENTED();
-  return 0;
-}
-
-int lwip_close(int s){
   EBBRT_UNIMPLEMENTED();
   return 0;
 }

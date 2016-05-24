@@ -39,7 +39,7 @@ public:
       return rep->HandleFault(id);
     };
      virtual ebbrt::Future<std::unique_ptr<IOBuf>> Read(size_t len) = 0;
-    // virtual void Close() = 0;
+     virtual ebbrt::Future<uint8_t> Close() = 0;
     // virtual void IsReady() = 0;
     // virtual void Lseek() = 0;
     // virtual void Write() = 0;
