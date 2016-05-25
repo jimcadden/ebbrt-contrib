@@ -92,12 +92,72 @@ ebbrt::SocketManager::SocketFd::Close(){
   return tcp_session_->disconnected_.GetFuture();
 }
 
+void
+ebbrt::SocketManager::SocketFd::install_pcb(ebbrt::NetworkManager::TcpPcb pcb) {
+  tcp_session_ = new TcpSession(this, std::move(pcb));
+  tcp_session_->Install();
+  return;
+}
+
+void
+ebbrt::SocketManager::SocketFd::check_waiting(){
+  std::lock_guard<ebbrt::SpinLock> guard(waiting_lock_);
+  while( !waiting_accept_.empty() && !waiting_pcb_.empty() ){
+
+    auto &a = waiting_accept_.front();
+    auto pcb = std::move(waiting_pcb_.front());
+
+    waiting_accept_.pop();
+    waiting_pcb_.pop();
+
+    auto fd = ebbrt::socket_manager->NewIpv4Socket();
+    static_cast<ebbrt::EbbRef<ebbrt::SocketManager::SocketFd>>(fd)->Connect(std::move(pcb));
+    a.SetValue(fd);
+  }
+}
+
+ebbrt::Future<int> 
+ebbrt::SocketManager::SocketFd::Accept(){
+  ebbrt::Promise<int> p;
+  auto f = p.GetFuture();
+  waiting_accept_.push(std::move(p));
+  check_waiting();
+  return f;
+}
+
+int
+ebbrt::SocketManager::SocketFd::Bind(uint16_t port) {
+  // TODO: set state / error
+  listen_port_ = port;
+  return 0;
+}
+
+int
+ebbrt::SocketManager::SocketFd::Listen() {
+  // TODO: set state
+  try {
+    listening_pcb_.Bind(listen_port_, [this](ebbrt::NetworkManager::TcpPcb pcb) {
+    ebbrt::kprintf("New connection arrived on listening socket.\n");
+    waiting_pcb_.push(std::move(pcb));
+    check_waiting();
+    });
+  } catch (std::exception& e) {
+    // TODO: set errno
+    ebbrt::kprintf("Unhandled exception caught: %s\n", e.what());
+    return -1;
+  } catch (...) {
+    ebbrt::kprintf("Unhandled exception caught \n");
+    return -1;
+  }
+  return 0;
+}
+
+
 ebbrt::Future<uint8_t>
 ebbrt::SocketManager::SocketFd::Connect(ebbrt::NetworkManager::TcpPcb pcb) {
   // TODO: check state
-  tcp_session_ = new TcpSession(this, std::move(pcb));
-  tcp_session_->Install();
-  // XXX: is timeout nessessary, does't TCP close or abort?
+  install_pcb(std::move(pcb));
+  // timeout
   timer->Start(*tcp_session_, std::chrono::seconds(5), /* repeat */ false);
   return tcp_session_->connected_.GetFuture();
 }

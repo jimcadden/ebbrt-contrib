@@ -52,7 +52,7 @@ public:
       void check_read();
     };
 
-    SocketFd(){};
+    SocketFd() : listen_port_(0) {};
     static EbbRef<SocketFd> Create(EbbId id = ebb_allocator->Allocate()) {
       auto root = new SocketFd::Root();
       local_id_map->Insert(
@@ -72,14 +72,27 @@ public:
       }
     };
 
-
+    int Listen();
+    int Bind(uint16_t port);
+    ebbrt::Future<int> Accept();
     ebbrt::Future<uint8_t> Close() override;
     ebbrt::Future<uint8_t> Connect(ebbrt::NetworkManager::TcpPcb pcb);
     ebbrt::Future<std::unique_ptr<IOBuf>> Read(size_t len) override;
 
   private:
+    void install_pcb(ebbrt::NetworkManager::TcpPcb pcb);
+    void check_waiting();
+
     TcpSession *tcp_session_;
+    ebbrt::NetworkManager::ListeningTcpPcb listening_pcb_;
     bool connected_;
+
+    // listening tcp socket
+    uint16_t listen_port_;
+    std::queue<ebbrt::Promise<int>> waiting_accept_;
+    std::queue<ebbrt::NetworkManager::TcpPcb> waiting_pcb_;
+    ebbrt::SpinLock waiting_lock_;
+
   };
   explicit SocketManager(){};
   int NewIpv4Socket();

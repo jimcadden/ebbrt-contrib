@@ -22,7 +22,25 @@
 #include "lwip/mem.h"
 #include "lwip/memp.h"
 
-const u16_t memp_sizes[MEMP_MAX] = {};
+
+int lwip_listen(int s, int backlog){
+  // XXX: backlog ignored
+  auto fd = ebbrt::root_vfs->Lookup(s);
+  return static_cast<ebbrt::EbbRef<ebbrt::SocketManager::SocketFd>>(fd)->Listen();
+}
+
+
+int lwip_accept(int s, struct sockaddr *addr, socklen_t *addrlen){
+  auto fd = ebbrt::root_vfs->Lookup(s);
+  return static_cast<ebbrt::EbbRef<ebbrt::SocketManager::SocketFd>>(fd)->Accept().Block().Get();
+}
+
+int lwip_bind(int s, const struct sockaddr *name, socklen_t namelen){
+  auto fd = ebbrt::root_vfs->Lookup(s);
+  auto saddr = reinterpret_cast<const struct sockaddr_in *>(name);
+  auto port = ntohs(saddr->sin_port); // port arrives in network order
+  return static_cast<ebbrt::EbbRef<ebbrt::SocketManager::SocketFd>>(fd)->Bind(port);
+}
 
 int lwip_connect(int s, const struct sockaddr *name, socklen_t namelen){
 
@@ -83,36 +101,6 @@ void lwip_assert(const char* fmt, ...){
   return;
 }
 
-
-// Provided by netdb.c
-//int lwip_gethostbyname_r(const char *name, struct hostent *ret, char *buf,
-//                size_t buflen, struct hostent **result, int *h_errnop){
-//  EBBRT_UNIMPLEMENTED();
-//  return 0;
-//}
-//
-//void lwip_freeaddrinfo(struct addrinfo *ai){
-//  EBBRT_UNIMPLEMENTED();
-//}
-//
-//int lwip_getaddrinfo(const char *nodename,
-//       const char *servname,
-//       const struct addrinfo *hints,
-//       struct addrinfo **res){
-//  EBBRT_UNIMPLEMENTED();
-//  return 0;
-//}
-
-int lwip_accept(int s, struct sockaddr *addr, socklen_t *addrlen){
-  EBBRT_UNIMPLEMENTED();
-  return 0;
-}
-
-int lwip_bind(int s, const struct sockaddr *name, socklen_t namelen){
-  EBBRT_UNIMPLEMENTED();
-  return 0;
-}
-
 int lwip_shutdown(int s, int how){
   EBBRT_UNIMPLEMENTED();
   return 0;
@@ -134,11 +122,6 @@ int lwip_getsockopt (int s, int level, int optname, void *optval, socklen_t *opt
 }
 
 int lwip_setsockopt (int s, int level, int optname, const void *optval, socklen_t optlen){
-  EBBRT_UNIMPLEMENTED();
-  return 0;
-}
-
-int lwip_listen(int s, int backlog){
   EBBRT_UNIMPLEMENTED();
   return 0;
 }
@@ -198,6 +181,7 @@ err_t netconn_gethostbyname(const char *name, ip_addr_t *addr){
   return 0;
 }
 
+const u16_t memp_sizes[MEMP_MAX] = {};
 
 void *mem_malloc(mem_size_t size){
   EBBRT_UNIMPLEMENTED();
@@ -205,7 +189,6 @@ void *mem_malloc(mem_size_t size){
 void *mem_calloc(mem_size_t count, mem_size_t size){
   EBBRT_UNIMPLEMENTED();
 }
-
 void  mem_free(void *mem){
   EBBRT_UNIMPLEMENTED();
 }
