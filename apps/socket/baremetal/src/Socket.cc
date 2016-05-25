@@ -16,6 +16,14 @@
 #include <netdb.h>
 #include <errno.h>
 
+#include "lwip/api.h"
+#include "lwip/err.h"
+#include "lwip/netdb.h"
+#include "lwip/mem.h"
+#include "lwip/memp.h"
+
+const u16_t memp_sizes[MEMP_MAX] = {};
+
 int lwip_connect(int s, const struct sockaddr *name, socklen_t namelen){
 
   // TODO: verify socket domain/type is valid
@@ -76,23 +84,24 @@ void lwip_assert(const char* fmt, ...){
 }
 
 
-int lwip_gethostbyname_r(const char *name, struct hostent *ret, char *buf,
-                size_t buflen, struct hostent **result, int *h_errnop){
-  EBBRT_UNIMPLEMENTED();
-  return 0;
-}
-
-void lwip_freeaddrinfo(struct addrinfo *ai){
-  EBBRT_UNIMPLEMENTED();
-}
-
-int lwip_getaddrinfo(const char *nodename,
-       const char *servname,
-       const struct addrinfo *hints,
-       struct addrinfo **res){
-  EBBRT_UNIMPLEMENTED();
-  return 0;
-}
+// Provided by netdb.c
+//int lwip_gethostbyname_r(const char *name, struct hostent *ret, char *buf,
+//                size_t buflen, struct hostent **result, int *h_errnop){
+//  EBBRT_UNIMPLEMENTED();
+//  return 0;
+//}
+//
+//void lwip_freeaddrinfo(struct addrinfo *ai){
+//  EBBRT_UNIMPLEMENTED();
+//}
+//
+//int lwip_getaddrinfo(const char *nodename,
+//       const char *servname,
+//       const struct addrinfo *hints,
+//       struct addrinfo **res){
+//  EBBRT_UNIMPLEMENTED();
+//  return 0;
+//}
 
 int lwip_accept(int s, struct sockaddr *addr, socklen_t *addrlen){
   EBBRT_UNIMPLEMENTED();
@@ -182,4 +191,22 @@ u16_t lwip_ntohs(u16_t x){ return ebbrt::ntohs(x); }
 u32_t lwip_htonl(u32_t x){ return ebbrt::htonl(x); }
 #undef ntohl
 u32_t lwip_ntohl(u32_t x){ return ebbrt::ntohl(x); }
+
+
+err_t netconn_gethostbyname(const char *name, ip_addr_t *addr){
+  EBBRT_UNIMPLEMENTED();
+  return 0;
+}
+
+
+void *mem_malloc(mem_size_t size){
+  EBBRT_UNIMPLEMENTED();
+}
+void *mem_calloc(mem_size_t count, mem_size_t size){
+  EBBRT_UNIMPLEMENTED();
+}
+
+void  mem_free(void *mem){
+  EBBRT_UNIMPLEMENTED();
+}
 

@@ -47,7 +47,7 @@ printProfileInfo(struct timeval start, struct timeval end, int thres,
   int delay=(end.tv_sec*1000+end.tv_usec/1000)-
     (start.tv_sec*1000+start.tv_usec/1000);
   if(delay>thres)
-    fprintf(stderr,"%s: execution time=%dms\n",msg,delay);
+    ebbrt::kprintf("%s: execution time=%dms\n",msg,delay);
 }
 
 static const char* state2String(int state){
@@ -90,18 +90,18 @@ void watcher(zhandle_t *zzh, int type, int state, const char *path,
     /* Be careful using zh here rather than zzh - as this may be mt code
      * the client lib may call the watcher before zookeeper_init returns */
 
-    fprintf(stderr, "Watcher %s state = %s", type2String(type), state2String(state));
+  ebbrt::kprintf("Watcher %s state = %s", type2String(type), state2String(state));
     if (path && strlen(path) > 0) {
-      fprintf(stderr, " for path %s", path);
+      ebbrt::kprintf(" for path %s", path);
     }
-    fprintf(stderr, "\n");
+    ebbrt::kprintf("\n");
 
     if (type == ZOO_SESSION_EVENT) {
         if (state == ZOO_CONNECTED_STATE) {
             const clientid_t *id = zoo_client_id(zzh);
             if (myid.client_id == 0 || myid.client_id != id->client_id) {
                 myid = *id;
-                fprintf(stderr, "Got a new session id: 0x%llx\n",
+                ebbrt::kprintf("Got a new session id: 0x%llx\n",
                         _LL_CAST_ myid.client_id);
                 if (clientIdFile) {
                     FILE *fh = fopen(clientIdFile, "w");
@@ -117,12 +117,12 @@ void watcher(zhandle_t *zzh, int type, int state, const char *path,
                 }
             }
         } else if (state == ZOO_AUTH_FAILED_STATE) {
-            fprintf(stderr, "Authentication failure. Shutting down...\n");
+          ebbrt::kprintf("Authentication failure. Shutting down...\n");
             zookeeper_close(zzh);
             shutdownThisThing=1;
             zh=0;
         } else if (state == ZOO_EXPIRED_SESSION_STATE) {
-            fprintf(stderr, "Session expired. Shutting down...\n");
+          ebbrt::kprintf("Session expired. Shutting down...\n");
             zookeeper_close(zzh);
             shutdownThisThing=1;
             zh=0;
@@ -137,7 +137,7 @@ void dumpStat(const struct Stat *stat) {
     time_t tmtime;
 
     if (!stat) {
-        fprintf(stderr,"null\n");
+      ebbrt::kprintf("null\n");
         return;
     }
     tctime = stat->ctime/1000;
@@ -146,7 +146,7 @@ void dumpStat(const struct Stat *stat) {
     ctime_r(&tmtime, tmtimes);
     ctime_r(&tctime, tctimes);
        
-    fprintf(stderr, "\tctime = %s\tczxid=%llx\n"
+    ebbrt::kprintf("\tctime = %s\tczxid=%llx\n"
     "\tmtime=%s\tmzxid=%llx\n"
     "\tversion=%x\taversion=%x\n"
     "\tephemeralOwner = %llx\n",
@@ -157,9 +157,9 @@ void dumpStat(const struct Stat *stat) {
 }
 
 void my_string_completion(int rc, const char *name, const void *data) {
-    fprintf(stderr, "[%s]: rc = %d\n", (char*)(data==0?"null":data), rc);
+  ebbrt::kprintf("[%s]: rc = %d\n", (char*)(data==0?"null":data), rc);
     if (!rc) {
-        fprintf(stderr, "\tname = %s\n", name);
+      ebbrt::kprintf("\tname = %s\n", name);
     }
     if(batchMode)
       shutdownThisThing=1;
@@ -178,13 +178,13 @@ void my_data_completion(int rc, const char *value, int value_len,
     gettimeofday(&tv, 0);
     sec = tv.tv_sec - startTime.tv_sec;
     usec = tv.tv_usec - startTime.tv_usec;
-    fprintf(stderr, "time = %d msec\n", sec*1000 + usec/1000);
-    fprintf(stderr, "%s: rc = %d\n", (char*)data, rc);
+    ebbrt::kprintf("time = %d msec\n", sec*1000 + usec/1000);
+    ebbrt::kprintf("%s: rc = %d\n", (char*)data, rc);
     if (value) {
-        fprintf(stderr, " value_len = %d\n", value_len);
+      ebbrt::kprintf(" value_len = %d\n", value_len);
         assert(write(2, value, value_len) == value_len);
     }
-    fprintf(stderr, "\nStat:\n");
+    ebbrt::kprintf("\nStat:\n");
     dumpStat(stat);
     free((void*)data);
     if(batchMode)
@@ -194,10 +194,10 @@ void my_data_completion(int rc, const char *value, int value_len,
 void my_silent_data_completion(int rc, const char *value, int value_len,
         const struct Stat *stat, const void *data) {
     recvd++;
-    fprintf(stderr, "Data completion %s rc = %d\n",(char*)data,rc);
+    ebbrt::kprintf("Data completion %s rc = %d\n",(char*)data,rc);
     free((void*)data);
     if (recvd==to_send) {
-        fprintf(stderr,"Recvd %d responses for %d requests sent\n",recvd,to_send);
+      ebbrt::kprintf("Recvd %d responses for %d requests sent\n",recvd,to_send);
         if(batchMode)
           shutdownThisThing=1;
     }
@@ -213,17 +213,17 @@ void my_strings_completion(int rc, const struct String_vector *strings,
     gettimeofday(&tv, 0);
     sec = tv.tv_sec - startTime.tv_sec;
     usec = tv.tv_usec - startTime.tv_usec;
-    fprintf(stderr, "time = %d msec\n", sec*1000 + usec/1000);
-    fprintf(stderr, "%s: rc = %d\n", (char*)data, rc);
+    ebbrt::kprintf("time = %d msec\n", sec*1000 + usec/1000);
+    ebbrt::kprintf("%s: rc = %d\n", (char*)data, rc);
     if (strings)
         for (i=0; i < strings->count; i++) {
-            fprintf(stderr, "\t%s\n", strings->data[i]);
+          ebbrt::kprintf("\t%s\n", strings->data[i]);
         }
     free((void*)data);
     gettimeofday(&tv, 0);
     sec = tv.tv_sec - startTime.tv_sec;
     usec = tv.tv_usec - startTime.tv_usec;
-    fprintf(stderr, "time = %d msec\n", sec*1000 + usec/1000);
+    ebbrt::kprintf("time = %d msec\n", sec*1000 + usec/1000);
     if(batchMode)
       shutdownThisThing=1;
 }
@@ -237,14 +237,14 @@ void my_strings_stat_completion(int rc, const struct String_vector *strings,
 }
 
 void my_void_completion(int rc, const void *data) {
-    fprintf(stderr, "%s: rc = %d\n", (char*)data, rc);
+  ebbrt::kprintf("%s: rc = %d\n", (char*)data, rc);
     free((void*)data);
     if(batchMode)
       shutdownThisThing=1;
 }
 
 void my_stat_completion(int rc, const struct Stat *stat, const void *data) {
-    fprintf(stderr, "%s: rc = %d Stat:\n", (char*)data, rc);
+  ebbrt::kprintf("%s: rc = %d Stat:\n", (char*)data, rc);
     dumpStat(stat);
     free((void*)data);
     if(batchMode)
@@ -253,7 +253,7 @@ void my_stat_completion(int rc, const struct Stat *stat, const void *data) {
 
 void my_silent_stat_completion(int rc, const struct Stat *stat,
         const void *data) {
-    //    fprintf(stderr, "State completion: [%s] rc = %d\n", (char*)data, rc);
+    //    ebbrt::kprintf("State completion: [%s] rc = %d\n", (char*)data, rc);
     sent++;
     free((void*)data);
 }
@@ -266,7 +266,7 @@ static void sendRequest(const char* data) {
 
 void od_completion(int rc, const struct Stat *stat, const void *data) {
     int i;
-    fprintf(stderr, "od command response: rc = %d Stat:\n", rc);
+    ebbrt::kprintf("od command response: rc = %d Stat:\n", rc);
     dumpStat(stat);
     // send a whole bunch of requests
     recvd=0;
@@ -295,54 +295,54 @@ void processline(char *line) {
         line++;
     }
     if (startsWith(line, "help")) {
-      fprintf(stderr, "    create [+[e|s]] <path>\n");
-      fprintf(stderr, "    delete <path>\n");
-      fprintf(stderr, "    set <path> <data>\n");
-      fprintf(stderr, "    get <path>\n");
-      fprintf(stderr, "    ls <path>\n");
-      fprintf(stderr, "    ls2 <path>\n");
-      fprintf(stderr, "    sync <path>\n");
-      fprintf(stderr, "    exists <path>\n");
-      fprintf(stderr, "    wexists <path>\n");
-      fprintf(stderr, "    myid\n");
-      fprintf(stderr, "    verbose\n");
-      fprintf(stderr, "    addauth <id> <scheme>\n");
-      fprintf(stderr, "    quit\n");
-      fprintf(stderr, "\n");
-      fprintf(stderr, "    prefix the command with the character 'a' to run the command asynchronously.\n");
-      fprintf(stderr, "    run the 'verbose' command to toggle verbose logging.\n");
-      fprintf(stderr, "    i.e. 'aget /foo' to get /foo asynchronously\n");
+      ebbrt::kprintf("    create [+[e|s]] <path>\n");
+      ebbrt::kprintf("    delete <path>\n");
+      ebbrt::kprintf("    set <path> <data>\n");
+      ebbrt::kprintf("    get <path>\n");
+      ebbrt::kprintf("    ls <path>\n");
+      ebbrt::kprintf("    ls2 <path>\n");
+      ebbrt::kprintf("    sync <path>\n");
+      ebbrt::kprintf("    exists <path>\n");
+      ebbrt::kprintf("    wexists <path>\n");
+      ebbrt::kprintf("    myid\n");
+      ebbrt::kprintf("    verbose\n");
+      ebbrt::kprintf("    addauth <id> <scheme>\n");
+      ebbrt::kprintf("    quit\n");
+      ebbrt::kprintf("\n");
+      ebbrt::kprintf("    prefix the command with the character 'a' to run the command asynchronously.\n");
+      ebbrt::kprintf("    run the 'verbose' command to toggle verbose logging.\n");
+      ebbrt::kprintf("    i.e. 'aget /foo' to get /foo asynchronously\n");
     } else if (startsWith(line, "verbose")) {
       if (verbose) {
         verbose = 0;
         zoo_set_debug_level(ZOO_LOG_LEVEL_WARN);
-        fprintf(stderr, "logging level set to WARN\n");
+        ebbrt::kprintf("logging level set to WARN\n");
       } else {
         verbose = 1;
         zoo_set_debug_level(ZOO_LOG_LEVEL_DEBUG);
-        fprintf(stderr, "logging level set to DEBUG\n");
+        ebbrt::kprintf("logging level set to DEBUG\n");
       }
     } else if (startsWith(line, "get ")) {
         line += 4;
         if (line[0] != '/') {
-            fprintf(stderr, "Path must start with /, found: %s\n", line);
+          ebbrt::kprintf("Path must start with /, found: %s\n", line);
             return;
         }
                
         rc = zoo_aget(zh, line, 1, my_data_completion, strdup(line));
         if (rc) {
-            fprintf(stderr, "Error %d for %s\n", rc, line);
+          ebbrt::kprintf("Error %d for %s\n", rc, line);
         }
     } else if (startsWith(line, "set ")) {
         char *ptr;
         line += 4;
         if (line[0] != '/') {
-            fprintf(stderr, "Path must start with /, found: %s\n", line);
+          ebbrt::kprintf("Path must start with /, found: %s\n", line);
             return;
         }
         ptr = strchr(line, ' ');
         if (!ptr) {
-            fprintf(stderr, "No data found after path\n");
+          ebbrt::kprintf("No data found after path\n");
             return;
         }
         *ptr = '\0';
@@ -355,29 +355,29 @@ void processline(char *line) {
             rc = zoo_set2(zh, line, ptr, strlen(ptr), -1, &stat);
         }
         if (rc) {
-            fprintf(stderr, "Error %d for %s\n", rc, line);
+          ebbrt::kprintf("Error %d for %s\n", rc, line);
         }
     } else if (startsWith(line, "ls ")) {
         line += 3;
         if (line[0] != '/') {
-            fprintf(stderr, "Path must start with /, found: %s\n", line);
+          ebbrt::kprintf("Path must start with /, found: %s\n", line);
             return;
         }
         gettimeofday(&startTime, 0);
         rc= zoo_aget_children(zh, line, 1, my_strings_completion, strdup(line));
         if (rc) {
-            fprintf(stderr, "Error %d for %s\n", rc, line);
+          ebbrt::kprintf("Error %d for %s\n", rc, line);
         }
     } else if (startsWith(line, "ls2 ")) {
         line += 4;
         if (line[0] != '/') {
-            fprintf(stderr, "Path must start with /, found: %s\n", line);
+          ebbrt::kprintf("Path must start with /, found: %s\n", line);
             return;
         }
         gettimeofday(&startTime, 0);
         rc= zoo_aget_children2(zh, line, 1, my_strings_stat_completion, strdup(line));
         if (rc) {
-            fprintf(stderr, "Error %d for %s\n", rc, line);
+          ebbrt::kprintf("Error %d for %s\n", rc, line);
         }
     } else if (startsWith(line, "create ")) {
         int flags = 0;
@@ -395,10 +395,10 @@ void processline(char *line) {
             line++;
         }
         if (line[0] != '/') {
-            fprintf(stderr, "Path must start with /, found: %s\n", line);
+          ebbrt::kprintf("Path must start with /, found: %s\n", line);
             return;
         }
-        fprintf(stderr, "Creating [%s] node\n", line);
+        ebbrt::kprintf("Creating [%s] node\n", line);
 //        {
 //            struct ACL _CREATE_ONLY_ACL_ACL[] = {{ZOO_PERM_CREATE, ZOO_ANYONE_ID_UNSAFE}};
 //            struct ACL_vector CREATE_ONLY_ACL = {1,_CREATE_ONLY_ACL_ACL};
@@ -408,12 +408,12 @@ void processline(char *line) {
         rc = zoo_acreate(zh, line, "new", 3, &ZOO_OPEN_ACL_UNSAFE, flags,
                 my_string_completion_free_data, strdup(line));
         if (rc) {
-            fprintf(stderr, "Error %d for %s\n", rc, line);
+          ebbrt::kprintf("Error %d for %s\n", rc, line);
         }
     } else if (startsWith(line, "delete ")) {
         line += 7;
         if (line[0] != '/') {
-            fprintf(stderr, "Path must start with /, found: %s\n", line);
+          ebbrt::kprintf("Path must start with /, found: %s\n", line);
             return;
         }
         if (async) {
@@ -422,17 +422,17 @@ void processline(char *line) {
             rc = zoo_delete(zh, line, -1);
         }
         if (rc) {
-            fprintf(stderr, "Error %d for %s\n", rc, line);
+          ebbrt::kprintf("Error %d for %s\n", rc, line);
         }
     } else if (startsWith(line, "sync ")) {
         line += 5;
         if (line[0] != '/') {
-            fprintf(stderr, "Path must start with /, found: %s\n", line);
+          ebbrt::kprintf("Path must start with /, found: %s\n", line);
             return;
         }
         rc = zoo_async(zh, line, my_string_completion_free_data, strdup(line));
         if (rc) {
-            fprintf(stderr, "Error %d for %s\n", rc, line);
+          ebbrt::kprintf("Error %d for %s\n", rc, line);
         }
     } else if (startsWith(line, "wexists ")) {
 #ifdef THREADED
@@ -440,7 +440,7 @@ void processline(char *line) {
 #endif
         line += 8;
         if (line[0] != '/') {
-            fprintf(stderr, "Path must start with /, found: %s\n", line);
+          ebbrt::kprintf("Path must start with /, found: %s\n", line);
             return;
         }
 #ifndef THREADED
@@ -449,7 +449,7 @@ void processline(char *line) {
         rc = zoo_wexists(zh, line, watcher, (void*) 0, &stat);
 #endif
         if (rc) {
-            fprintf(stderr, "Error %d for %s\n", rc, line);
+          ebbrt::kprintf("Error %d for %s\n", rc, line);
         }
     } else if (startsWith(line, "exists ")) {
 #ifdef THREADED
@@ -457,7 +457,7 @@ void processline(char *line) {
 #endif
         line += 7;
         if (line[0] != '/') {
-            fprintf(stderr, "Path must start with /, found: %s\n", line);
+          ebbrt::kprintf("Path must start with /, found: %s\n", line);
             return;
         }
 #ifndef THREADED
@@ -466,7 +466,7 @@ void processline(char *line) {
         rc = zoo_exists(zh, line, 1, &stat);
 #endif
         if (rc) {
-            fprintf(stderr, "Error %d for %s\n", rc, line);
+          ebbrt::kprintf("Error %d for %s\n", rc, line);
         }
     } else if (strcmp(line, "myid") == 0) {
         printf("session Id = %llx\n", _LL_CAST_ zoo_client_id(zh)->client_id);
@@ -476,14 +476,14 @@ void processline(char *line) {
         // the session on the server. We must start anew.
         zh = zookeeper_init(hostPort, watcher, 30000, 0, 0, 0);
     } else if (startsWith(line, "quit")) {
-        fprintf(stderr, "Quitting...\n");
+      ebbrt::kprintf("Quitting...\n");
         shutdownThisThing=1;
     } else if (startsWith(line, "od")) {
         const char val[]="fire off";
-        fprintf(stderr, "Overdosing...\n");
+        ebbrt::kprintf("Overdosing...\n");
         rc = zoo_aset(zh, "/od", val, sizeof(val)-1, -1, od_completion, 0);
         if (rc)
-            fprintf(stderr, "od command failed: %d\n", rc);
+            ebbrt::kprintf("od command failed: %d\n", rc);
     } else if (startsWith(line, "addauth ")) {
       char *ptr;
       line += 8;
@@ -495,6 +495,178 @@ void processline(char *line) {
       zoo_add_auth(zh, line, ptr, ptr ? strlen(ptr) : 0, NULL, NULL);
     }
 }
+
+
+void AppMain() {
+#ifndef THREADED
+    fd_set rfds, wfds, efds;
+    int processed=0;
+#endif
+    char buffer[4096];
+    char p[2048];
+#ifdef YCA  
+    char *cert=0;
+    char appId[64];
+#endif
+    int bufoff = 0;
+    FILE *fh;
+
+    //if (argc < 2) {
+    //    fprintf(stderr,
+    //            "USAGE %s zookeeper_host_list [clientid_file|cmd:(ls|ls2|create|od|...)]\n", 
+    //            argv[0]);
+    //    fprintf(stderr,
+    //            "Version: ZooKeeper cli (c client) version %d.%d.%d\n", 
+    //            ZOO_MAJOR_VERSION,
+    //            ZOO_MINOR_VERSION,
+    //            ZOO_PATCH_VERSION);
+    //    return 2;
+    //}
+    //if (argc > 2) {
+    //  if(strncmp("cmd:",argv[2],4)==0){
+    //    strcpy(cmd,argv[2]+4);
+    //    batchMode=1;
+    //    fprintf(stderr,"Batch mode: %s\n",cmd);
+    //  }else{
+    //    clientIdFile = argv[2];
+    //    fh = fopen(clientIdFile, "r");
+    //    if (fh) {
+    //        if (fread(&myid, sizeof(myid), 1, fh) != sizeof(myid)) {
+    //            memset(&myid, 0, sizeof(myid));
+    //        }
+    //        fclose(fh);
+    //    }
+    //  }
+    //}
+    hostPort = "127.0.0.1:2888";//argv[1];
+
+#ifdef YCA
+    strcpy(appId,"yahoo.example.yca_test");
+    cert = yca_get_cert_once(appId);
+    if(cert!=0) {
+      ebbrt::kprintf("Certificate for appid [%s] is [%s]\n",appId,cert);
+        strncpy(p,cert,sizeof(p)-1);
+        free(cert);
+    } else {
+      ebbrt::kprintf("Certificate for appid [%s] not found\n",appId);
+      strcpy(p,"dummy");
+    }
+#else
+    strcpy(p, "dummy");
+#endif
+    verbose = 0;
+    zoo_set_debug_level(ZOO_LOG_LEVEL_WARN);
+    zoo_deterministic_conn_order(1); // enable deterministic order
+    zh = zookeeper_init(hostPort, watcher, 30000, &myid, 0, 0);
+    if (!zh) {
+        return errno;
+    }
+
+#ifdef YCA
+    if(zoo_add_auth(zh,"yca",p,strlen(p),0,0)!=ZOK)
+    return 2;
+#endif
+
+#ifdef THREADED
+    while(!shutdownThisThing) {
+        int rc;
+        int len = sizeof(buffer) - bufoff -1;
+        if (len <= 0) {
+          ebbrt::kprintf("Can't handle lines that long!\n");
+            exit(2);
+        }
+        rc = read(0, buffer+bufoff, len);
+        if (rc <= 0) {
+          ebbrt::kprintf("bye\n");
+            shutdownThisThing=1;
+            break;
+        }
+        bufoff += rc;
+        buffer[bufoff] = '\0';
+        while (strchr(buffer, '\n')) {
+            char *ptr = strchr(buffer, '\n');
+            *ptr = '\0';
+            processline(buffer);
+            ptr++;
+            memmove(buffer, ptr, strlen(ptr)+1);
+            bufoff = 0;
+        }
+    }
+#else
+    FD_ZERO(&rfds);
+    FD_ZERO(&wfds);
+    FD_ZERO(&efds);
+    while (!shutdownThisThing) {
+        int fd;
+        int interest;
+        int events;
+        struct timeval tv;
+        int rc;
+        zookeeper_interest(zh, &fd, &interest, &tv);
+        if (fd != -1) {
+            if (interest&ZOOKEEPER_READ) {
+                FD_SET(fd, &rfds);
+            } else {
+                FD_CLR(fd, &rfds);
+            }
+            if (interest&ZOOKEEPER_WRITE) {
+                FD_SET(fd, &wfds);
+            } else {
+                FD_CLR(fd, &wfds);
+            }
+        } else {
+            fd = 0;
+        }
+        FD_SET(0, &rfds);
+        rc = select(fd+1, &rfds, &wfds, &efds, &tv);
+        events = 0;
+        if (rc > 0) {
+            if (FD_ISSET(fd, &rfds)) {
+                events |= ZOOKEEPER_READ;
+            }
+            if (FD_ISSET(fd, &wfds)) {
+                events |= ZOOKEEPER_WRITE;
+            }
+        }
+        if(batchMode && processed==0){
+          //batch mode
+          processline(cmd);
+          processed=1;
+        }
+        if (FD_ISSET(0, &rfds)) {
+            int rc;
+            int len = sizeof(buffer) - bufoff -1;
+            if (len <= 0) {
+              ebbrt::kprintf("Can't handle lines that long!\n");
+                exit(2);
+            }
+            rc = read(0, buffer+bufoff, len);
+            if (rc <= 0) {
+              ebbrt::kprintf("bye\n");
+                break;
+            }
+            bufoff += rc;
+            buffer[bufoff] = '\0';
+            while (strchr(buffer, '\n')) {
+                char *ptr = strchr(buffer, '\n');
+                *ptr = '\0';
+                processline(buffer);
+                ptr++;
+                memmove(buffer, ptr, strlen(ptr)+1);
+                bufoff = 0;
+            }
+        }
+        zookeeper_process(zh, events);
+    }
+#endif
+    if (to_send!=0)
+        ebbrt::kprintf("Recvd %d responses for %d requests sent\n",recvd,sent);
+    zookeeper_close(zh);
+    return ;
+}
+
+
+
 #endif
 
 #if 0
