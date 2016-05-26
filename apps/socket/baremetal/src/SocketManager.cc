@@ -39,7 +39,6 @@ void ebbrt::SocketManager::SocketFd::TcpSession::Connected() {
   return;
 }
 
-
 void ebbrt::SocketManager::SocketFd::TcpSession::check_read() {
 
   std::lock_guard<ebbrt::SpinLock> guard(buf_lock_);
@@ -84,6 +83,11 @@ ebbrt::SocketManager::SocketFd::Read(size_t len) {
   tcp_session_->read_ = std::make_pair(std::move(p), len);
   tcp_session_->check_read();
   return std::move(f);
+}
+
+void 
+ebbrt::SocketManager::SocketFd::Write(std::unique_ptr<IOBuf> buf){
+  tcp_session_->Send(std::move(buf));
 }
 
 ebbrt::Future<uint8_t> 

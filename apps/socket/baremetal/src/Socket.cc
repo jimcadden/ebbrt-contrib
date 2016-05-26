@@ -43,7 +43,6 @@ int lwip_bind(int s, const struct sockaddr *name, socklen_t namelen){
 }
 
 int lwip_connect(int s, const struct sockaddr *name, socklen_t namelen){
-
   // TODO: verify socket domain/type is valid
   auto saddr = reinterpret_cast<const struct sockaddr_in *>(name);
   auto ip_addr = saddr->sin_addr.s_addr;
@@ -89,6 +88,20 @@ int lwip_read(int s, void *mem, size_t len){
   }
 }
 
+int lwip_write(int s, const void *dataptr, size_t size){
+  auto fd = ebbrt::root_vfs->Lookup(s);
+  auto buf = ebbrt::MakeUniqueIOBuf(size);
+  std::memcpy(reinterpret_cast<void*>(buf->MutData()), dataptr, size);
+  fd->Write(std::move(buf));
+  return 0;
+}
+
+
+int lwip_recv(int s, void *mem, size_t len, int flags){
+  return lwip_read(s, mem, len);
+}
+
+
 int lwip_close(int s){
   auto fd = ebbrt::root_vfs->Lookup(s);
  fd->Close().Block();
@@ -126,10 +139,6 @@ int lwip_setsockopt (int s, int level, int optname, const void *optval, socklen_
   return 0;
 }
 
-int lwip_recv(int s, void *mem, size_t len, int flags){
-  EBBRT_UNIMPLEMENTED();
-  return 0;
-}
 
 int lwip_recvfrom(int s, void *mem, size_t len, int flags, struct sockaddr *from, socklen_t *fromlen){
   EBBRT_UNIMPLEMENTED();
@@ -142,11 +151,6 @@ int lwip_send(int s, const void *dataptr, size_t size, int flags){
 }
 
 int lwip_sendto(int s, const void *dataptr, size_t size, int flags, const struct sockaddr *to, socklen_t tolen){
-  EBBRT_UNIMPLEMENTED();
-  return 0;
-}
-
-int lwip_write(int s, const void *dataptr, size_t size){
   EBBRT_UNIMPLEMENTED();
   return 0;
 }

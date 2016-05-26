@@ -78,6 +78,7 @@ public:
     ebbrt::Future<uint8_t> Close() override;
     ebbrt::Future<uint8_t> Connect(ebbrt::NetworkManager::TcpPcb pcb);
     ebbrt::Future<std::unique_ptr<IOBuf>> Read(size_t len) override;
+    void Write(std::unique_ptr<IOBuf> buf) override;
 
   private:
     void install_pcb(ebbrt::NetworkManager::TcpPcb pcb);

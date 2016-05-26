@@ -5,12 +5,60 @@
 
 #include <ebbrt/Debug.h>
 
-
 #define SOCK_CLI 0
 #define SOCK_SRV 1
 #define SOCK_ALL 0
 #define ZK_CLI 0
 
+/*******************************************************************/
+/*******************************************************************/
+#if SOCK_SRV 
+
+#include <cstring>
+#include <sys/socket.h>
+#include <errno.h>
+
+
+void AppMain() {
+    int listenfd = 0, connfd = 0;
+    struct sockaddr_in serv_addr; 
+
+    char sendBuff[1025] = "Connected to EbbRT Server!\n";
+    time_t ticks; 
+
+    listenfd = socket(AF_INET, SOCK_STREAM, 0);
+    memset(&serv_addr, '0', sizeof(serv_addr));
+    memset(sendBuff, '0', sizeof(sendBuff)); 
+
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    serv_addr.sin_port = htons(5000); 
+
+    //if(inet_pton(AF_INET, argv[1], &serv_addr.sin_addr)<=0)
+    //{
+    //  ebbrt::kabort("\n inet_pton error occured\n");
+    //    return;
+    //} 
+
+    bind(listenfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)); 
+
+    listen(listenfd, 10); 
+
+    while(1)
+    {
+        ebbrt::kprintf("Listening for a connection.\n");
+        connfd = accept(listenfd, (struct sockaddr*)NULL, NULL); 
+        ebbrt::kprintf("Connection accepted.\n");
+        //ticks = time(NULL);
+        //snprintf(sendBuff, sizeof(sendBuff), "%.24s\r\n", ctime(&ticks));
+
+        write(connfd, sendBuff, strlen(sendBuff)); 
+
+        close(connfd);
+        //sleep(1);
+     }
+}
+#endif // SOCK_SRV
 /*******************************************************************/
 /*******************************************************************/
 
@@ -58,52 +106,6 @@ void AppMain() {
 }
 #endif // SOCK_CLI
 
-/*******************************************************************/
-/*******************************************************************/
-#if SOCK_SRV 
-
-#include <cstring>
-#include <sys/socket.h>
-#include <errno.h>
-
-void AppMain() {
-    int listenfd = 0, connfd = 0;
-    struct sockaddr_in serv_addr; 
-
-    char sendBuff[1025] = "Connected to EbbRT Server!\n";
-    time_t ticks; 
-
-    listenfd = socket(AF_INET, SOCK_STREAM, 0);
-    memset(&serv_addr, '0', sizeof(serv_addr));
-    memset(sendBuff, '0', sizeof(sendBuff)); 
-
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    serv_addr.sin_port = htons(5000); 
-
-    //if(inet_pton(AF_INET, argv[1], &serv_addr.sin_addr)<=0)
-    //{
-    //  ebbrt::kabort("\n inet_pton error occured\n");
-    //    return;
-    //} 
-
-    bind(listenfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)); 
-
-    listen(listenfd, 10); 
-
-    while(1)
-    {
-        connfd = accept(listenfd, (struct sockaddr*)NULL, NULL); 
-        //ticks = time(NULL);
-        //snprintf(sendBuff, sizeof(sendBuff), "%.24s\r\n", ctime(&ticks));
-
-        write(connfd, sendBuff, strlen(sendBuff)); 
-
-        close(connfd);
-        //sleep(1);
-     }
-}
-#endif // SOCK_CLI
 
 /*******************************************************************/
 /*******************************************************************/
@@ -146,7 +148,7 @@ void AppMain() {
   // newlib
   //fd = fstat();
 }
-#endif
+#endif // SOCK_ALL
 
 /*******************************************************************/
 /*******************************************************************/
