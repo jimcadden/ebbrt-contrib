@@ -105,23 +105,25 @@ ebbrt::SocketManager::SocketFd::install_pcb(ebbrt::NetworkManager::TcpPcb pcb) {
 
 void
 ebbrt::SocketManager::SocketFd::check_waiting(){
-  std::lock_guard<ebbrt::SpinLock> guard(waiting_lock_);
+  // this should only be called while locked
   while( !waiting_accept_.empty() && !waiting_pcb_.empty() ){
 
-    auto &a = waiting_accept_.front();
+    auto a = std::move(waiting_accept_.front());
     auto pcb = std::move(waiting_pcb_.front());
 
     waiting_accept_.pop();
     waiting_pcb_.pop();
 
-    auto fd = ebbrt::socket_manager->NewIpv4Socket();
+    auto s = ebbrt::socket_manager->NewIpv4Socket();
+    auto fd = ebbrt::root_vfs->Lookup(s);
     static_cast<ebbrt::EbbRef<ebbrt::SocketManager::SocketFd>>(fd)->Connect(std::move(pcb));
-    a.SetValue(fd);
+    a.SetValue(s);
   }
 }
 
 ebbrt::Future<int> 
 ebbrt::SocketManager::SocketFd::Accept(){
+  std::lock_guard<ebbrt::SpinLock> guard(waiting_lock_);
   ebbrt::Promise<int> p;
   auto f = p.GetFuture();
   waiting_accept_.push(std::move(p));
@@ -141,6 +143,7 @@ ebbrt::SocketManager::SocketFd::Listen() {
   // TODO: set state
   try {
     listening_pcb_.Bind(listen_port_, [this](ebbrt::NetworkManager::TcpPcb pcb) {
+    std::lock_guard<ebbrt::SpinLock> guard(waiting_lock_);
     ebbrt::kprintf("New connection arrived on listening socket.\n");
     waiting_pcb_.push(std::move(pcb));
     check_waiting();
@@ -162,7 +165,7 @@ ebbrt::SocketManager::SocketFd::Connect(ebbrt::NetworkManager::TcpPcb pcb) {
   // TODO: check state
   install_pcb(std::move(pcb));
   // timeout
-  timer->Start(*tcp_session_, std::chrono::seconds(5), /* repeat */ false);
+  //timer->Start(*tcp_session_, std::chrono::seconds(5), /* repeat */ false);
   return tcp_session_->connected_.GetFuture();
 }
 

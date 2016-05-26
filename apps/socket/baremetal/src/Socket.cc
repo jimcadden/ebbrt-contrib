@@ -24,11 +24,10 @@
 
 
 int lwip_listen(int s, int backlog){
-  // XXX: backlog ignored
+  // XXX: backlog len ignored
   auto fd = ebbrt::root_vfs->Lookup(s);
   return static_cast<ebbrt::EbbRef<ebbrt::SocketManager::SocketFd>>(fd)->Listen();
 }
-
 
 int lwip_accept(int s, struct sockaddr *addr, socklen_t *addrlen){
   auto fd = ebbrt::root_vfs->Lookup(s);
@@ -42,17 +41,17 @@ int lwip_bind(int s, const struct sockaddr *name, socklen_t namelen){
   return static_cast<ebbrt::EbbRef<ebbrt::SocketManager::SocketFd>>(fd)->Bind(port);
 }
 
+
+// FIXME: I've hard-coded connection ip to front-end for test app
 int lwip_connect(int s, const struct sockaddr *name, socklen_t namelen){
   // TODO: verify socket domain/type is valid
   auto saddr = reinterpret_cast<const struct sockaddr_in *>(name);
   auto ip_addr = saddr->sin_addr.s_addr;
-  // XXX: hard-coded front-end
   ip_addr = ebbrt::runtime::Frontend();
   auto port = ntohs(saddr->sin_port); // port arrives in network order
   ebbrt::NetworkManager::TcpPcb pcb;
   pcb.Connect(ebbrt::Ipv4Address(ntohl(ip_addr)), port);
   auto fd = ebbrt::root_vfs->Lookup(s);
-
   // TODO: verify fd is right for connecting
   auto connection =
     static_cast<ebbrt::EbbRef<ebbrt::SocketManager::SocketFd>>(fd)->Connect(std::move(pcb)).Block();
@@ -181,19 +180,24 @@ u32_t lwip_ntohl(u32_t x){ return ebbrt::ntohl(x); }
 
 
 err_t netconn_gethostbyname(const char *name, ip_addr_t *addr){
-  EBBRT_UNIMPLEMENTED();
-  return 0;
+  // Do dns lookup for 'name'. 
+  //  For now we assume name is alwasy ip string
+  if (inet_pton(AF_INET, name, &addr) <= 0) {
+    ebbrt::kprintf("\n gethostbyname: inet_on error occured (%d)\n");
+    return -1;
+  }
+  return ERR_OK;
 }
 
 const u16_t memp_sizes[MEMP_MAX] = {};
 
-void *mem_malloc(mem_size_t size){
-  EBBRT_UNIMPLEMENTED();
-}
-void *mem_calloc(mem_size_t count, mem_size_t size){
-  EBBRT_UNIMPLEMENTED();
-}
-void  mem_free(void *mem){
-  EBBRT_UNIMPLEMENTED();
-}
+//void *mem_malloc(mem_size_t size){
+//  return malloc(size);
+//}
+//void *mem_calloc(mem_size_t count, mem_size_t size){
+//  EBBRT_UNIMPLEMENTED();
+//}
+//void  mem_free(void *mem){
+//  EBBRT_UNIMPLEMENTED();
+//}
 

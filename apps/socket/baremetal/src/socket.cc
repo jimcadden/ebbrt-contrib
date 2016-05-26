@@ -15,21 +15,20 @@
 #if SOCK_SRV 
 
 #include <cstring>
-#include <sys/socket.h>
 #include <errno.h>
+#include <sys/socket.h>
+#include <string>
 
 
 void AppMain() {
     int listenfd = 0, connfd = 0;
     struct sockaddr_in serv_addr; 
 
-    char sendBuff[1025] = "Connected to EbbRT Server!\n";
+    std::string sendBuff ("Hello World!\n");
     time_t ticks; 
 
     listenfd = socket(AF_INET, SOCK_STREAM, 0);
     memset(&serv_addr, '0', sizeof(serv_addr));
-    memset(sendBuff, '0', sizeof(sendBuff)); 
-
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
     serv_addr.sin_port = htons(5000); 
@@ -46,13 +45,12 @@ void AppMain() {
 
     while(1)
     {
-        ebbrt::kprintf("Listening for a connection.\n");
+        ebbrt::kprintf("Listening for a connection....\n");
         connfd = accept(listenfd, (struct sockaddr*)NULL, NULL); 
-        ebbrt::kprintf("Connection accepted.\n");
         //ticks = time(NULL);
         //snprintf(sendBuff, sizeof(sendBuff), "%.24s\r\n", ctime(&ticks));
 
-        write(connfd, sendBuff, strlen(sendBuff)); 
+        write(connfd, sendBuff.c_str(), sendBuff.size()); 
 
         close(connfd);
         //sleep(1);

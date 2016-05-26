@@ -5,5 +5,6 @@
 #define  ERANGE       34  /* Math result not representable */
 #define  EINVAL       22  /* Invalid argument */
 
-#define   MEMP_MEM_MALLOC  1
+#define MEM_LIBC_MALLOC  1
+#define MEMP_MEM_MALLOC  1
 
