@@ -16,13 +16,125 @@
 #include <netdb.h>
 #include <errno.h>
 
+#include "lwip/sockets.h"
 #include "lwip/api.h"
 #include "lwip/err.h"
 #include "lwip/netdb.h"
 #include "lwip/mem.h"
 #include "lwip/memp.h"
+#include "lwip/pbuf.h"
+
+struct
+netconn *netconn_new_with_proto_and_callback(enum netconn_type t, u8_t proto,
+                                             netconn_callback callback){
+  EBBRT_UNIMPLEMENTED();
+  return 0;
+}
+
+err_t   netconn_delete(struct netconn *conn){
+  EBBRT_UNIMPLEMENTED();
+  return 0;
+}
 
 
+err_t   netconn_getaddr(struct netconn *conn, ip_addr_t *addr,
+                        u16_t *port, u8_t local){
+  EBBRT_UNIMPLEMENTED();
+  return 0;
+}
+
+
+err_t   netconn_bind(struct netconn *conn, ip_addr_t *addr, u16_t port){
+  EBBRT_UNIMPLEMENTED();
+  return 0;
+}
+err_t   netconn_connect(struct netconn *conn, ip_addr_t *addr, u16_t port){
+  EBBRT_UNIMPLEMENTED();
+  return 0;
+}
+err_t   netconn_disconnect (struct netconn *conn){
+  EBBRT_UNIMPLEMENTED();
+  return 0;
+}
+err_t   netconn_listen_with_backlog(struct netconn *conn, u8_t backlog){
+  EBBRT_UNIMPLEMENTED();
+  return 0;
+}
+
+err_t   netconn_accept(struct netconn *conn, struct netconn **new_conn){
+  EBBRT_UNIMPLEMENTED();
+  return 0;
+}
+
+err_t   netconn_recv(struct netconn *conn, struct netbuf **new_buf){
+  EBBRT_UNIMPLEMENTED();
+  return 0;
+}
+
+err_t   netconn_recv_tcp_pbuf(struct netconn *conn, struct pbuf **new_buf){
+  EBBRT_UNIMPLEMENTED();
+  return 0;
+}
+
+void    netconn_recved(struct netconn *conn, u32_t length){
+  EBBRT_UNIMPLEMENTED();
+}
+
+err_t   netconn_sendto(struct netconn *conn, struct netbuf *buf,
+                       ip_addr_t *addr, u16_t port){
+  EBBRT_UNIMPLEMENTED();
+  return 0;
+}
+
+err_t   netconn_send(struct netconn *conn, struct netbuf *buf){
+  EBBRT_UNIMPLEMENTED();
+  return 0;
+}
+
+err_t   netconn_write_partly(struct netconn *conn, const void *dataptr, size_t size,
+                             u8_t apiflags, size_t *bytes_written){
+  EBBRT_UNIMPLEMENTED();
+  return 0;
+}
+
+err_t   netconn_close(struct netconn *conn){
+  EBBRT_UNIMPLEMENTED();
+  return 0;
+}
+
+err_t   netconn_shutdown(struct netconn *conn, u8_t shut_rx, u8_t shut_tx){
+  EBBRT_UNIMPLEMENTED();
+  return 0;
+}
+
+err_t   netconn_gethostbyname(const char *name, ip_addr_t *addr){
+  EBBRT_UNIMPLEMENTED();
+  return 0;
+}
+
+// ADDITIONAL 
+
+const u16_t memp_sizes[MEMP_MAX] = {};
+
+//typedef void* tcpip_callback_fn;
+//
+//err_t tcpip_callback(tcpip_callback_fn function, void *ctx){
+//  EBBRT_UNIMPLEMENTED();
+//  return 0;
+//}
+
+
+//u8_t pbuf_free(struct pbuf *p){
+//  EBBRT_UNIMPLEMENTED();
+//  return 0;
+//}
+
+void lwip_assert(const char* fmt, ...){
+  EBBRT_UNIMPLEMENTED();
+  return;
+}
+
+#if 0
 int lwip_listen(int s, int backlog){
   // XXX: backlog len ignored
   auto fd = ebbrt::root_vfs->Lookup(s);
@@ -189,15 +301,5 @@ err_t netconn_gethostbyname(const char *name, ip_addr_t *addr){
   return ERR_OK;
 }
 
-const u16_t memp_sizes[MEMP_MAX] = {};
-
-//void *mem_malloc(mem_size_t size){
-//  return malloc(size);
-//}
-//void *mem_calloc(mem_size_t count, mem_size_t size){
-//  EBBRT_UNIMPLEMENTED();
-//}
-//void  mem_free(void *mem){
-//  EBBRT_UNIMPLEMENTED();
-//}
+#endif
 

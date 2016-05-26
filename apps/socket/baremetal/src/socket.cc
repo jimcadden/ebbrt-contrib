@@ -5,8 +5,8 @@
 
 #include <ebbrt/Debug.h>
 
-#define SOCK_CLI 0
-#define SOCK_SRV 1
+#define SOCK_CLI 1
+#define SOCK_SRV 0
 #define SOCK_ALL 0
 #define ZK_CLI 0
 
