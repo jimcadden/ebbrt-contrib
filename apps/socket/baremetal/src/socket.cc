@@ -178,9 +178,9 @@ struct timeval startTime;
 static char cmd[1024];
 static int batchMode=0;
 
-static int to_send=0;
-static int sent=0;
-static int recvd=0;
+static int to_send = 0;
+static int sent = 0;
+static int recvd = 0;
 
 static int shutdownThisThing=0;
 
@@ -650,56 +650,20 @@ void AppMain() {
     int bufoff = 0;
     FILE *fh;
 
-    //if (argc < 2) {
-    //    fprintf(stderr,
-    //            "USAGE %s zookeeper_host_list [clientid_file|cmd:(ls|ls2|create|od|...)]\n", 
-    //            argv[0]);
-    //    fprintf(stderr,
-    //            "Version: ZooKeeper cli (c client) version %d.%d.%d\n", 
-    //            ZOO_MAJOR_VERSION,
-    //            ZOO_MINOR_VERSION,
-    //            ZOO_PATCH_VERSION);
-    //    return 2;
-    //}
-    //if (argc > 2) {
-    //  if(strncmp("cmd:",argv[2],4)==0){
-    //    strcpy(cmd,argv[2]+4);
-    //    batchMode=1;
-    //    fprintf(stderr,"Batch mode: %s\n",cmd);
-    //  }else{
-    //    clientIdFile = argv[2];
-    //    fh = fopen(clientIdFile, "r");
-    //    if (fh) {
-    //        if (fread(&myid, sizeof(myid), 1, fh) != sizeof(myid)) {
-    //            memset(&myid, 0, sizeof(myid));
-    //        }
-    //        fclose(fh);
-    //    }
-    //  }
-    //}
-    hostPort = "172.17.0.4:2181";//argv[1];
-
-    strcpy(p, "dummy");
-    verbose = 0;
+    hostPort = "172.17.0.4:2181";
     zoo_set_debug_level(ZOO_LOG_LEVEL_DEBUG);
     zoo_deterministic_conn_order(1); // enable deterministic order
 
-      ebbrt::kprintf("ZK INIT..\n");
     zh = zookeeper_init(hostPort, watcher, 30000, &myid, 0, 0);
     if (!zh) {
-      ebbrt::kabort("ZK INIT Failed\n");
+      ebbrt::kabort("Zookeeper Init Failed\n");
     }
 
-    FD_ZERO(&rfds);
-    FD_ZERO(&wfds);
-    FD_ZERO(&efds);
-    while (!shutdownThisThing) {
         int fd;
         int interest;
         int events;
         struct timeval tv;
         int rc;
-        ebbrt::kprintf("ZK INTEREST..\n");
         zookeeper_interest(zh, &fd, &interest, &tv);
         if (fd != -1) {
             if (interest&ZOOKEEPER_READ) {
@@ -756,7 +720,7 @@ void AppMain() {
             }
         }
         zookeeper_process(zh, events);
-    }
+
     if (to_send!=0)
         ebbrt::kprintf("Recvd %d responses for %d requests sent\n",recvd,sent);
     zookeeper_close(zh);

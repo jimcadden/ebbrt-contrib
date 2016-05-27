@@ -52,9 +52,6 @@ int lwip_bind(int s, const struct sockaddr *name, socklen_t namelen){
 }
 
 
-// FIXME: I've hard-coded connection ip to front-end for test app
-//
-//
 //LWIP_ERROR("lwip_connect: invalid address", ((namelen == sizeof(struct sockaddr_in)) &&
 //((name->sa_family) == AF_INET) && ((((mem_ptr_t)name) % 4) == 0)),
 //sock_set_errno(sock, err_to_errno(ERR_ARG)); return -1;);
@@ -64,14 +61,12 @@ int lwip_bind(int s, const struct sockaddr *name, socklen_t namelen){
 int lwip_connect(int s, const struct sockaddr *name, socklen_t namelen){
   // TODO: verify socket domain/type is valid
   auto saddr = reinterpret_cast<const struct sockaddr_in *>(name);
-  auto ip_addr = saddr->sin_addr.s_addr;
-  //ip_addr = ebbrt::runtime::Frontend();
-  auto port = (saddr->sin_port); // port arrives in network order
+  auto ip_addr = saddr->sin_addr.s_addr; // ip arrives in network order
+  auto port = ntohs(saddr->sin_port); // port arrives in network order
   ebbrt::NetworkManager::TcpPcb pcb;
-  ebbrt::kprintf("port: %lx\n",port);
-  ebbrt::kprintf("ip: %lx\n", ntohl(ip_addr));
-
-  pcb.Connect(ebbrt::Ipv4Address(ntohl(ip_addr)), port);
+  ebbrt::kprintf("port: %d\n",port);
+  ebbrt::kprintf("ip: %lx\n", ip_addr);
+  pcb.Connect(ebbrt::Ipv4Address(ip_addr), port);
   auto fd = ebbrt::root_vfs->Lookup(s);
   // TODO: verify fd is right for connecting
   auto connection =
@@ -102,8 +97,7 @@ int lwip_read(int s, void *mem, size_t len){
     std::memcpy(mem, dptr.Data(), chain_len);
     return chain_len;
   }{
-    // TODO: set ERRNO
-    errno = 1;
+    errno = 1; // TODO: set correct ERRNO
     return -1;
   }
 }
@@ -113,6 +107,11 @@ int lwip_write(int s, const void *dataptr, size_t size){
   auto buf = ebbrt::MakeUniqueIOBuf(size);
   std::memcpy(reinterpret_cast<void*>(buf->MutData()), dataptr, size);
   fd->Write(std::move(buf));
+  return 0;
+}
+
+int lwip_send(int s, const void *dataptr, size_t size, int flags){
+  lwip_write(s, dataptr, size);
   return 0;
 }
 
@@ -181,11 +180,6 @@ int lwip_recvfrom(int s, void *mem, size_t len, int flags, struct sockaddr *from
   return 0;
 }
 
-int lwip_send(int s, const void *dataptr, size_t size, int flags){
-  EBBRT_UNIMPLEMENTED();
-  return 0;
-}
-
 int lwip_sendto(int s, const void *dataptr, size_t size, int flags, const struct sockaddr *to, socklen_t tolen){
   EBBRT_UNIMPLEMENTED();
   return 0;
@@ -222,9 +216,11 @@ int lwip_fcntl(int s, int cmd, int val){
 err_t netconn_gethostbyname(const char *name, ip_addr_t *addr){
     ebbrt::kprintf("\n gethostbyname:%s \n", name);
   // DNS lookup 
+  // q
   // For now we assume name is ip string
-  if (inet_pton(AF_INET, name, &addr) <= 0) {
-    //ebbrt::kprintf("\n gethostbyname: inet_on error occured (%d)\n", errno);
+  if (inet_pton(AF_INET, name, addr) <= 0) {
+    // failed to convert ip address
+    EBBRT_UNIMPLEMENTED();
     return -1;
   }
   return ERR_OK;

@@ -622,6 +622,9 @@ int getaddrs(zhandle_t *zh)
             }
         }
 
+        LOG_DEBUG(("getaddr: %s", host));
+            
+
         for (res = res0; res; res = res->ai_next) {
             // Expand address list if needed
             if (zh->addrs_count == alen) {
@@ -1611,7 +1614,6 @@ int zookeeper_interest(zhandle_t *zh, int *fd, int *interest,
                 rc = connect(zh->fd, (struct sockaddr*) &zh->addrs[zh->connect_index], sizeof(struct sockaddr_in6));
             } else {
 #else
-               LOG_DEBUG(("[zk] connect()\n"));
             {
 #endif
                 rc = connect(zh->fd, (struct sockaddr*) &zh->addrs[zh->connect_index], sizeof(struct sockaddr_in));
@@ -1680,8 +1682,8 @@ int zookeeper_interest(zhandle_t *zh, int *fd, int *interest,
             send_to = zh->recv_timeout/3 - idle_send;
             if (send_to <= 0) {
                 if (zh->sent_requests.head==0) {
-//                    LOG_DEBUG(("Sending PING to %s (exceeded idle by %dms)",
-//                                    format_current_endpoint_info(zh),-send_to));
+                    LOG_DEBUG(("Sending PING to %s (exceeded idle by %dms)",
+                                    format_current_endpoint_info(zh),-send_to));
                     int rc=send_ping(zh);
                     if (rc < 0){
                         LOG_ERROR(("failed to send PING request (zk retcode=%d)",rc));
