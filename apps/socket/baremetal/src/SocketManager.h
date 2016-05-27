@@ -53,7 +53,7 @@ public:
     };
 
     SocketFd() : listen_port_(0) {};
-    static EbbRef<SocketFd> Create(EbbId id = ebb_allocator->Allocate()) {
+    static EbbRef<SocketFd> Create(EbbId id = ebb_allocator->AllocateLocal()) {
       auto root = new SocketFd::Root();
       local_id_map->Insert(
           std::make_pair(id, static_cast<Vfs::Fd::Root *>(root)));

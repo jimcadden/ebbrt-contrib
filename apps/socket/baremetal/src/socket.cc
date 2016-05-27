@@ -5,10 +5,10 @@
 
 #include <ebbrt/Debug.h>
 
-#define SOCK_CLI 1
+#define SOCK_CLI 0
 #define SOCK_SRV 0
 #define SOCK_ALL 0
-#define ZK_CLI 0
+#define ZK_CLI 1
 
 /*******************************************************************/
 /*******************************************************************/
@@ -642,16 +642,11 @@ void processline(char *line) {
 
 
 void AppMain() {
-#ifndef THREADED
+    ebbrt::kprintf("Zookeeper Client \n");
     fd_set rfds, wfds, efds;
     int processed=0;
-#endif
     char buffer[4096];
     char p[2048];
-#ifdef YCA  
-    char *cert=0;
-    char appId[64];
-#endif
     int bufoff = 0;
     FILE *fh;
 
@@ -682,61 +677,19 @@ void AppMain() {
     //    }
     //  }
     //}
-    hostPort = "127.0.0.1:2888";//argv[1];
+    hostPort = "172.17.0.4:2181";//argv[1];
 
-#ifdef YCA
-    strcpy(appId,"yahoo.example.yca_test");
-    cert = yca_get_cert_once(appId);
-    if(cert!=0) {
-      ebbrt::kprintf("Certificate for appid [%s] is [%s]\n",appId,cert);
-        strncpy(p,cert,sizeof(p)-1);
-        free(cert);
-    } else {
-      ebbrt::kprintf("Certificate for appid [%s] not found\n",appId);
-      strcpy(p,"dummy");
-    }
-#else
     strcpy(p, "dummy");
-#endif
     verbose = 0;
-    zoo_set_debug_level(ZOO_LOG_LEVEL_WARN);
+    zoo_set_debug_level(ZOO_LOG_LEVEL_DEBUG);
     zoo_deterministic_conn_order(1); // enable deterministic order
+
+      ebbrt::kprintf("ZK INIT..\n");
     zh = zookeeper_init(hostPort, watcher, 30000, &myid, 0, 0);
     if (!zh) {
-        return errno;
+      ebbrt::kabort("ZK INIT Failed\n");
     }
 
-#ifdef YCA
-    if(zoo_add_auth(zh,"yca",p,strlen(p),0,0)!=ZOK)
-    return 2;
-#endif
-
-#ifdef THREADED
-    while(!shutdownThisThing) {
-        int rc;
-        int len = sizeof(buffer) - bufoff -1;
-        if (len <= 0) {
-          ebbrt::kprintf("Can't handle lines that long!\n");
-            exit(2);
-        }
-        rc = read(0, buffer+bufoff, len);
-        if (rc <= 0) {
-          ebbrt::kprintf("bye\n");
-            shutdownThisThing=1;
-            break;
-        }
-        bufoff += rc;
-        buffer[bufoff] = '\0';
-        while (strchr(buffer, '\n')) {
-            char *ptr = strchr(buffer, '\n');
-            *ptr = '\0';
-            processline(buffer);
-            ptr++;
-            memmove(buffer, ptr, strlen(ptr)+1);
-            bufoff = 0;
-        }
-    }
-#else
     FD_ZERO(&rfds);
     FD_ZERO(&wfds);
     FD_ZERO(&efds);
@@ -746,6 +699,7 @@ void AppMain() {
         int events;
         struct timeval tv;
         int rc;
+        ebbrt::kprintf("ZK INTEREST..\n");
         zookeeper_interest(zh, &fd, &interest, &tv);
         if (fd != -1) {
             if (interest&ZOOKEEPER_READ) {
@@ -762,6 +716,7 @@ void AppMain() {
             fd = 0;
         }
         FD_SET(0, &rfds);
+        ebbrt::kprintf("SELECT..\n");
         rc = select(fd+1, &rfds, &wfds, &efds, &tv);
         events = 0;
         if (rc > 0) {
@@ -802,7 +757,6 @@ void AppMain() {
         }
         zookeeper_process(zh, events);
     }
-#endif
     if (to_send!=0)
         ebbrt::kprintf("Recvd %d responses for %d requests sent\n",recvd,sent);
     zookeeper_close(zh);

@@ -516,6 +516,7 @@ int getaddrs(zhandle_t *zh)
             rc=ZBADARGUMENTS;
             goto fail;
         }
+        LOG_DEBUG(("port:%d in %s", port, host));
 #if defined(__CYGWIN__)
         // sadly CYGWIN doesn't have getaddrinfo
         // but happily gethostbyname is threadsafe in windows
@@ -589,6 +590,7 @@ int getaddrs(zhandle_t *zh)
         while(isspace(*host) && host != strtok_last)
             host++;
 
+        LOG_DEBUG(("getinfo: %s", host));
         if ((rc = getaddrinfo(host, port_spec, &hints, &res0)) != 0) {
             //bug in getaddrinfo implementation when it returns
             //EAI_BADFLAGS or EAI_ADDRFAMILY with AF_UNSPEC and 
@@ -604,6 +606,7 @@ int getaddrs(zhandle_t *zh)
                 //reset ai_flags to null
                 hints.ai_flags = 0;
                 //retry getaddrinfo
+        LOG_DEBUG(("getinfo again: %s", host));
                 rc = getaddrinfo(host, port_spec, &hints, &res0);
             }
 #endif

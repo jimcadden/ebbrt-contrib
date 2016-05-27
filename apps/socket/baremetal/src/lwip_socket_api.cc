@@ -16,125 +16,23 @@
 #include <netdb.h>
 #include <errno.h>
 
-#include "lwip/sockets.h"
 #include "lwip/api.h"
+//#include "lwip/api_msg.h"
+//#include "lwip/debug.h"
+//#include "lwip/def.h"
 #include "lwip/err.h"
-#include "lwip/netdb.h"
-#include "lwip/mem.h"
+//#include "lwip/mem.h"
 #include "lwip/memp.h"
-#include "lwip/pbuf.h"
-
-struct
-netconn *netconn_new_with_proto_and_callback(enum netconn_type t, u8_t proto,
-                                             netconn_callback callback){
-  EBBRT_UNIMPLEMENTED();
-  return 0;
-}
-
-err_t   netconn_delete(struct netconn *conn){
-  EBBRT_UNIMPLEMENTED();
-  return 0;
-}
-
-
-err_t   netconn_getaddr(struct netconn *conn, ip_addr_t *addr,
-                        u16_t *port, u8_t local){
-  EBBRT_UNIMPLEMENTED();
-  return 0;
-}
-
-
-err_t   netconn_bind(struct netconn *conn, ip_addr_t *addr, u16_t port){
-  EBBRT_UNIMPLEMENTED();
-  return 0;
-}
-err_t   netconn_connect(struct netconn *conn, ip_addr_t *addr, u16_t port){
-  EBBRT_UNIMPLEMENTED();
-  return 0;
-}
-err_t   netconn_disconnect (struct netconn *conn){
-  EBBRT_UNIMPLEMENTED();
-  return 0;
-}
-err_t   netconn_listen_with_backlog(struct netconn *conn, u8_t backlog){
-  EBBRT_UNIMPLEMENTED();
-  return 0;
-}
-
-err_t   netconn_accept(struct netconn *conn, struct netconn **new_conn){
-  EBBRT_UNIMPLEMENTED();
-  return 0;
-}
-
-err_t   netconn_recv(struct netconn *conn, struct netbuf **new_buf){
-  EBBRT_UNIMPLEMENTED();
-  return 0;
-}
-
-err_t   netconn_recv_tcp_pbuf(struct netconn *conn, struct pbuf **new_buf){
-  EBBRT_UNIMPLEMENTED();
-  return 0;
-}
-
-void    netconn_recved(struct netconn *conn, u32_t length){
-  EBBRT_UNIMPLEMENTED();
-}
-
-err_t   netconn_sendto(struct netconn *conn, struct netbuf *buf,
-                       ip_addr_t *addr, u16_t port){
-  EBBRT_UNIMPLEMENTED();
-  return 0;
-}
-
-err_t   netconn_send(struct netconn *conn, struct netbuf *buf){
-  EBBRT_UNIMPLEMENTED();
-  return 0;
-}
-
-err_t   netconn_write_partly(struct netconn *conn, const void *dataptr, size_t size,
-                             u8_t apiflags, size_t *bytes_written){
-  EBBRT_UNIMPLEMENTED();
-  return 0;
-}
-
-err_t   netconn_close(struct netconn *conn){
-  EBBRT_UNIMPLEMENTED();
-  return 0;
-}
-
-err_t   netconn_shutdown(struct netconn *conn, u8_t shut_rx, u8_t shut_tx){
-  EBBRT_UNIMPLEMENTED();
-  return 0;
-}
-
-err_t   netconn_gethostbyname(const char *name, ip_addr_t *addr){
-  EBBRT_UNIMPLEMENTED();
-  return 0;
-}
-
-// ADDITIONAL 
+#include "lwip/netdb.h"
+//#include "lwip/pbuf.h"
+//#include "lwip/snmp.h"
+#include "lwip/sockets.h"
+//#include "lwip/stats.h"
+//#include "lwip/tcp.h"
+//#include "lwip/tcp_impl.h"
 
 const u16_t memp_sizes[MEMP_MAX] = {};
 
-//typedef void* tcpip_callback_fn;
-//
-//err_t tcpip_callback(tcpip_callback_fn function, void *ctx){
-//  EBBRT_UNIMPLEMENTED();
-//  return 0;
-//}
-
-
-//u8_t pbuf_free(struct pbuf *p){
-//  EBBRT_UNIMPLEMENTED();
-//  return 0;
-//}
-
-void lwip_assert(const char* fmt, ...){
-  EBBRT_UNIMPLEMENTED();
-  return;
-}
-
-#if 0
 int lwip_listen(int s, int backlog){
   // XXX: backlog len ignored
   auto fd = ebbrt::root_vfs->Lookup(s);
@@ -155,13 +53,24 @@ int lwip_bind(int s, const struct sockaddr *name, socklen_t namelen){
 
 
 // FIXME: I've hard-coded connection ip to front-end for test app
+//
+//
+//LWIP_ERROR("lwip_connect: invalid address", ((namelen == sizeof(struct sockaddr_in)) &&
+//((name->sa_family) == AF_INET) && ((((mem_ptr_t)name) % 4) == 0)),
+//sock_set_errno(sock, err_to_errno(ERR_ARG)); return -1;);
+//name_in = (const struct sockaddr_in *)(void*)name;
+//
+//
 int lwip_connect(int s, const struct sockaddr *name, socklen_t namelen){
   // TODO: verify socket domain/type is valid
   auto saddr = reinterpret_cast<const struct sockaddr_in *>(name);
   auto ip_addr = saddr->sin_addr.s_addr;
-  ip_addr = ebbrt::runtime::Frontend();
-  auto port = ntohs(saddr->sin_port); // port arrives in network order
+  //ip_addr = ebbrt::runtime::Frontend();
+  auto port = (saddr->sin_port); // port arrives in network order
   ebbrt::NetworkManager::TcpPcb pcb;
+  ebbrt::kprintf("port: %lx\n",port);
+  ebbrt::kprintf("ip: %lx\n", ntohl(ip_addr));
+
   pcb.Connect(ebbrt::Ipv4Address(ntohl(ip_addr)), port);
   auto fd = ebbrt::root_vfs->Lookup(s);
   // TODO: verify fd is right for connecting
@@ -246,8 +155,24 @@ int lwip_getsockopt (int s, int level, int optname, void *optval, socklen_t *opt
 }
 
 int lwip_setsockopt (int s, int level, int optname, const void *optval, socklen_t optlen){
-  EBBRT_UNIMPLEMENTED();
-  return 0;
+
+  switch (level) {
+  case IPPROTO_TCP:
+    switch (optname) {
+    case TCP_NODELAY:
+    case TCP_KEEPALIVE:
+//    case TCP_KEEPIDLE:
+//    case TCP_KEEPINTVL:
+//    case TCP_KEEPCNT:
+      break;
+    default:
+      EBBRT_UNIMPLEMENTED();
+    }
+    break;
+  default:
+    EBBRT_UNIMPLEMENTED();
+  }
+  return ERR_OK;
 }
 
 
@@ -277,29 +202,32 @@ int lwip_ioctl(int s, long cmd, void *argp){
 }
 
 int lwip_fcntl(int s, int cmd, int val){
-  EBBRT_UNIMPLEMENTED();
+  switch (cmd) {
+  case F_GETFL:
+    return 0;
+    break;
+  case F_SETFL:
+    if ((val & ~O_NONBLOCK) == 0) {
+      /* set nonblocking: only O_NONBLOCK, all other bits are zero */
+      EBBRT_UNIMPLEMENTED();
+    }
+    break;
+  default:
+    EBBRT_UNIMPLEMENTED();
+    break;
+  }
   return 0;
 }
 
-#undef htons
-u16_t lwip_htons(u16_t x){ return ebbrt::htons(x); }
-#undef ntohs
-u16_t lwip_ntohs(u16_t x){ return ebbrt::ntohs(x); }
-#undef htonl
-u32_t lwip_htonl(u32_t x){ return ebbrt::htonl(x); }
-#undef ntohl
-u32_t lwip_ntohl(u32_t x){ return ebbrt::ntohl(x); }
-
-
 err_t netconn_gethostbyname(const char *name, ip_addr_t *addr){
-  // Do dns lookup for 'name'. 
-  //  For now we assume name is alwasy ip string
+    ebbrt::kprintf("\n gethostbyname:%s \n", name);
+  // DNS lookup 
+  // For now we assume name is ip string
   if (inet_pton(AF_INET, name, &addr) <= 0) {
-    ebbrt::kprintf("\n gethostbyname: inet_on error occured (%d)\n");
+    //ebbrt::kprintf("\n gethostbyname: inet_on error occured (%d)\n", errno);
     return -1;
   }
   return ERR_OK;
 }
 
-#endif
 
