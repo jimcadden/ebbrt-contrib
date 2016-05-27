@@ -8,8 +8,24 @@
 #define SOCK_CLI 0
 #define SOCK_SRV 0
 #define SOCK_ALL 0
-#define ZK_CLI 1
+#define ZK_CLI 0
+#define ZK_CPP 1
 
+/*******************************************************************/
+/*******************************************************************/
+#if ZK_CPP
+
+#include "ZooKeeper.h"
+
+ebbrt::ZooKeeper *zk;
+
+void AppMain() {
+  ebbrt::kprintf("Zookeeper CPP app.\n");
+  zk = new ebbrt::ZooKeeper("172.17.0.4:2181");
+}
+
+
+#endif
 /*******************************************************************/
 /*******************************************************************/
 #if SOCK_SRV 
@@ -642,89 +658,45 @@ void processline(char *line) {
 
 
 void AppMain() {
-    ebbrt::kprintf("Zookeeper Client \n");
-    fd_set rfds, wfds, efds;
-    int processed=0;
-    char buffer[4096];
-    char p[2048];
-    int bufoff = 0;
-    FILE *fh;
+  ebbrt::kprintf("Zookeeper Client \n");
+  fd_set rfds, wfds, efds;
+  int processed = 0;
+  char buffer[4096];
+  char p[2048];
+  int bufoff = 0;
+  FILE *fh;
 
-    hostPort = "172.17.0.4:2181";
-    zoo_set_debug_level(ZOO_LOG_LEVEL_DEBUG);
-    zoo_deterministic_conn_order(1); // enable deterministic order
+  hostPort = "172.17.0.4:2181";
+  zoo_set_debug_level(ZOO_LOG_LEVEL_DEBUG);
+  zoo_deterministic_conn_order(1); // enable deterministic order
 
-    zh = zookeeper_init(hostPort, watcher, 30000, &myid, 0, 0);
-    if (!zh) {
-      ebbrt::kabort("Zookeeper Init Failed\n");
-    }
+  zh = zookeeper_init(hostPort, watcher, 30000, &myid, 0, 0);
+  if (!zh) {
+    ebbrt::kabort("Zookeeper Init Failed\n");
+  }
 
-        int fd;
-        int interest;
-        int events;
-        struct timeval tv;
-        int rc;
-        zookeeper_interest(zh, &fd, &interest, &tv);
-        if (fd != -1) {
-            if (interest&ZOOKEEPER_READ) {
-                FD_SET(fd, &rfds);
-            } else {
-                FD_CLR(fd, &rfds);
-            }
-            if (interest&ZOOKEEPER_WRITE) {
-                FD_SET(fd, &wfds);
-            } else {
-                FD_CLR(fd, &wfds);
-            }
-        } else {
-            fd = 0;
-        }
-        FD_SET(0, &rfds);
-        ebbrt::kprintf("SELECT..\n");
-        rc = select(fd+1, &rfds, &wfds, &efds, &tv);
-        events = 0;
-        if (rc > 0) {
-            if (FD_ISSET(fd, &rfds)) {
-                events |= ZOOKEEPER_READ;
-            }
-            if (FD_ISSET(fd, &wfds)) {
-                events |= ZOOKEEPER_WRITE;
-            }
-        }
-        if(batchMode && processed==0){
-          //batch mode
-          processline(cmd);
-          processed=1;
-        }
-        if (FD_ISSET(0, &rfds)) {
-            int rc;
-            int len = sizeof(buffer) - bufoff -1;
-            if (len <= 0) {
-              ebbrt::kprintf("Can't handle lines that long!\n");
-                exit(2);
-            }
-            rc = read(0, buffer+bufoff, len);
-            if (rc <= 0) {
-              ebbrt::kprintf("bye\n");
-                break;
-            }
-            bufoff += rc;
-            buffer[bufoff] = '\0';
-            while (strchr(buffer, '\n')) {
-                char *ptr = strchr(buffer, '\n');
-                *ptr = '\0';
-                processline(buffer);
-                ptr++;
-                memmove(buffer, ptr, strlen(ptr)+1);
-                bufoff = 0;
-            }
-        }
-        zookeeper_process(zh, events);
+  int fd;
+  int interest;
+  int events = 0;
+  struct timeval tv;
+  int rc;
+  zookeeper_interest(zh, &fd, &interest, &tv);
+  processline("ls /");
+  zookeeper_interest(zh, &fd, &interest, &tv);
+ //     events |= ZOOKEEPER_READ;
+      events |= ZOOKEEPER_WRITE;
+  zookeeper_process(zh, events);
+      events = 0; 
+  zookeeper_interest(zh, &fd, &interest, &tv);
+ //     events |= ZOOKEEPER_READ;
+      events |= ZOOKEEPER_READ;
+  zookeeper_process(zh, events);
 
-    if (to_send!=0)
-        ebbrt::kprintf("Recvd %d responses for %d requests sent\n",recvd,sent);
-    zookeeper_close(zh);
-    return ;
+  if (to_send != 0)
+    ebbrt::kprintf("Recvd %d responses for %d requests sent\n", recvd, sent);
+  zookeeper_close(zh);
+  ebbrt::kprintf("Zookeeper connections closed\n");
+  return;
 }
 
 #endif // end ZK_CLI

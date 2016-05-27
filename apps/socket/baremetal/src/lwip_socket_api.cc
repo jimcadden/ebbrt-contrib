@@ -64,8 +64,6 @@ int lwip_connect(int s, const struct sockaddr *name, socklen_t namelen){
   auto ip_addr = saddr->sin_addr.s_addr; // ip arrives in network order
   auto port = ntohs(saddr->sin_port); // port arrives in network order
   ebbrt::NetworkManager::TcpPcb pcb;
-  ebbrt::kprintf("port: %d\n",port);
-  ebbrt::kprintf("ip: %lx\n", ip_addr);
   pcb.Connect(ebbrt::Ipv4Address(ip_addr), port);
   auto fd = ebbrt::root_vfs->Lookup(s);
   // TODO: verify fd is right for connecting
@@ -87,6 +85,7 @@ int lwip_socket(int domain, int type, int protocol){
 }
 
 int lwip_read(int s, void *mem, size_t len){
+  ebbrt::kprintf("readind %d to fd_%d\n", len, s);
   auto fd = ebbrt::root_vfs->Lookup(s);
   auto fbuf = fd->Read(len).Block();
   auto buf = std::move(fbuf.Get());
@@ -103,6 +102,7 @@ int lwip_read(int s, void *mem, size_t len){
 }
 
 int lwip_write(int s, const void *dataptr, size_t size){
+  ebbrt::kprintf("writing %d(%s) to fd_%d\n", size, dataptr, s);
   auto fd = ebbrt::root_vfs->Lookup(s);
   auto buf = ebbrt::MakeUniqueIOBuf(size);
   std::memcpy(reinterpret_cast<void*>(buf->MutData()), dataptr, size);
@@ -214,10 +214,6 @@ int lwip_fcntl(int s, int cmd, int val){
 }
 
 err_t netconn_gethostbyname(const char *name, ip_addr_t *addr){
-    ebbrt::kprintf("\n gethostbyname:%s \n", name);
-  // DNS lookup 
-  // q
-  // For now we assume name is ip string
   if (inet_pton(AF_INET, name, addr) <= 0) {
     // failed to convert ip address
     EBBRT_UNIMPLEMENTED();
