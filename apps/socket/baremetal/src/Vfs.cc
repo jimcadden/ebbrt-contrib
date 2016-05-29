@@ -15,6 +15,8 @@ int ebbrt::Vfs::RegisterFd(ebbrt::EbbRef<ebbrt::Vfs::Fd> ref){
 
 ebbrt::EbbRef<ebbrt::Vfs::Fd> ebbrt::Vfs::Lookup(int fd){
     auto it = descriptor_map_.find(fd);
-    ebbrt::kbugon((it == descriptor_map_.end()));
+    if(it == descriptor_map_.end()){
+      throw std::invalid_argument("Failed to locate file descriptor");
+    }
     return it->second;
 }

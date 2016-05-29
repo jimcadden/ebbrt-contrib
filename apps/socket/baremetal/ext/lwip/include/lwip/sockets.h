@@ -276,7 +276,7 @@ typedef struct ip_mreq {
 /* File status flags and file access modes for fnctl,
    these are bits in an int. */
 #ifndef O_NONBLOCK
-#define O_NONBLOCK  1 /* nonblocking I/O */
+#define O_NONBLOCK  1 
 #endif
 #ifndef O_NDELAY
 #define O_NDELAY    1 /* same as O_NONBLOCK, for compatibility */

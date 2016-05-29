@@ -20,8 +20,9 @@
 ebbrt::ZooKeeper *zk;
 
 void AppMain() {
-  ebbrt::kprintf("Zookeeper CPP app.\n");
+  ebbrt::kprintf("App: Zookeeper CPP.\n");
   zk = new ebbrt::ZooKeeper("172.17.0.4:2181");
+  ebbrt::kprintf("App: Initialization complete.\n");
 }
 
 

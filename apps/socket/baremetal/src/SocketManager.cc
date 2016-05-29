@@ -42,9 +42,13 @@ void ebbrt::SocketManager::SocketFd::TcpSession::Connected() {
 void ebbrt::SocketManager::SocketFd::TcpSession::check_read() {
 
   std::lock_guard<ebbrt::SpinLock> guard(buf_lock_);
-  if (!inbuf_ || !read_.second || read_.first.GetFuture().Ready()) {
+  // Confirm we have 1) received new data, 2) an unfulfilled read request
+  if (!inbuf_ || !read_blocked_ ) {
     return;
   }
+
+  // We should not have a fulfilled read promise
+  ebbrt::kbugon(read_.first.GetFuture().Ready());
 
   std::unique_ptr<MutIOBuf> rbuf(nullptr);
   auto len = read_.second;
@@ -52,10 +56,14 @@ void ebbrt::SocketManager::SocketFd::TcpSession::check_read() {
 
   if (len >= chain_len) {
     read_.first.SetValue(std::move(inbuf_));
-  } else {
+  } else if( len == 0 ){
+    // return an empty IOBuf, keep existing data in buffer
+    read_.first.SetValue(ebbrt::MakeUniqueIOBuf(0));
+  } else{
     // we have more data then whats being requested
-    ebbrt::kabort("splitting buffer not yet supported");
+    ebbrt::kabort("Splitting buffer not yet supported");
   }
+  read_blocked_ = false;
   return;
 }
 
@@ -75,11 +83,9 @@ void ebbrt::SocketManager::SocketFd::TcpSession::Abort() {
 ebbrt::Future<std::unique_ptr<ebbrt::IOBuf>>
 ebbrt::SocketManager::SocketFd::Read(size_t len) {
 
-  // TODO: locking out concurrent receives
-  // std::lock_guard<ebbrt::SpinLock> guard(tcpbuf_lock_);
   Promise<std::unique_ptr<ebbrt::IOBuf>> p;
   auto f = p.GetFuture();
-
+  tcp_session_->read_blocked_ = true;
   tcp_session_->read_ = std::make_pair(std::move(p), len);
   tcp_session_->check_read();
   return std::move(f);
@@ -88,6 +94,7 @@ ebbrt::SocketManager::SocketFd::Read(size_t len) {
 void 
 ebbrt::SocketManager::SocketFd::Write(std::unique_ptr<IOBuf> buf){
   tcp_session_->Send(std::move(buf));
+  tcp_session_->Pcb().Output();
 }
 
 ebbrt::Future<uint8_t> 
@@ -159,6 +166,17 @@ ebbrt::SocketManager::SocketFd::Listen() {
   return 0;
 }
 
+bool
+ebbrt::SocketManager::SocketFd::IsReadReady() {
+  if ( tcp_session_->read_blocked_ ){
+    return false;
+  }
+  else if( flags_ & O_NONBLOCK ) 
+  {
+    return !!(tcp_session_->inbuf_);
+  }
+  return true;
+}
 
 ebbrt::Future<uint8_t>
 ebbrt::SocketManager::SocketFd::Connect(ebbrt::NetworkManager::TcpPcb pcb) {
@@ -168,4 +186,5 @@ ebbrt::SocketManager::SocketFd::Connect(ebbrt::NetworkManager::TcpPcb pcb) {
   //timer->Start(*tcp_session_, std::chrono::seconds(5), /* repeat */ false);
   return tcp_session_->connected_.GetFuture();
 }
+
 

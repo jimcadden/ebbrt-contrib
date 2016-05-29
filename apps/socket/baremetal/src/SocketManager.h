@@ -21,7 +21,11 @@
 #include <ebbrt/StaticSharedEbb.h>
 #include <ebbrt/UniqueIOBuf.h>
 
+#include <sys/socket.h>
+
 namespace ebbrt {
+
+
 
 class SocketManager : public ebbrt::StaticSharedEbb<SocketManager>,
                       public CacheAligned {
@@ -49,10 +53,11 @@ public:
       PendingRead read_;
       Promise<uint8_t> disconnected_;
       Promise<uint8_t> connected_;
+      bool read_blocked_;
       void check_read();
     };
 
-    SocketFd() : listen_port_(0) {};
+    SocketFd() : listen_port_(0), flags_(0) {};
     static EbbRef<SocketFd> Create(EbbId id = ebb_allocator->AllocateLocal()) {
       auto root = new SocketFd::Root();
       local_id_map->Insert(
@@ -75,13 +80,21 @@ public:
     int Listen();
     int Bind(uint16_t port);
     ebbrt::Future<int> Accept();
-    ebbrt::Future<uint8_t> Close() override;
     ebbrt::Future<uint8_t> Connect(ebbrt::NetworkManager::TcpPcb pcb);
+    // inherited
     ebbrt::Future<std::unique_ptr<IOBuf>> Read(size_t len) override;
     void Write(std::unique_ptr<IOBuf> buf) override;
-
+    ebbrt::Future<uint8_t> Close() override;
+    uint32_t GetFlags() override { return flags_; };
+    void SetFlags(uint32_t f) override { flags_ = f;};
+  
+    // NONBLOCKING
+    bool IsReadReady();
+    bool IsWriteReady() { return true; };
+    
   private:
     void install_pcb(ebbrt::NetworkManager::TcpPcb pcb);
+    bool is_nonblocking(){ return flags_ & O_NONBLOCK; }
     void check_waiting();
 
     TcpSession *tcp_session_;
@@ -93,6 +106,7 @@ public:
     std::queue<ebbrt::Promise<int>> waiting_accept_;
     std::queue<ebbrt::NetworkManager::TcpPcb> waiting_pcb_;
     ebbrt::SpinLock waiting_lock_;
+    uint32_t flags_;
 
   };
   explicit SocketManager(){};

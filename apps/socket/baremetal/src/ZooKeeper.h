@@ -43,7 +43,7 @@ public:
   void Fire() override;
   ZooKeeper(const std::string& server_hosts,
             void* global_watcher = nullptr,
-            int timeout_ms = 5 * 1000);
+            int timeout_ms = 30 * 1000);
   ~ZooKeeper();
   // disable copy
   ZooKeeper(const ZooKeeper&) = delete;
@@ -54,7 +54,7 @@ public:
 
   //bool Exists(const std::string& path, bool watch = false, NodeStat* = nullptr);
 
-  //NodeStat Stat(const std::string& path);
+  NodeStat Stat(const std::string& path);
 
   //std::string Create(const std::string& path,
   //                   const std::string& value = std::string(),
@@ -70,9 +70,9 @@ public:
 
   //void Set(const std::string&path, const std::string& value);
 
-  //std::string Get(const std::string& path, bool watch = false);
+  std::string Get(const std::string& path, bool watch = false);
 
-  //std::vector<std::string> GetChildren(const std::string& parent_path, bool watch = false);
+  std::vector<std::string> GetChildren(const std::string& parent_path, bool watch = false);
 
 private:
   zhandle_t* zk_ = nullptr;

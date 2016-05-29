@@ -43,8 +43,8 @@ public:
     // virtual void IsReady() = 0;
     // virtual void Lseek() = 0;
      virtual void Write(std::unique_ptr<IOBuf>) = 0;
-  protected:
-      ebbrt::SpinLock fd_lock_;
+     virtual uint32_t GetFlags() = 0;
+     virtual void SetFlags(uint32_t) = 0;
   };
   explicit Vfs() : fd_{0} {};
   int RegisterFd(ebbrt::EbbRef<ebbrt::Vfs::Fd>);

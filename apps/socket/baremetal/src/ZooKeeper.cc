@@ -16,9 +16,9 @@ ebbrt::ZooKeeper::ZooKeeper(const std::string &server_hosts, void* global_watche
                                (void*)global_watcher,
                                timeout_ms,
                                nullptr, // client id
-                               this,
+                               0,
                                0);
-  timer->Start(*this, std::chrono::milliseconds(timeout_ms/10), true);
+  timer->Start(*this, std::chrono::milliseconds(500), true);
   return;
 }
 
@@ -31,43 +31,31 @@ ebbrt::ZooKeeper::~ZooKeeper() {
 }
 
 void ebbrt::ZooKeeper::Fire() {
-  std::lock_guard<SpinLock> guard(lock_);
   struct timeval tv;
   int fd;
-  int interest;
-  int maxfd = 1;
+  int interest, events;
 
   zookeeper_interest(zk_, &fd, &interest, &tv);
-
-//  struct pollfd fds[2];
-//  struct adaptor_threads *adaptor_threads = zh->adaptor_priv;
- //if (fd != -1) {
- //  fds[1].fd = fd;
- //  fds[1].events = (interest & ZOOKEEPER_READ) ? POLLIN : 0;
- //  fds[1].events |= (interest & ZOOKEEPER_WRITE) ? POLLOUT : 0;
- //  maxfd = 2;
- //}
- //timeout = tv.tv_sec * 1000 + (tv.tv_usec / 1000);
-
- //// poll(fds, maxfd, timeout);
- // if (fd != -1) {
- //   interest = (fds[1].revents & POLLIN) ? ZOOKEEPER_READ : 0;
- //   interest |= ((fds[1].revents & POLLOUT) || (fds[1].revents & POLLHUP))
- //                   ? ZOOKEEPER_WRITE
- //                   : 0;
- // }
- // if (fds[0].revents & POLLIN) {
- //   // flush the pipe
- //   char b[128];
- //   while (read(adaptor_threads->self_pipe[0], b, sizeof(b)) == sizeof(b)) {
- //   }
- // }
-  // dispatch zookeeper events
-//  rc = zookeeper_process(zh, interest);
+  events = 0;
+  //if (fd != -1) {
+  //  if (interest & ZOOKEEPER_WRITE){
+  //    events |= ZOOKEEPER_WRITE;
+  //  }
+  //  else if (interest & ZOOKEEPER_READ) {
+  //    // block until there is data to read
+  //    // TODO: timeout
+  //    ebbrt::kprintf("bloking on read\n");
+  //    read(fd,nullptr,0);
+  //    events |= ZOOKEEPER_READ;
+  //    ebbrt::kprintf("unbkocd on read\n");
+  //  }
+  //}
+  //  dispatch zookeeper events
+  zookeeper_process(zk_, interest);
   // check the current state of the zhandle and terminate
   // if it is_unrecoverable()
- // if (is_unrecoverable(zh))
-  //  break;
+  if (is_unrecoverable(zk_))
+    ebbrt::kabort("Unrecoverable zookeeper error\n");
 }
 
 bool ebbrt::ZooKeeper::is_connected() {
@@ -76,4 +64,35 @@ bool ebbrt::ZooKeeper::is_connected() {
 
 bool ebbrt::ZooKeeper::is_expired() {
   return zoo_state(zk_) == ZOO_EXPIRED_SESSION_STATE;
+}
+
+ebbrt::NodeStat ebbrt::ZooKeeper::Stat(const std::string& path) {
+  ebbrt::NodeStat stat;
+  auto zoo_code = zoo_exists(zk_, path.c_str(), false, &stat);
+  
+  ebbrt::kbugon(zoo_code != ZOK);
+
+
+  return stat;
+}
+
+std::string ebbrt::ZooKeeper::Get(const std::string& path, bool watch) {
+  std::string value_buffer;
+
+  auto node_stat = Stat(path);
+
+  value_buffer.resize(node_stat.dataLength);
+
+  int buffer_len = value_buffer.size();
+  auto zoo_code = zoo_get(zk_,
+                          path.c_str(),
+                          watch,
+                          const_cast<char*>(value_buffer.data()),
+                          &buffer_len,
+                          &node_stat);
+
+  ebbrt::kbugon(zoo_code != ZOK);
+
+  value_buffer.resize(buffer_len);
+  return value_buffer;
 }

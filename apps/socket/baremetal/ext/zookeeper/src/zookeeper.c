@@ -1607,7 +1607,7 @@ int zookeeper_interest(zhandle_t *zh, int *fd, int *interest,
 #ifdef WIN32
             ioctlsocket(zh->fd, FIONBIO, &nonblocking_flag);                    
 #else
-            fcntl(zh->fd, F_SETFL, O_NONBLOCK|fcntl(zh->fd, F_GETFL, 0));
+            fcntl(zh->fd, F_SETFL, 0x1|fcntl(zh->fd, F_GETFL, 0));
 #endif
 #if defined(AF_INET6)
             if (zh->addrs[zh->connect_index].ss_family == AF_INET6) {

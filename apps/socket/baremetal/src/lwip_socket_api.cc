@@ -3,7 +3,6 @@
 //    (See accompanying file LICENSE_1_0.txt or copy at
 //          http://www.boost.org/LICENSE_1_0.txt)
 
-
 #include "SocketManager.h"
 #include "Vfs.h"
 
@@ -12,9 +11,9 @@
 #include <ebbrt/NetMisc.h>
 #include <ebbrt/Runtime.h>
 
-#include <sys/socket.h>
-#include <netdb.h>
 #include <errno.h>
+#include <netdb.h>
+#include <sys/socket.h>
 
 #include "lwip/api.h"
 //#include "lwip/api_msg.h"
@@ -33,136 +32,164 @@
 
 const u16_t memp_sizes[MEMP_MAX] = {};
 
-int lwip_listen(int s, int backlog){
+int lwip_listen(int s, int backlog) {
   // XXX: backlog len ignored
-  auto fd = ebbrt::root_vfs->Lookup(s);
-  return static_cast<ebbrt::EbbRef<ebbrt::SocketManager::SocketFd>>(fd)->Listen();
+  try {
+    auto fd = ebbrt::root_vfs->Lookup(s);
+    return static_cast<ebbrt::EbbRef<ebbrt::SocketManager::SocketFd>>(fd)->Listen();
+  } catch (std::invalid_argument &e) {
+    errno = EBADF;
+    return -1;
+  }
 }
 
-int lwip_accept(int s, struct sockaddr *addr, socklen_t *addrlen){
-  auto fd = ebbrt::root_vfs->Lookup(s);
-  return static_cast<ebbrt::EbbRef<ebbrt::SocketManager::SocketFd>>(fd)->Accept().Block().Get();
+int lwip_accept(int s, struct sockaddr *addr, socklen_t *addrlen) {
+  try {
+    auto fd = ebbrt::root_vfs->Lookup(s);
+    return static_cast<ebbrt::EbbRef<ebbrt::SocketManager::SocketFd>>(fd)
+        ->Accept()
+        .Block()
+        .Get();
+  } catch (std::invalid_argument &e) {
+    errno = EBADF;
+    return -1;
+  }
 }
 
-int lwip_bind(int s, const struct sockaddr *name, socklen_t namelen){
-  auto fd = ebbrt::root_vfs->Lookup(s);
-  auto saddr = reinterpret_cast<const struct sockaddr_in *>(name);
-  auto port = ntohs(saddr->sin_port); // port arrives in network order
-  return static_cast<ebbrt::EbbRef<ebbrt::SocketManager::SocketFd>>(fd)->Bind(port);
+int lwip_bind(int s, const struct sockaddr *name, socklen_t namelen) {
+  try {
+    auto fd = ebbrt::root_vfs->Lookup(s);
+    auto saddr = reinterpret_cast<const struct sockaddr_in *>(name);
+    auto port = ntohs(saddr->sin_port); // port arrives in network order
+    return static_cast<ebbrt::EbbRef<ebbrt::SocketManager::SocketFd>>(fd)->Bind(
+        port);
+  } catch (std::invalid_argument &e) {
+    errno = EBADF;
+    return -1;
+  }
 }
 
-
-//LWIP_ERROR("lwip_connect: invalid address", ((namelen == sizeof(struct sockaddr_in)) &&
+// LWIP_ERROR("lwip_connect: invalid address", ((namelen == sizeof(struct
+// sockaddr_in)) &&
 //((name->sa_family) == AF_INET) && ((((mem_ptr_t)name) % 4) == 0)),
-//sock_set_errno(sock, err_to_errno(ERR_ARG)); return -1;);
-//name_in = (const struct sockaddr_in *)(void*)name;
+// sock_set_errno(sock, err_to_errno(ERR_ARG)); return -1;);
+// name_in = (const struct sockaddr_in *)(void*)name;
 //
 //
-int lwip_connect(int s, const struct sockaddr *name, socklen_t namelen){
+int lwip_connect(int s, const struct sockaddr *name, socklen_t namelen) {
   // TODO: verify socket domain/type is valid
   auto saddr = reinterpret_cast<const struct sockaddr_in *>(name);
   auto ip_addr = saddr->sin_addr.s_addr; // ip arrives in network order
-  auto port = ntohs(saddr->sin_port); // port arrives in network order
+  auto port = ntohs(saddr->sin_port);    // port arrives in network order
   ebbrt::NetworkManager::TcpPcb pcb;
   pcb.Connect(ebbrt::Ipv4Address(ip_addr), port);
   auto fd = ebbrt::root_vfs->Lookup(s);
   // TODO: verify fd is right for connecting
   auto connection =
-    static_cast<ebbrt::EbbRef<ebbrt::SocketManager::SocketFd>>(fd)->Connect(std::move(pcb)).Block();
-  auto  is_connected = connection.Get();
-  if( is_connected ){
+      static_cast<ebbrt::EbbRef<ebbrt::SocketManager::SocketFd>>(fd)
+          ->Connect(std::move(pcb))
+          .Block();
+  auto is_connected = connection.Get();
+  if (is_connected) {
     return 0;
   }
   return -1;
 }
 
-int lwip_socket(int domain, int type, int protocol){
-  if ( domain != AF_INET || type != SOCK_STREAM || protocol != 0 ){
+int lwip_socket(int domain, int type, int protocol) {
+  if (domain != AF_INET || type != SOCK_STREAM || protocol != 0) {
     ebbrt::kabort("Socket type not supported");
     return -1;
   }
   return ebbrt::socket_manager->NewIpv4Socket();
 }
 
-int lwip_read(int s, void *mem, size_t len){
-  ebbrt::kprintf("readind %d to fd_%d\n", len, s);
+int lwip_read(int s, void *mem, size_t len) {
   auto fd = ebbrt::root_vfs->Lookup(s);
-  auto fbuf = fd->Read(len).Block();
+  auto fdref = static_cast<ebbrt::EbbRef<ebbrt::SocketManager::SocketFd>>(fd);
+
+  // A read of len=0 will create a future that signals when a non-blocking socket has data
+  if (len && !fdref->IsReadReady()){
+    errno = EAGAIN;
+    return -1;
+  }
+
+  auto fbuf = fdref->Read(len).Block();
   auto buf = std::move(fbuf.Get());
   auto chain_len = buf->ComputeChainDataLength();
   assert(chain_len <= len);
-  if( chain_len > 0  ){
+  if (chain_len > 0) {
     auto dptr = buf->GetDataPointer();
     std::memcpy(mem, dptr.Data(), chain_len);
     return chain_len;
-  }{
-    errno = 1; // TODO: set correct ERRNO
+  }
+  {
+    errno = EIO; 
     return -1;
   }
 }
 
-int lwip_write(int s, const void *dataptr, size_t size){
+int lwip_write(int s, const void *dataptr, size_t size) {
   ebbrt::kprintf("writing %d(%s) to fd_%d\n", size, dataptr, s);
   auto fd = ebbrt::root_vfs->Lookup(s);
   auto buf = ebbrt::MakeUniqueIOBuf(size);
-  std::memcpy(reinterpret_cast<void*>(buf->MutData()), dataptr, size);
+  std::memcpy(reinterpret_cast<void *>(buf->MutData()), dataptr, size);
   fd->Write(std::move(buf));
   return 0;
 }
 
-int lwip_send(int s, const void *dataptr, size_t size, int flags){
+int lwip_send(int s, const void *dataptr, size_t size, int flags) {
   lwip_write(s, dataptr, size);
   return 0;
 }
 
-
-int lwip_recv(int s, void *mem, size_t len, int flags){
+int lwip_recv(int s, void *mem, size_t len, int flags) {
   return lwip_read(s, mem, len);
 }
 
-
-int lwip_close(int s){
+int lwip_close(int s) {
   auto fd = ebbrt::root_vfs->Lookup(s);
- fd->Close().Block();
+  fd->Close().Block();
   return 0;
 }
 
-
-void lwip_assert(const char* fmt, ...){
+void lwip_assert(const char *fmt, ...) {
   EBBRT_UNIMPLEMENTED();
   return;
 }
 
-int lwip_shutdown(int s, int how){
+int lwip_shutdown(int s, int how) {
   EBBRT_UNIMPLEMENTED();
   return 0;
 }
 
-int lwip_getpeername (int s, struct sockaddr *name, socklen_t *namelen){
+int lwip_getpeername(int s, struct sockaddr *name, socklen_t *namelen) {
   EBBRT_UNIMPLEMENTED();
   return 0;
 }
 
-int lwip_getsockname (int s, struct sockaddr *name, socklen_t *namelen){
+int lwip_getsockname(int s, struct sockaddr *name, socklen_t *namelen) {
   EBBRT_UNIMPLEMENTED();
   return 0;
 }
 
-int lwip_getsockopt (int s, int level, int optname, void *optval, socklen_t *optlen){
+int lwip_getsockopt(int s, int level, int optname, void *optval,
+                    socklen_t *optlen) {
   EBBRT_UNIMPLEMENTED();
   return 0;
 }
 
-int lwip_setsockopt (int s, int level, int optname, const void *optval, socklen_t optlen){
+int lwip_setsockopt(int s, int level, int optname, const void *optval,
+                    socklen_t optlen) {
 
   switch (level) {
   case IPPROTO_TCP:
     switch (optname) {
     case TCP_NODELAY:
     case TCP_KEEPALIVE:
-//    case TCP_KEEPIDLE:
-//    case TCP_KEEPINTVL:
-//    case TCP_KEEPCNT:
+      //    case TCP_KEEPIDLE:
+      //    case TCP_KEEPINTVL:
+      //    case TCP_KEEPCNT:
       break;
     default:
       EBBRT_UNIMPLEMENTED();
@@ -174,46 +201,59 @@ int lwip_setsockopt (int s, int level, int optname, const void *optval, socklen_
   return ERR_OK;
 }
 
-
-int lwip_recvfrom(int s, void *mem, size_t len, int flags, struct sockaddr *from, socklen_t *fromlen){
+int lwip_recvfrom(int s, void *mem, size_t len, int flags,
+                  struct sockaddr *from, socklen_t *fromlen) {
   EBBRT_UNIMPLEMENTED();
   return 0;
 }
 
-int lwip_sendto(int s, const void *dataptr, size_t size, int flags, const struct sockaddr *to, socklen_t tolen){
+int lwip_sendto(int s, const void *dataptr, size_t size, int flags,
+                const struct sockaddr *to, socklen_t tolen) {
   EBBRT_UNIMPLEMENTED();
   return 0;
 }
 
-int lwip_select(int maxfdp1, fd_set *readset, fd_set *writeset, fd_set *exceptset, struct timeval *timeout){
+int lwip_select(int maxfdp1, fd_set *readset, fd_set *writeset,
+                fd_set *exceptset, struct timeval *timeout) {
   EBBRT_UNIMPLEMENTED();
   return 0;
 }
 
-int lwip_ioctl(int s, long cmd, void *argp){
+int lwip_ioctl(int s, long cmd, void *argp) {
   EBBRT_UNIMPLEMENTED();
   return 0;
 }
 
-int lwip_fcntl(int s, int cmd, int val){
+int lwip_fcntl(int s, int cmd, int val) {
+  auto fd = ebbrt::root_vfs->Lookup(s);
+  int f, newflag;
   switch (cmd) {
   case F_GETFL:
-    return 0;
+    f = (int)fd->GetFlags();
+    ebbrt::kprintf("Get socket(%d) options: %x\n", s, f);
+    return f;
     break;
   case F_SETFL:
-    if ((val & ~O_NONBLOCK) == 0) {
-      /* set nonblocking: only O_NONBLOCK, all other bits are zero */
+    ebbrt::kprintf("Setting socket(%d) options: %x\n", s, val);
+    // File access mode (O_RDONLY, O_WRONLY, //O_RDWR) and file creation
+    // flags (i.e., O_CREAT, O_EXCL, O_NOCTTY, O_TRUNC) in arg  are  ignored. On
+    // Linux this command can change only the O_APPEND, O_ASYNC, O_DIRECT,
+    // O_NOATIME, and O_NONBLOCK flags.
+    newflag = val & O_NONBLOCK;
+    if (newflag) {
+      auto f = fd->GetFlags();
+      fd->SetFlags(f | newflag);
+    } else {
       EBBRT_UNIMPLEMENTED();
     }
     break;
   default:
     EBBRT_UNIMPLEMENTED();
-    break;
-  }
+  };
   return 0;
 }
 
-err_t netconn_gethostbyname(const char *name, ip_addr_t *addr){
+err_t netconn_gethostbyname(const char *name, ip_addr_t *addr) {
   if (inet_pton(AF_INET, name, addr) <= 0) {
     // failed to convert ip address
     EBBRT_UNIMPLEMENTED();
@@ -221,5 +261,4 @@ err_t netconn_gethostbyname(const char *name, ip_addr_t *addr){
   }
   return ERR_OK;
 }
-
 
