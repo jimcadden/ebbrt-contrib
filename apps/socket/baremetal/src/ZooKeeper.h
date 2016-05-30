@@ -21,28 +21,26 @@
 
 namespace ebbrt {
 
-class ZooWatcher {
-public:
-  virtual ~ZooWatcher() {}
-
-  virtual void OnConnected() = 0;
-  virtual void OnConnecting() = 0;
-  virtual void OnSessionExpired() = 0;
-
-  virtual void OnCreated(const char* path) = 0;
-  virtual void OnDeleted(const char* path) = 0;
-  virtual void OnChanged(const char* path) = 0;
-  virtual void OnChildChanged(const char* path) = 0;
-  virtual void OnNotWatching(const char* path) = 0;
-};
 
 typedef Stat NodeStat;
 
 class ZooKeeper : public ebbrt::Timer::Hook {
 public:
+  class ZooWatcher {
+  public:
+    virtual ~ZooWatcher() {}
+    virtual void OnConnected() = 0;
+    virtual void OnConnecting() = 0;
+    virtual void OnSessionExpired() = 0;
+    virtual void OnCreated(const char* path) = 0;
+    virtual void OnDeleted(const char* path) = 0;
+    virtual void OnChanged(const char* path) = 0;
+    virtual void OnChildChanged(const char* path) = 0;
+    virtual void OnNotWatching(const char* path) = 0;
+  };
   void Fire() override;
   ZooKeeper(const std::string& server_hosts,
-            void* global_watcher = nullptr,
+            ZooWatcher* global_watcher = nullptr,
             int timeout_ms = 30 * 1000);
   ~ZooKeeper();
   // disable copy
@@ -74,16 +72,17 @@ public:
 
   std::vector<std::string> GetChildren(const std::string& parent_path, bool watch = false);
 
+  void WatchHandler(int type, int state, const char* path);
+
 private:
   zhandle_t* zk_ = nullptr;
   SpinLock lock_;
 
-  //ZooWatcher* global_watcher_ = nullptr;
+  ZooWatcher* global_watcher_ = nullptr;
 
-  //void WatchHandler(int type, int state, const char* path);
 
-  //static void GlobalWatchFunc(zhandle_t*, int type, int state,
- //                             const char* path, void* ctx);
+  static void GlobalWatchFunc(zhandle_t*, int type, int state,
+                              const char* path, void* ctx);
 };
 
 }

@@ -136,7 +136,6 @@ void log_message(ZooLogLevel curLevel,int line,const char* funcName,
     // pid_t is long on Solaris
     //fprintf(LOGSTREAM, "%s:%ld:%s@%s@%d: %s\n", time_now(get_time_buffer()),(long)pid,
     //        dbgLevelStr[curLevel],funcName,line,message);
-    fprintf(LOGSTREAM, "%s", funcName);
     fprintf(LOGSTREAM, "%s\n", message);
 #else
 #ifdef WIN32

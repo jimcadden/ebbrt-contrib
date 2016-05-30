@@ -21,7 +21,7 @@ void ebbrt::SocketManager::SocketFd::TcpSession::Receive(
     } else {
       inbuf_ = std::move(b);
     }
-  } // unlocked
+  } // unlocked buf_lock_
   check_read();
   return;
 }
@@ -43,28 +43,80 @@ void ebbrt::SocketManager::SocketFd::TcpSession::check_read() {
 
   std::lock_guard<ebbrt::SpinLock> guard(buf_lock_);
   // Confirm we have 1) received new data, 2) an unfulfilled read request
-  if (!inbuf_ || !read_blocked_ ) {
+  if (!inbuf_ || !read_blocked_) {
     return;
   }
 
   // We should not have a fulfilled read promise
   ebbrt::kbugon(read_.first.GetFuture().Ready());
 
-  std::unique_ptr<MutIOBuf> rbuf(nullptr);
-  auto len = read_.second;
-  auto chain_len = inbuf_->ComputeChainDataLength();
+  /////
+  auto message_len = read_.second;
+  auto buffer_len = inbuf_->ComputeChainDataLength();
 
-  if (len >= chain_len) {
+  if (likely(buffer_len == message_len)) {
     read_.first.SetValue(std::move(inbuf_));
-  } else if( len == 0 ){
-    // return an empty IOBuf, keep existing data in buffer
+    read_blocked_ = false;
+    return;
+  } else if (message_len == 0) {
+    // return an empty IOBuf, keep existing data in inbuf
     read_.first.SetValue(ebbrt::MakeUniqueIOBuf(0));
-  } else{
-    // we have more data then whats being requested
-    ebbrt::kabort("Splitting buffer not yet supported");
+    read_blocked_ = false;
+    return;
+  } else if (buffer_len < message_len) {
+    // wait for more data to arrive
+    return;
+  } else if (buffer_len > message_len) {
+    // pull message from chain and keep remaining data in buf
+    auto b = std::move(inbuf_);
+    std::unique_ptr<IOBuf> tail_chain;
+    std::unique_ptr<IOBuf> split;
+    uint32_t length = 0;
+    // check if message is contained within first buffer
+    if (b->Length() >= message_len) {
+      length = b->Length();
+      split = std::move(b);
+      tail_chain = split->Pop();
+      b = nullptr;
+    } else {
+      for (auto &buf : *b) {
+        length += buf.Length();
+        if (length >= message_len) {
+          kassert(b->IsChained());
+          auto tmp = static_cast<MutIOBuf *>(b->UnlinkEnd(buf).release());
+          split = std::unique_ptr<MutIOBuf>(tmp);
+          tail_chain = split->Pop();
+          break;
+        }
+      }
+    }
+    // we "divide" the buffer by clone and resize
+    auto left_shard_len = split->Length() - (length - message_len);
+    auto right_shard_len = split->Length() - left_shard_len;
+    auto split_c = IOBuf::Create<MutSharedIOBufRef>(SharedIOBufRef::CloneView,
+                                                    std::move(split));
+    auto remainder =
+        IOBuf::Create<MutSharedIOBufRef>(SharedIOBufRef::CloneView, *split_c);
+    split_c->TrimEnd(right_shard_len);
+    remainder->Advance(left_shard_len);
+
+    // combined data
+    if (!b) {
+      b = std::move(split_c);
+    } else {
+      b->PrependChain(std::move(split_c));
+    }
+    if (tail_chain) {
+      remainder->PrependChain(std::move(tail_chain));
+    }
+    kassert(buffer_len == (b->ComputeChainDataLength() +
+                         remainder->ComputeChainDataLength()));
+
+    inbuf_ = std::move(remainder);
+    read_.first.SetValue(std::move(b));
+    read_blocked_ = false;
+    return;
   }
-  read_blocked_ = false;
-  return;
 }
 
 void
@@ -169,13 +221,14 @@ ebbrt::SocketManager::SocketFd::Listen() {
 bool
 ebbrt::SocketManager::SocketFd::IsReadReady() {
   if ( tcp_session_->read_blocked_ ){
+    ebbrt::kprintf("socket read blocked \n");
     return false;
   }
   else if( flags_ & O_NONBLOCK ) 
   {
-    return !!(tcp_session_->inbuf_);
+    return (tcp_session_->inbuf_ != nullptr);
   }
-  return true;
+  return false;
 }
 
 ebbrt::Future<uint8_t>

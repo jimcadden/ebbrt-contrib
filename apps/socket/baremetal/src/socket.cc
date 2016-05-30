@@ -19,10 +19,23 @@
 
 ebbrt::ZooKeeper *zk;
 
+class MyWatcher : public ebbrt::ZooKeeper::ZooWatcher {
+  public:
+    void OnConnected() override { ebbrt::kprintf("Watcher Says: Connected!\n"); }
+    void OnConnecting() override { ebbrt::kprintf("Watcher Says: Conneting!\n"); }
+    void OnSessionExpired() override { ebbrt::kprintf("Watcher Says: Session Dead!\n"); }
+    void OnCreated(const char* path) override { ebbrt::kprintf("Watcher Says: !\n"); }
+    void OnDeleted(const char* path) override { ebbrt::kprintf("Watcher Says: !\n"); }
+    void OnChanged(const char* path) override { ebbrt::kprintf("Watcher Says: !\n"); }
+    void OnChildChanged(const char* path) override { ebbrt::kprintf("Watcher Says: !\n"); }
+    void OnNotWatching(const char* path) override { ebbrt::kprintf("Watcher Says: !\n"); }
+};
+
+auto mw = new MyWatcher();
+
 void AppMain() {
-  ebbrt::kprintf("App: Zookeeper CPP.\n");
+  //zk = new ebbrt::ZooKeeper("172.17.0.4:2181", mw);
   zk = new ebbrt::ZooKeeper("172.17.0.4:2181");
-  ebbrt::kprintf("App: Initialization complete.\n");
 }
 
 

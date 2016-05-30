@@ -14,6 +14,7 @@
 #include <errno.h>
 #include <netdb.h>
 #include <sys/socket.h>
+#include <poll.h>
 
 #include "lwip/api.h"
 //#include "lwip/api_msg.h"
@@ -22,10 +23,8 @@
 #include "lwip/err.h"
 //#include "lwip/mem.h"
 #include "lwip/memp.h"
-#include "lwip/netdb.h"
-//#include "lwip/pbuf.h"
+#include "lwip/pbuf.h"
 //#include "lwip/snmp.h"
-#include "lwip/sockets.h"
 //#include "lwip/stats.h"
 //#include "lwip/tcp.h"
 //#include "lwip/tcp_impl.h"
@@ -130,17 +129,15 @@ int lwip_read(int s, void *mem, size_t len) {
 }
 
 int lwip_write(int s, const void *dataptr, size_t size) {
-  ebbrt::kprintf("writing %d(%s) to fd_%d\n", size, dataptr, s);
   auto fd = ebbrt::root_vfs->Lookup(s);
   auto buf = ebbrt::MakeUniqueIOBuf(size);
   std::memcpy(reinterpret_cast<void *>(buf->MutData()), dataptr, size);
   fd->Write(std::move(buf));
-  return 0;
+  return size;
 }
 
 int lwip_send(int s, const void *dataptr, size_t size, int flags) {
-  lwip_write(s, dataptr, size);
-  return 0;
+  return lwip_write(s, dataptr, size);
 }
 
 int lwip_recv(int s, void *mem, size_t len, int flags) {
@@ -230,11 +227,9 @@ int lwip_fcntl(int s, int cmd, int val) {
   switch (cmd) {
   case F_GETFL:
     f = (int)fd->GetFlags();
-    ebbrt::kprintf("Get socket(%d) options: %x\n", s, f);
     return f;
     break;
   case F_SETFL:
-    ebbrt::kprintf("Setting socket(%d) options: %x\n", s, val);
     // File access mode (O_RDONLY, O_WRONLY, //O_RDWR) and file creation
     // flags (i.e., O_CREAT, O_EXCL, O_NOCTTY, O_TRUNC) in arg  are  ignored. On
     // Linux this command can change only the O_APPEND, O_ASYNC, O_DIRECT,
@@ -261,4 +256,32 @@ err_t netconn_gethostbyname(const char *name, ip_addr_t *addr) {
   }
   return ERR_OK;
 }
+
+int poll(struct pollfd *fds, nfds_t nfds, int timeout) {
+  if (nfds > 1) {
+    EBBRT_UNIMPLEMENTED();
+  }
+  for (auto i = 0; i < nfds; ++i) {
+    auto pfd = fds[i];
+    if (pfd.fd < 0 || pfd.events == 0) {
+      EBBRT_UNIMPLEMENTED();
+      fds[i].revents = 0;
+      break;
+    }
+    auto fd = static_cast<ebbrt::EbbRef<ebbrt::SocketManager::SocketFd>>(
+        ebbrt::root_vfs->Lookup(pfd.fd));
+
+    if ((pfd.events & POLLIN) && fd->IsReadReady()) {
+      fds[i].revents |= POLLIN;
+    }
+    if ((pfd.events & POLLOUT) && fd->IsWriteReady()) {
+      fds[i].revents |= POLLOUT;
+    }
+    if ((~(POLLIN | POLLOUT) & pfd.events) != 0) {
+      ebbrt::kabort("Poll event type unsupported: %x", pfd.events);
+    }
+  }
+  return 0;
+}
+
 
