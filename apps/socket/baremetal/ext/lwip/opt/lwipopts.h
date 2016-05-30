@@ -7,10 +7,5 @@
 #define LWIP_TIMEVAL_PRIVATE 0 /* timeval available in time.h */
 #define SYS_ARCH_TIMEOUT 0
 
-// KLUDGES
-#define tcpip_callback(x,y)
-#define pbuf_free(x)
-#define netbuf_delete(x)
-#define netbuf_ref(x,y,z)
-#define netbuf_free(x)
-#define pbuf_copy_partial(x,y,z,zz)
+
+

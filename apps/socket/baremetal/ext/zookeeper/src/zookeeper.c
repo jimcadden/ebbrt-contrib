@@ -47,10 +47,10 @@
 #ifndef WIN32
 #include <sys/time.h>
 #include <sys/socket.h>
-//#include <poll.h>
+#include <poll.h>
 //#include <netinet/in.h>
 //#include <netinet/tcp.h>
-//#include <arpa/inet.h>
+#include <arpa/inet.h>
 #include <netdb.h>
 #include <unistd.h>
 #endif

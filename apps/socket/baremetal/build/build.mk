@@ -3,6 +3,7 @@ MYDIR := $(dir $(lastword $(MAKEFILE_LIST)))
 EBBRT_TARGET := socket
 EBBRT_APP_INCLUDES += -I $(MYDIR)../ext/lwip/include \
 											-I $(MYDIR)../ext/lwip/include/posix \
+											-I $(MYDIR)../ext/gnu/include/ \
 											-iquote $(MYDIR)../ext/lwip/include/ipv4/ \
 											-iquote $(MYDIR)../ext/lwip/opt/ \
 											-I $(MYDIR)../ext/zookeeper/include \
