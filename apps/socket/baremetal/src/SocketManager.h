@@ -37,7 +37,7 @@ public:
     public:
       void Fire() override;
       TcpSession(SocketFd *fd, ebbrt::NetworkManager::TcpPcb pcb)
-          : ebbrt::TcpHandler(std::move(pcb)), fd_(fd) {}
+          : ebbrt::TcpHandler(std::move(pcb)), fd_(fd), read_blocked_(false) {}
       void Connected() override; 
       void Receive(std::unique_ptr<ebbrt::MutIOBuf> buf) override;
       void Close() override;

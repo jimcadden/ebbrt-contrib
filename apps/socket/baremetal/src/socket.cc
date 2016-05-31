@@ -15,9 +15,9 @@
 /*******************************************************************/
 #if ZK_CPP
 
+#include "Printer.h"
 #include "ZooKeeper.h"
 
-ebbrt::ZooKeeper *zk;
 
 class MyWatcher : public ebbrt::ZooKeeper::ZooWatcher {
   public:
@@ -32,11 +32,9 @@ class MyWatcher : public ebbrt::ZooKeeper::ZooWatcher {
 };
 
 auto mw = new MyWatcher();
+ebbrt::ZooKeeper *zk = new ebbrt::ZooKeeper("172.17.0.4:2181", mw);
 
-void AppMain() {
-  //zk = new ebbrt::ZooKeeper("172.17.0.4:2181", mw);
-  zk = new ebbrt::ZooKeeper("172.17.0.4:2181");
-}
+void AppMain() { printer->Print("Application Started"); }
 
 
 #endif

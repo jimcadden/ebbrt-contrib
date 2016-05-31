@@ -29,8 +29,6 @@
 //#include "lwip/tcp.h"
 //#include "lwip/tcp_impl.h"
 
-const u16_t memp_sizes[MEMP_MAX] = {};
-
 int lwip_listen(int s, int backlog) {
   // XXX: backlog len ignored
   try {
@@ -103,16 +101,15 @@ int lwip_socket(int domain, int type, int protocol) {
   return ebbrt::socket_manager->NewIpv4Socket();
 }
 
+// A read with len=0 will create a future that signals when a non-blocking socket has data
 int lwip_read(int s, void *mem, size_t len) {
   auto fd = ebbrt::root_vfs->Lookup(s);
   auto fdref = static_cast<ebbrt::EbbRef<ebbrt::SocketManager::SocketFd>>(fd);
 
-  // A read of len=0 will create a future that signals when a non-blocking socket has data
   if (len && !fdref->IsReadReady()){
     errno = EAGAIN;
     return -1;
   }
-
   auto fbuf = fdref->Read(len).Block();
   auto buf = std::move(fbuf.Get());
   auto chain_len = buf->ComputeChainDataLength();

@@ -28,6 +28,7 @@
 
 #include "Printer.h"
 
+#if 0
 void time_server() {
   int listenfd = 0, connfd = 0;
   struct sockaddr_in serv_addr;
@@ -61,29 +62,52 @@ void time_server() {
     sleep(1);
   }
 }
+#endif
+
+  ebbrt::Runtime runtime;
+  ebbrt::Context c(runtime);
+
+using namespace std;
+ebbrt::Messenger::NetworkId net_id;
+
+void cmdr () {
+        cout << "Enter a command for zookeeper:  " << endl;
+    ebbrt::ContextActivation activation(c);
+        string str;
+        while(str != "quit"){
+          cout << ">   ";
+          getline (cin, str);
+          printer->Print(net_id, str.c_str());
+        }
+}
 
 
 int main(int argc, char **argv) {
   auto bindir = boost::filesystem::system_complete(argv[0]).parent_path() /
                 "/bm/socket.elf32";
 
+#if 0
+//  std::thread ts(time_server);
+//  ts.detach();
+//  ebbrt::Runtime runtime;
+//  ebbrt::Context c(runtime);
+#endif
 
-  std::thread ts(time_server);
-  ts.detach();
-
-  ebbrt::Runtime runtime;
-  ebbrt::Context c(runtime);
   boost::asio::signal_set sig(c.io_service_, SIGINT);
   {
     ebbrt::ContextActivation activation(c);
 
     // ensure clean quit on ctrl-c
-    sig.async_wait([&c](const boost::system::error_code &ec,
+    sig.async_wait([](const boost::system::error_code &ec,
                         int signal_number) { c.io_service_.stop(); });
-  Printer::Init().Then([bindir](ebbrt::Future<void> f) {
+    Printer::Init().Then([bindir](ebbrt::Future<void> f) {
       f.Get();
-      ebbrt::node_allocator->AllocateNode(bindir.string(),1,1);
-    });
+      auto ns = ebbrt::node_allocator->AllocateNode(bindir.string(), 1,1);
+      ns.NetworkId().Then([](ebbrt::Future<ebbrt::Messenger::NetworkId> net_if){
+        net_id = net_if.Get();
+        std::thread ts(cmdr);
+        ts.detach();
+      }); });
   }
   c.Run();
 

@@ -221,7 +221,7 @@ ebbrt::SocketManager::SocketFd::Listen() {
 bool
 ebbrt::SocketManager::SocketFd::IsReadReady() {
   if ( tcp_session_->read_blocked_ ){
-    ebbrt::kprintf("socket read blocked \n");
+    ebbrt::kprintf("warning: socket read blocked \n");
     return false;
   }
   else if( flags_ & O_NONBLOCK ) 
