@@ -56,5 +56,8 @@ void Printer::Print(const char* str) {
 
 void Printer::ReceiveMessage(ebbrt::Messenger::NetworkId nid,
                              std::unique_ptr<ebbrt::IOBuf>&& buffer) {
-  throw std::runtime_error("Printer: Received message unexpectedly!");
+  auto output = std::string(reinterpret_cast<const char*>(buffer->Data()),
+                            buffer->Length());
+  
+  ebbrt::kprintf("cin: %s\n",  output.c_str());
 }
