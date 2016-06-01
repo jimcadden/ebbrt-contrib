@@ -14,21 +14,21 @@ struct timeval startTime;
 static const char *hostPort;
 #define _LL_CAST_ (long long)
 
-void ebbrt::ZooKeeper::GlobalWatchFunc(zhandle_t* h, int type, int state, const char* path, void* ctx) {
-  auto self = static_cast<ZooKeeper*>(ctx);
-  self->WatchHandler(type, state, path);
+void ebbrt::ZooKeeper::CallWatcher(zhandle_t* h, int type, int state, const char* path, void* ctx) {
+  auto watcher = static_cast<Watcher*>(ctx);
+  watcher->WatchHandler(type, state, path);
 }
 
-ebbrt::ZooKeeper::ZooKeeper(const std::string &server_hosts, ebbrt::ZooKeeper::ZooWatcher* global_watcher, int timeout_ms) : global_watcher_(global_watcher) {
+ebbrt::ZooKeeper::ZooKeeper(const std::string &server_hosts, ebbrt::ZooKeeper::Watcher* connection_watcher, int timeout_ms) : connection_watcher_(connection_watcher) {
 
   // create zk object
   zoo_set_debug_level(ZOO_LOG_LEVEL_DEBUG);
   zoo_deterministic_conn_order(1); // enable deterministic order
   zk_ = zookeeper_init(server_hosts.c_str(),
-                               GlobalWatchFunc,
+                               CallWatcher,
                                timeout_ms,
-                               nullptr, // client id
-                               this, // overload the 
+                               nullptr, 
+                               connection_watcher, 
                                0);
   timer->Start(*this, std::chrono::milliseconds(750), true);
   return;
@@ -38,11 +38,230 @@ ebbrt::ZooKeeper::~ZooKeeper() {
   if (zk_) {
     auto ret = zookeeper_close(zk_);
     if (ret != ZOK) {
+      ebbrt::kabort("Zookeeper close error: %d\n", ret);
     }
   }
 }
 
-void ebbrt::ZooKeeper::dumpstat(const struct Stat *stat) {
+/* IO Hanlder */
+void ebbrt::ZooKeeper::Fire() {
+  std::lock_guard<ebbrt::SpinLock> guard(lock_);
+  struct pollfd fds[1];
+
+  if (zk_) {
+    struct timeval tv;
+    int fd;
+    int interest;
+    int timeout;
+    int maxfd = 1;
+    int rc;
+
+    rc = zookeeper_interest(zk_, &fd, &interest, &tv);
+    if (rc != ZOK) {
+      ebbrt::kabort("zookeeper_interest error");
+    }
+    if (fd != -1) {
+      fds[0].fd = fd;
+      fds[0].events = (interest & ZOOKEEPER_READ) ? POLLIN : 0;
+      fds[0].events |= (interest & ZOOKEEPER_WRITE) ? POLLOUT : 0;
+      maxfd = 1;
+      fds[0].revents = 0;
+    }
+    timeout = tv.tv_sec * 1000 + (tv.tv_usec / 1000);
+
+    poll(fds, maxfd, timeout);
+    if (fd != -1) {
+      interest = (fds[0].revents & POLLIN) ? ZOOKEEPER_READ : 0;
+      interest |= ((fds[0].revents & POLLOUT) || (fds[0].revents & POLLHUP))
+                      ? ZOOKEEPER_WRITE
+                      : 0;
+    } 
+    zookeeper_process(zk_, interest);
+    if (rc != ZOK) {
+      ebbrt::kabort("zookeeper_process error");
+    }
+    if (is_unrecoverable(zk_)) {
+      //  api_epilog(zk_, 0);
+      ebbrt::kabort(("zookeeper io handler  terminated"));
+    }
+  }
+}
+
+ebbrt::Future<ebbrt::ZooKeeper::ZkResponse> ebbrt::ZooKeeper::Create(const std::string &path, const std::string &value, int flags){
+  auto callback = [](int rc, const char *value, const void *data) {
+    ZkResponse res;
+    res.rc = rc;
+    if (value)
+      res.value = std::string(value);
+    auto p =
+        static_cast<ebbrt::Promise<ZkResponse> *>(const_cast<void *>(data));
+    p->SetValue(std::move(res));
+    delete p;
+    return;
+  };
+
+  auto p = new ebbrt::Promise<ZkResponse>;
+  auto f = p->GetFuture();
+
+  // TODO: does this work for empty string (i.e., c_str() = nullptr)
+  zoo_acreate(zk_, path.c_str(), value.c_str(), value.size(), &ZOO_OPEN_ACL_UNSAFE, flags, callback, p);
+  return f;
+}
+
+ebbrt::Future<ebbrt::ZooKeeper::ZkResponse> ebbrt::ZooKeeper::Exists(const std::string &path, ebbrt::ZooKeeper::Watcher* watcher){
+  auto callback = [](int rc, const ZkStat *stat, const void *data){
+    ZkResponse res;
+    res.rc = rc;
+    res.stat = *stat;
+    auto p =
+        static_cast<ebbrt::Promise<ZkResponse> *>(const_cast<void *>(data));
+    p->SetValue(std::move(res));
+    delete p;
+    return;
+  };
+
+  auto p = new ebbrt::Promise<ZkResponse>;
+  auto f = p->GetFuture();
+
+  if(watcher){
+   zoo_awexists(zk_, path.c_str(), CallWatcher, watcher, callback, p);
+  }else{
+   zoo_aexists(zk_, path.c_str(), 0, callback, p);
+  }
+  return f;
+}
+
+ebbrt::Future<ebbrt::ZooKeeper::ZkResponse> ebbrt::ZooKeeper::Get(const std::string &path, ebbrt::ZooKeeper::Watcher* watcher){
+  auto callback = [](int rc, const char *value, int value_len,
+                       const ZkStat *stat, const void *data) {
+    ZkResponse res;
+    res.rc = rc;
+    res.stat = *stat;
+    if (value_len > 0)
+      res.value = std::string(value, static_cast<size_t>(value_len));
+    auto p =
+        static_cast<ebbrt::Promise<ZkResponse> *>(const_cast<void *>(data));
+    p->SetValue(std::move(res));
+    delete p;
+    return;
+  };
+
+  auto p = new ebbrt::Promise<ZkResponse>;
+  auto f = p->GetFuture();
+
+  if(watcher){
+   zoo_awget(zk_, path.c_str(), CallWatcher, watcher, callback, p);
+  }else{
+   zoo_aget(zk_, path.c_str(), 0, callback, p);
+  }
+  return f;
+}
+
+ebbrt::Future<ebbrt::ZooKeeper::ZkChildrenResponse> ebbrt::ZooKeeper::GetChildren(const std::string &path, ebbrt::ZooKeeper::Watcher* watcher){
+  auto callback = [](int rc,
+        const struct String_vector *strings, const ZkStat *stat,
+        const void *data){
+    ZkChildrenResponse res;
+    res.rc = rc;
+    res.stat = *stat;
+
+    if(strings){
+      for( int i=0; i< strings->count; ++i){
+        res.values.emplace_back(std::string(strings->data[i]));
+      }
+    }
+
+    auto p =
+        static_cast<ebbrt::Promise<ZkChildrenResponse> *>(const_cast<void *>(data));
+    p->SetValue(std::move(res));
+    delete p;
+    return;
+  };
+
+  auto p = new ebbrt::Promise<ZkChildrenResponse>;
+  auto f = p->GetFuture();
+
+  if(watcher){
+   zoo_awget_children2(zk_, path.c_str(), CallWatcher, watcher, callback, p);
+  }else{
+   zoo_aget_children2(zk_, path.c_str(), 0, callback, p);
+  }
+  return f;
+}
+
+ebbrt::Future<ebbrt::ZooKeeper::ZkResponse> ebbrt::ZooKeeper::Delete(const std::string &path, int version){
+  auto callback = [](int rc, const void *data) {
+    ZkResponse res;
+    res.rc = rc;
+    auto p =
+        static_cast<ebbrt::Promise<ZkResponse> *>(const_cast<void *>(data));
+    p->SetValue(std::move(res));
+    delete p;
+    return;
+  };
+
+  auto p = new ebbrt::Promise<ZkResponse>;
+  auto f = p->GetFuture();
+
+   zoo_adelete(zk_, path.c_str(), version, callback, p);
+  return f;
+}
+
+ebbrt::Future<ebbrt::ZooKeeper::ZkResponse> ebbrt::ZooKeeper::Set(const std::string &path, const std::string &value, int version){
+  auto callback = [](int rc, const ZkStat *stat, const void *data){
+    ZkResponse res;
+    res.rc = rc;
+    res.stat = *stat;
+    auto p =
+        static_cast<ebbrt::Promise<ZkResponse> *>(const_cast<void *>(data));
+    p->SetValue(std::move(res));
+    delete p;
+    return;
+  };
+
+  auto p = new ebbrt::Promise<ZkResponse>;
+  auto f = p->GetFuture();
+
+   zoo_aset(zk_, path.c_str(), value.c_str(), value.size(), version, callback, p);
+  return f;
+}
+
+
+void ebbrt::ZooKeeper::Foo(){
+
+  auto j = Exists("/foo", connection_watcher_);
+  auto k = Exists("/bar", connection_watcher_);
+
+  auto jv = j.Block().Get();
+
+  if(jv.rc == ZOK){
+    kprintf("Foo exists\n");
+  } else{
+    kprintf("Foo does not exist\n");
+  }
+
+  auto bv = k.Block().Get();
+
+  if(bv.rc == ZOK){
+    kprintf("bar exists\n");
+  } else{
+    kprintf("bar does not exist\n");
+  }
+
+}
+
+
+
+////////// ////////// ////////// ////////// ////////// ////////// //////////
+////////// ////////// ////////// ////////// ////////// ////////// //////////
+////////// ////////// ////////// ////////// ////////// ////////// //////////
+/// TEMP
+////////// ////////// ////////// ////////// ////////// ////////// //////////
+////////// ////////// ////////// ////////// ////////// ////////// //////////
+////////// ////////// ////////// ////////// ////////// ////////// //////////
+
+
+void ebbrt::ZooKeeper::dumpstat(const ZkStat *stat) {
     char tctimes[40];
     char tmtimes[40];
     time_t tctime;
@@ -81,7 +300,7 @@ void ebbrt::ZooKeeper::my_string_completion_free_data(int rc, const char *name, 
 }
 
 void ebbrt::ZooKeeper::my_data_completion(int rc, const char *value, int value_len,
-        const struct Stat *stat, const void *data) {
+        const ZkStat *stat, const void *data) {
     struct timeval tv;
     int sec;
     int usec;
@@ -100,7 +319,7 @@ void ebbrt::ZooKeeper::my_data_completion(int rc, const char *value, int value_l
 }
 
 void ebbrt::ZooKeeper::my_silent_data_completion(int rc, const char *value, int value_len,
-        const struct Stat *stat, const void *data) {
+        const ZkStat *stat, const void *data) {
     fprintf(stderr, "data completion %s rc = %d\n",(char*)data,rc);
     free((void*)data);
 }
@@ -129,7 +348,7 @@ void ebbrt::ZooKeeper::my_strings_completion(int rc, const struct String_vector 
 }
 
 void ebbrt::ZooKeeper::my_strings_stat_completion(int rc, const struct String_vector *strings,
-        const struct Stat *stat, const void *data) {
+        const ZkStat *stat, const void *data) {
     my_strings_completion(rc, strings, data);
     dumpstat(stat);
 }
@@ -139,13 +358,13 @@ void ebbrt::ZooKeeper::my_void_completion(int rc, const void *data) {
     free((void*)data);
 }
 
-void ebbrt::ZooKeeper::my_stat_completion(int rc, const struct Stat *stat, const void *data) {
+void ebbrt::ZooKeeper::my_stat_completion(int rc, const ZkStat *stat, const void *data) {
     fprintf(stderr, "%s: rc = %d stat:\n", (char*)data, rc);
     dumpstat(stat);
     free((void*)data);
 }
 
-void ebbrt::ZooKeeper::my_silent_stat_completion(int rc, const struct Stat *stat,
+void ebbrt::ZooKeeper::my_silent_stat_completion(int rc, const ZkStat *stat,
         const void *data) {
     //    fprintf(stderr, "state completion: [%s] rc = %d\n", (char*)data, rc);
     free((void*)data);
@@ -220,7 +439,7 @@ void ebbrt::ZooKeeper::Input(char *line) {
             rc = zoo_aset(zk_, line, ptr, strlen(ptr), -1, my_stat_completion,
                     strdup(line));
         } else {
-            struct Stat stat;
+            ZkStat stat;
             rc = zoo_set2(zk_, line, ptr, strlen(ptr), -1, &stat);
         }
         if (rc) {
@@ -305,7 +524,7 @@ void ebbrt::ZooKeeper::Input(char *line) {
         }
     } else if (startsWith(line, "wexists ")) {
 #ifdef THREADED
-        struct Stat stat;
+        ZkStat stat;
 #endif
         line += 8;
         if (line[0] != '/') {
@@ -313,16 +532,16 @@ void ebbrt::ZooKeeper::Input(char *line) {
             return;
         }
 #ifndef THREADED
-        rc = zoo_awexists(zk_, line, GlobalWatchFunc, (void*) 0, my_stat_completion, strdup(line));
+        rc = zoo_awexists(zk_, line, CallWatcher, (void*) 0, my_stat_completion, strdup(line));
 #else
-        rc = zoo_wexists(zk_, line, GlobalWatchFunc, (void*) 0, &stat);
+        rc = zoo_wexists(zk_, line, CallWatcher, (void*) 0, &stat);
 #endif
         if (rc) {
             fprintf(stderr, "Error %d for %s\n", rc, line);
         }
     } else if (startsWith(line, "exists ")) {
 #ifdef THREADED
-        struct Stat stat;
+        ZkStat stat;
 #endif
         line += 7;
         if (line[0] != '/') {
@@ -343,7 +562,7 @@ void ebbrt::ZooKeeper::Input(char *line) {
         zookeeper_close(zk_);
         // we can't send myid to the server here -- zookeeper_close() removes 
         // the session on the server. We must start anew.
-        zk_ = zookeeper_init(hostPort, GlobalWatchFunc, 30000, 0, 0, 0);
+        zk_ = zookeeper_init(hostPort, CallWatcher, 30000, 0, 0, 0);
     } else if (startsWith(line, "quit")) {
         fprintf(stderr, "Quitting...\n");
     } else if (startsWith(line, "addauth ")) {
@@ -412,96 +631,3 @@ void *do_io(void *v)
 
 
 */
-
-void ebbrt::ZooKeeper::Fire() {
-  std::lock_guard<ebbrt::SpinLock> guard(lock_);
-    struct pollfd fds[1];
-    //struct adaptor_threads *adaptor_threads = zk_->adaptor_priv;
-
-    //api_prolog(zk_);
-    //notify_thread_ready(zk_);
-    //LOG_DEBUG(("started IO thread"));
-    //fds[0].fd=adaptor_threads->self_pipe[0];
-    //fds[0].events=POLLIN;
-    if(zk_) {
-        struct timeval tv;
-        int fd;
-        int interest;
-        int timeout;
-        int maxfd=1;
-        int rc;
-        
-        rc = zookeeper_interest(zk_, &fd, &interest, &tv);
-        if( rc != ZOK){
-          ebbrt::kabort("zookeeper_interest error");
-        }
-        if (fd != -1) {
-            fds[0].fd=fd;
-            fds[0].events=(interest&ZOOKEEPER_READ)?POLLIN:0;
-            fds[0].events|=(interest&ZOOKEEPER_WRITE)?POLLOUT:0;
-            maxfd=1;
-            fds[0].revents = 0;
-        }
-        timeout=tv.tv_sec * 1000 + (tv.tv_usec/1000);
-        
-        poll(fds,maxfd,timeout);
-        if (fd != -1) {
-          interest = (fds[0].revents & POLLIN) ? ZOOKEEPER_READ : 0;
-          interest |= ((fds[0].revents & POLLOUT) || (fds[0].revents & POLLHUP))
-                          ? ZOOKEEPER_WRITE
-                          : 0;
-        } else{
-          ebbrt::kabort("zookeeper_process fd=-1: %d", fd);
-        }
-        // dispatch zookeeper events
-        zookeeper_process(zk_, interest);
-        if( rc != ZOK){
-          ebbrt::kprintf("zookeeper_process error");
-        }
-        // check the current state of the zhandle and terminate 
-        // if it is_unrecoverable()
-        if(is_unrecoverable(zk_)){
-        //  api_epilog(zk_, 0);    
-          ebbrt::kabort(("IO thread terminated"));
-        }
-    }
-    return;
-}
-
-bool ebbrt::ZooKeeper::is_connected() {
-  return zoo_state(zk_) == ZOO_CONNECTED_STATE;
-}
-
-bool ebbrt::ZooKeeper::is_expired() {
-  return zoo_state(zk_) == ZOO_EXPIRED_SESSION_STATE;
-}
-
-void ebbrt::ZooKeeper::WatchHandler(int type, int state, const char* path) {
-  // call global watcher
-  if (!global_watcher_) return;
-
-  if (type == ZOO_SESSION_EVENT) {
-    if (state == ZOO_EXPIRED_SESSION_STATE) {
-      global_watcher_->OnSessionExpired();
-    } else if (state == ZOO_CONNECTED_STATE) {
-      global_watcher_->OnConnected();
-    } else if (state == ZOO_CONNECTING_STATE) {
-      global_watcher_->OnConnecting();
-    } else {
-      ebbrt::kabort("unsupported session event");
-    }
-  } else if (type == ZOO_CREATED_EVENT) {
-    global_watcher_->OnCreated(path);
-  } else if (type == ZOO_DELETED_EVENT) {
-    global_watcher_->OnDeleted(path);
-  } else if (type == ZOO_CHANGED_EVENT) {
-    global_watcher_->OnChanged(path);
-  } else if (type == ZOO_CHILD_EVENT) {
-    global_watcher_->OnChildChanged(path);
-  } else if (type == ZOO_NOTWATCHING_EVENT) {
-    global_watcher_->OnNotWatching(path);
-  } else {
-      ebbrt::kabort("unsupported event type");
-  }
-}
-
