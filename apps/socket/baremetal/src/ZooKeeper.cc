@@ -14,7 +14,7 @@ struct timeval startTime;
 static const char *hostPort;
 #define _LL_CAST_ (long long)
 
-void ebbrt::ZooKeeper::CallWatcher(zhandle_t* h, int type, int state, const char* path, void* ctx) {
+void ebbrt::ZooKeeper::process_watch_event(zhandle_t* h, int type, int state, const char* path, void* ctx) {
   auto watcher = static_cast<Watcher*>(ctx);
   watcher->WatchHandler(type, state, path);
 }
@@ -25,7 +25,7 @@ ebbrt::ZooKeeper::ZooKeeper(const std::string &server_hosts, ebbrt::ZooKeeper::W
   zoo_set_debug_level(ZOO_LOG_LEVEL_DEBUG);
   zoo_deterministic_conn_order(1); // enable deterministic order
   zk_ = zookeeper_init(server_hosts.c_str(),
-                               CallWatcher,
+                               process_watch_event,
                                timeout_ms,
                                nullptr, 
                                connection_watcher, 
@@ -124,7 +124,7 @@ ebbrt::Future<ebbrt::ZooKeeper::ZkResponse> ebbrt::ZooKeeper::Exists(const std::
   auto f = p->GetFuture();
 
   if(watcher){
-   zoo_awexists(zk_, path.c_str(), CallWatcher, watcher, callback, p);
+   zoo_awexists(zk_, path.c_str(), process_watch_event, watcher, callback, p);
   }else{
    zoo_aexists(zk_, path.c_str(), 0, callback, p);
   }
@@ -150,7 +150,7 @@ ebbrt::Future<ebbrt::ZooKeeper::ZkResponse> ebbrt::ZooKeeper::Get(const std::str
   auto f = p->GetFuture();
 
   if(watcher){
-   zoo_awget(zk_, path.c_str(), CallWatcher, watcher, callback, p);
+   zoo_awget(zk_, path.c_str(), process_watch_event, watcher, callback, p);
   }else{
    zoo_aget(zk_, path.c_str(), 0, callback, p);
   }
@@ -182,7 +182,7 @@ ebbrt::Future<ebbrt::ZooKeeper::ZkChildrenResponse> ebbrt::ZooKeeper::GetChildre
   auto f = p->GetFuture();
 
   if(watcher){
-   zoo_awget_children2(zk_, path.c_str(), CallWatcher, watcher, callback, p);
+   zoo_awget_children2(zk_, path.c_str(), process_watch_event, watcher, callback, p);
   }else{
    zoo_aget_children2(zk_, path.c_str(), 0, callback, p);
   }
@@ -532,9 +532,9 @@ void ebbrt::ZooKeeper::Input(char *line) {
             return;
         }
 #ifndef THREADED
-        rc = zoo_awexists(zk_, line, CallWatcher, (void*) 0, my_stat_completion, strdup(line));
+        rc = zoo_awexists(zk_, line, process_watch_event, (void*) 0, my_stat_completion, strdup(line));
 #else
-        rc = zoo_wexists(zk_, line, CallWatcher, (void*) 0, &stat);
+        rc = zoo_wexists(zk_, line, process_watch_event, (void*) 0, &stat);
 #endif
         if (rc) {
             fprintf(stderr, "Error %d for %s\n", rc, line);
@@ -562,7 +562,7 @@ void ebbrt::ZooKeeper::Input(char *line) {
         zookeeper_close(zk_);
         // we can't send myid to the server here -- zookeeper_close() removes 
         // the session on the server. We must start anew.
-        zk_ = zookeeper_init(hostPort, CallWatcher, 30000, 0, 0, 0);
+        zk_ = zookeeper_init(hostPort, process_watch_event, 30000, 0, 0, 0);
     } else if (startsWith(line, "quit")) {
         fprintf(stderr, "Quitting...\n");
     } else if (startsWith(line, "addauth ")) {
@@ -577,57 +577,3 @@ void ebbrt::ZooKeeper::Input(char *line) {
     }
 }
 
-
-/*
-void *do_io(void *v)
-{
-    zhandle_t *zh = (zhandle_t*)v;
-    struct pollfd fds[2];
-    struct adaptor_threads *adaptor_threads = zh->adaptor_priv;
-
-    api_prolog(zh);
-    notify_thread_ready(zh);
-    LOG_DEBUG(("started IO thread"));
-    fds[0].fd=adaptor_threads->self_pipe[0];
-    fds[0].events=POLLIN;
-    while(!zh->close_requested) {
-        struct timeval tv;
-        int fd;
-        int interest;
-        int timeout;
-        int maxfd=1;
-        int rc;
-        
-        zookeeper_interest(zh, &fd, &interest, &tv);
-        if (fd != -1) {
-            fds[1].fd=fd;
-            fds[1].events=(interest&ZOOKEEPER_READ)?POLLIN:0;
-            fds[1].events|=(interest&ZOOKEEPER_WRITE)?POLLOUT:0;
-            maxfd=2;
-        }
-        timeout=tv.tv_sec * 1000 + (tv.tv_usec/1000);
-        
-        poll(fds,maxfd,timeout);
-        if (fd != -1) {
-            interest=(fds[1].revents&POLLIN)?ZOOKEEPER_READ:0;
-            interest|=((fds[1].revents&POLLOUT)||(fds[1].revents&POLLHUP))?ZOOKEEPER_WRITE:0;
-        }
-        if(fds[0].revents&POLLIN){
-            // flush the pipe
-            char b[128];
-            while(read(adaptor_threads->self_pipe[0],b,sizeof(b))==sizeof(b)){}
-        }        
-        // dispatch zookeeper events
-        rc = zookeeper_process(zh, interest);
-        // check the current state of the zhandle and terminate 
-        // if it is_unrecoverable()
-        if(is_unrecoverable(zh))
-            break;
-    }
-    api_epilog(zh, 0);    
-    LOG_DEBUG(("IO thread terminated"));
-    return 0;
-}
-
-
-*/

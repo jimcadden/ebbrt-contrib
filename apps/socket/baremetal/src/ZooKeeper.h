@@ -148,7 +148,7 @@ private:
   SpinLock lock_;
   int verbose = 0; // clean this 
   Watcher *connection_watcher_ = nullptr;
-  static void CallWatcher(zhandle_t *, int type, int state, const char *path,
+  static void watch_event_handler(zhandle_t *, int type, int state, const char *path,
                           void *ctx);
   int startsWith(const char *line, const char *prefix);
 };
