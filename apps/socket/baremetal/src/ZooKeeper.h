@@ -36,6 +36,10 @@ struct Stat:
 */
 typedef struct Stat ZkStat;
 
+/* Create Flags */
+static const int ZkEphemeral = ZOO_EPHEMERAL;
+static const int ZkSequence = ZOO_SEQUENCE;
+
 class ZooKeeper : public ebbrt::Timer::Hook {
 public:
   struct ZkResponse {
@@ -95,6 +99,7 @@ public:
       }
     }
   };
+
   void Fire() override;
   ZooKeeper(const std::string &server_hosts,
             Watcher *connection_watcher = nullptr, int timeout_ms = 30 * 1000);
@@ -107,10 +112,10 @@ public:
   /*
    * ZooKeeper::Create
    *
-   * - flags:   ZOO_EPHEMERAL - node will automatically get removed if the
-   *                            client session goes away.
-   *            ZOO_SEQUENCE - a unique monotonically increasing sequence
-   *                           number is appended to the path name.
+   * - flags:   ZkEphemeral - node will automatically get removed if the
+   *                          client session goes away.
+   *            ZkSequence  - a unique monotonically increasing sequence
+   *                          number is appended to the path name.
    */
   Future<ZkResponse> Create(const std::string &path,
                             const std::string &value = std::string(),
@@ -148,7 +153,7 @@ private:
   SpinLock lock_;
   int verbose = 0; // clean this 
   Watcher *connection_watcher_ = nullptr;
-  static void watch_event_handler(zhandle_t *, int type, int state, const char *path,
+  static void process_watch_event(zhandle_t *, int type, int state, const char *path,
                           void *ctx);
   int startsWith(const char *line, const char *prefix);
 };
