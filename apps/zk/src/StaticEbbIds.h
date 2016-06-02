@@ -2,11 +2,15 @@
 // Distributed under the Boost Software License, Version 1.0.
 //    (See accompanying file LICENSE_1_0.txt or copy at
 //          http://www.boost.org/LICENSE_1_0.txt)
-#ifndef APPS_ZK_SRC_STATICEBBIDS_H_
-#define APPS_ZK_SRC_STATICEBBIDS_H_
+#ifndef APPS_SOCKET_SRC_STATICEBBIDS_H_
+#define APPS_SOCKET_SRC_STATICEBBIDS_H_
 
 #include <ebbrt/StaticIds.h>
 
-enum : ebbrt::EbbId { kPrinterEbbId = ebbrt::kFirstStaticUserId };
+enum : ebbrt::EbbId {
+  kPrinterEbbId = ebbrt::kFirstStaticUserId,
+  kSocketManagerEbbId,
+  kVfsEbbId
+};
 
-#endif  // APPS_ZK_SRC_STATICEBBIDS_H_
+#endif // APPS_SOCKET_SRC_STATICEBBIDS_H_

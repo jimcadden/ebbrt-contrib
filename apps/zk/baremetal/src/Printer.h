@@ -2,14 +2,17 @@
 // Distributed under the Boost Software License, Version 1.0.
 //    (See accompanying file LICENSE_1_0.txt or copy at
 //          http://www.boost.org/LICENSE_1_0.txt)
-#ifndef APPS_ZK_BAREMETAL_SRC_PRINTER_H_
-#define APPS_ZK_BAREMETAL_SRC_PRINTER_H_
+#ifndef APPS_IOCMD_BAREMETAL_SRC_PRINTER_H_
+#define APPS_IOCMD_BAREMETAL_SRC_PRINTER_H_
 
 #include <string>
 
 #include <ebbrt/Message.h>
+#include <ZooKeeper.h>
 
 #include "../../src/StaticEbbIds.h"
+
+extern ebbrt::ZooKeeper *zk;
 
 class Printer : public ebbrt::Messagable<Printer> {
  public:
@@ -27,4 +30,4 @@ class Printer : public ebbrt::Messagable<Printer> {
 
 constexpr auto printer = ebbrt::EbbRef<Printer>(kPrinterEbbId);
 
-#endif  // APPS_ZK_BAREMETAL_SRC_PRINTER_H_
+#endif  // APPS_IOCMD_BAREMETAL_SRC_PRINTER_H_

@@ -3,21 +3,24 @@
 //    (See accompanying file LICENSE_1_0.txt or copy at
 //          http://www.boost.org/LICENSE_1_0.txt)
 
-#include <chrono>
-#include <cstdio>
-//#include <ebbrt/Clock.h>
 #include <ebbrt/Debug.h>
-//#include <string.h>
-//#include <thread>
 
-#include "Zookeeper.h"
+#include "Printer.h"
+#include "ZooKeeper.h"
 
 
-  ebbrt::Zookeeper *zk;
+class PrinterWatcher : public ebbrt::ZooKeeper::Watcher {
+  public:
+    void OnConnected() override { printer->Print("watch alert: Session Connected.\n"); }
+    void OnConnecting() override { printer->Print("watch alert: Session Conneting.\n"); }
+    void OnSessionExpired() override { printer->Print("watch alert: Session Expired.\n"); }
+    void OnCreated(const char* path) override { printer->Print("watch alert: Created!\n"); }
+    void OnDeleted(const char* path) override { printer->Print("watch alert: Deleted !\n"); }
+    void OnChanged(const char* path) override { printer->Print("watch alert: Changed: !\n"); }
+    void OnChildChanged(const char* path) override { printer->Print("watch alert: Child Changed.\n"); }
+    void OnNotWatching(const char* path) override { printer->Print("watch alert: Not Wathcing.\n"); }
+};
 
-void AppMain() {
+auto *mw = new PrinterWatcher();
+ebbrt::ZooKeeper *zk = new ebbrt::ZooKeeper("172.17.0.4:2181", mw);
 
-  zk = new ebbrt::Zookeeper("172.17.0.4:2181");
-  ebbrt::kprintf("End of App.\n");
-  return;
-}
