@@ -59,7 +59,6 @@ void Printer::ReceiveMessage(ebbrt::Messenger::NetworkId nid,
   auto output = std::string(reinterpret_cast<const char*>(buffer->Data()),
                             buffer->Length());
   
-  //zk->Input(const_cast<char *>(output.c_str()));
-  zk->Foo();
+  zk->CLI(const_cast<char *>(output.c_str()));
   return;
 }

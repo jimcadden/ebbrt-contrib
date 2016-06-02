@@ -35,20 +35,16 @@ struct Stat:
 */
 typedef struct Stat ZkStat;
 
-/* Create Flags */
-static const int ZkEphemeral = ZOO_EPHEMERAL;
-static const int ZkSequence = ZOO_SEQUENCE;
-
 class ZooKeeper : public ebbrt::Timer::Hook {
 public:
   struct ZkResponse {
-    int rc;
+    int err;
     std::string value;
     ZkStat stat;
   };
 
   struct ZkChildrenResponse {
-    int rc;
+    int err;
     std::vector<std::string> values;
     ZkStat stat;
   };
@@ -107,13 +103,13 @@ public:
   ZooKeeper(const ZooKeeper &) = delete;
   ZooKeeper &operator=(const ZooKeeper &) = delete;
 
-  void Foo();
+  void CLI(char *line);
   /*
    * ZooKeeper::Create
    *
-   * - flags:   ZkEphemeral - node will automatically get removed if the
+   * - flags:   ZOO_EPHEMERAL - node will automatically get removed if the
    *                          client session goes away.
-   *            ZkSequence  - a unique monotonically increasing sequence
+   *            ZOO_SEQUENCE  - a unique monotonically increasing sequence
    *                          number is appended to the path name.
    */
   Future<ZkResponse> Create(const std::string &path,
@@ -126,11 +122,10 @@ public:
                          int version = -1);
   Future<ZkChildrenResponse> GetChildren(const std::string &path,
                                          Watcher *watch = nullptr);
+  static void PrintRecord(ZkResponse *zkr);
+  static void PrintDirectory(ZkChildrenResponse *zkcr);
 
-  void Input(char *line);
-  static void dumpstat(const ZkStat *stat);
-  static void my_data_completion(int rc, const char *value, int value_len,
-                                 const ZkStat *stat, const void *data);
+  static void my_data_completion(int rc, const char *value, int value_len, const ZkStat *stat, const void *data);
   static void my_silent_data_completion(int rc, const char *value,
                                         int value_len, const ZkStat *stat,
                                         const void *data);
@@ -154,7 +149,8 @@ private:
   Watcher *connection_watcher_ = nullptr;
   static void process_watch_event(zhandle_t *, int type, int state, const char *path,
                           void *ctx);
-  int startsWith(const char *line, const char *prefix);
+  static int startsWith(const char *line, const char *prefix);
+  static void print_stat( ZkStat *stat);
 };
 }
 
