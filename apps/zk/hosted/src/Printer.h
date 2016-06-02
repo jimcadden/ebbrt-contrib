@@ -2,8 +2,8 @@
 // Distributed under the Boost Software License, Version 1.0.
 //    (See accompanying file LICENSE_1_0.txt or copy at
 //          http://www.boost.org/LICENSE_1_0.txt)
-#ifndef APPS_ZK_HOSTED_SRC_PRINTER_H_
-#define APPS_ZK_HOSTED_SRC_PRINTER_H_
+#ifndef APPS_SOCKET_HOSTED_SRC_PRINTER_H_
+#define APPS_SOCKET_HOSTED_SRC_PRINTER_H_
 
 #include <string>
 
@@ -18,11 +18,11 @@ class Printer : public ebbrt::StaticSharedEbb<Printer>,
   Printer();
 
   static ebbrt::Future<void> Init();
-  void Print(const char* string);
+  void Print(ebbrt::Messenger::NetworkId remote_nid_, const char* string);
   void ReceiveMessage(ebbrt::Messenger::NetworkId nid,
                       std::unique_ptr<ebbrt::IOBuf>&& buffer);
 };
 
 constexpr auto printer = ebbrt::EbbRef<Printer>(kPrinterEbbId);
 
-#endif  // APPS_ZK_HOSTED_SRC_PRINTER_H_
+#endif  // APPS_SOCKET_HOSTED_SRC_PRINTER_H_

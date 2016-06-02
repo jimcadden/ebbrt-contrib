@@ -23,7 +23,7 @@ ebbrt::ZooKeeper::ZooKeeper(const std::string &server_hosts,
 
   // create zk object
   zoo_set_debug_level(ZOO_LOG_LEVEL_DEBUG);
-  zoo_deterministic_conn_order(1); // enable deterministic order
+  zoo_deterministic_conn_order(1); // deterministic command->server assignment
   zk_ = zookeeper_init(server_hosts.c_str(), process_watch_event, timeout_ms,
                        nullptr, connection_watcher, 0);
   timer->Start(*this, std::chrono::milliseconds(750), true);
@@ -101,7 +101,7 @@ ebbrt::ZooKeeper::Create(const std::string &path, const std::string &value,
   auto p = new ebbrt::Promise<ZkResponse>;
   auto f = p->GetFuture();
 
-  // TODO: does this work for empty string (i.e., c_str() = nullptr)
+  // TODO: verify this work for empty string (i.e., c_str() = "" or nullptr)
   zoo_acreate(zk_, path.c_str(), value.c_str(), value.size(),
               &ZOO_OPEN_ACL_UNSAFE, flags, callback, p);
   return f;
@@ -236,12 +236,12 @@ ebbrt::ZooKeeper::Set(const std::string &path, const std::string &value,
 }
 
 void ebbrt::ZooKeeper::print_stat( ZkStat *stat) {
-    fprintf(stdout, "Stat: \n");
-    fprintf(stdout, "     version: %d \n", stat->version);
-    fprintf(stdout, "     data len: %d \n", stat->dataLength);
-    fprintf(stdout, "     children: %d \n", stat->numChildren);
-    fprintf(stdout, "     eph owner: %ld \n", stat->ephemeralOwner);
-    fprintf(stdout, "\n");
+  ebbrt::kprintf("Stat: \n");
+  ebbrt::kprintf("     version: %d \n", stat->version);
+  ebbrt::kprintf("     data len: %d \n", stat->dataLength);
+  ebbrt::kprintf("     children: %d \n", stat->numChildren);
+  ebbrt::kprintf("     eph owner: %ld \n", stat->ephemeralOwner);
+  ebbrt::kprintf("\n");
     // todo timestamp
   return;
 }
@@ -251,97 +251,95 @@ void ebbrt::ZooKeeper::PrintRecord( ZkResponse *zkr) {
     return;
 
   if( zkr->err != ZOK )
-    fprintf(stderr, "Operation Error: %d \n", zkr->err);
+    ebbrt::kprintf("Operation Error: %d\n", zkr->err);
   //else
-  //  fprintf(stderr, "Operation Successful\n",);
+  //  ebbrt::kprintf("Operation Successful\n",);
   if( zkr->value.size() > 0 ) 
-    fprintf(stdout, "val: %s \n", zkr->value.c_str());
-  if( zkr->stat.ctime ) 
-    print_stat(&(zkr->stat));
+    ebbrt::kprintf("Value: %s\n", zkr->value.c_str());
+  else
+    ebbrt::kprintf("Value: NO VALUE\n");
+
+  print_stat(&(zkr->stat));
 
   return;
 }
 
-void ebbrt::ZooKeeper::PrintDirectory(ZkChildrenResponse *zkcr) {
+void ebbrt::ZooKeeper::PrintDirectory(ZkChildrenResponse *zkr) {
+  if( !zkr )
+    return;
+  if( zkr->err != ZOK )
+    ebbrt::kprintf("Operation Error: %d\n", zkr->err);
+    ebbrt::kprintf("Values: \n");
+  for(auto i : zkr->values){
+    ebbrt::kprintf("    %s\n",i.c_str());
+  }
   return;
 }
-
-//void ebbrt::ZooKeeper::Foo() {
-//
-//  auto j = Exists("/foo", connection_watcher_);
-//  auto k = Exists("/bar", connection_watcher_);
-//
-//  auto jv = j.Block().Get();
-//
-//  if (jv.rc == ZOK) {
-//    kprintf("Foo exists\n");
-//  } else {
-//    kprintf("Foo does not exist\n");
-//  }
-//
-//  auto bv = k.Block().Get();
-//
-//  if (bv.rc == ZOK) {
-//    kprintf("bar exists\n");
-//  } else {
-//    kprintf("bar does not exist\n");
-//  }
-//}
 
 /* Command-line Interface - processes command, results sent to the stdout */
 void ebbrt::ZooKeeper::CLI(char *line) {
   int rc =0;
   if (startsWith(line, "help")) {
-    fprintf(stderr, "    create [+[e|s]] <path>\n");
-    fprintf(stderr, "    delete <path>\n");
-    fprintf(stderr, "    set <path> <data>\n");
-    fprintf(stderr, "    get <path>\n");
-    fprintf(stderr, "    ls <path>\n");
-    fprintf(stderr, "    sync <path>\n");
-    fprintf(stderr, "    exists <path>\n");
-    fprintf(stderr, "    quit\n");
-    fprintf(stderr, "\n");
+    ebbrt::kprintf("    create [+[e|s]] <path>\n");
+    ebbrt::kprintf("    delete <path>\n");
+    ebbrt::kprintf("    exists <path>\n");
+    ebbrt::kprintf("    get <path>\n");
+    ebbrt::kprintf("    set <path> <data>\n");
+    ebbrt::kprintf("    ls <path>\n");
+    ebbrt::kprintf("    quit\n");
+    ebbrt::kprintf("\n");
   } else if (startsWith(line, "get ")) {
     line += 4;
     if (line[0] != '/') {
-      fprintf(stderr, "Path must start with /, found: %s\n", line);
+      ebbrt::kprintf("Path must start with /, found: %s\n", line);
       return;
     }
-    //TODO: GET
-    //rc = zoo_aget(zk_, line, 1, my_data_completion, strdup(line));
-    if (rc) {
-      fprintf(stderr, "Error %d for %s\n", rc, line);
+    std::string path(line);
+    auto fp = Get(path);
+    auto f = fp.Block().Get();
+    PrintRecord(&f);
+  } else if (startsWith(line, "exists ")) {
+    line += 7;
+    if (line[0] != '/') {
+      ebbrt::kprintf("Path must start with /, found: %s\n", line);
+      return;
     }
+    std::string path(line);
+    auto fp = Exists(path);
+    auto f = fp.Block().Get();
+    PrintRecord(&f);
   } else if (startsWith(line, "set ")) {
     char *ptr;
     line += 4;
     if (line[0] != '/') {
-      fprintf(stderr, "Path must start with /, found: %s\n", line);
+      ebbrt::kprintf("Path must start with /, found: %s\n", line);
       return;
     }
     ptr = strchr(line, ' ');
     if (!ptr) {
-      fprintf(stderr, "No data found after path\n");
+      ebbrt::kprintf("No data found after path\n");
       return;
     }
     *ptr = '\0';
     ptr++;
-    // TODO: SET
-      //ZkStat stat;
-      //rc = zoo_set2(zk_, line, ptr, strlen(ptr), -1, &stat);
-    if (rc) {
-      fprintf(stderr, "Error %d for %s\n", rc, line);
-    }
+    std::string path(line);
+    std::string value(ptr);
+    auto fp = Set(path, value);
+    auto f = fp.Block().Get();
+    PrintRecord(&f);
   } else if (startsWith(line, "ls ")) {
     line += 3;
     if (line[0] != '/') {
-      fprintf(stderr, "Path must start with /, found: %s\n", line);
+      ebbrt::kprintf("Path must start with /, found: %s\n", line);
       return;
     }
-    //  TODO: GetChildren
-    ////rc = zoo_aget_children(zk_, line, 1, my_strings_completion, strdup(line));
+    std::string path(line);
+    auto fp = GetChildren(path);
+    auto f = fp.Block().Get();
+    PrintDirectory(&f);
+
     if (rc) {
-      fprintf(stderr, "Error %d for %s\n", rc, line);
+      ebbrt::kprintf("Error %d for %s\n", rc, line);
     }
   } else if (startsWith(line, "create ")) {
     int flags = 0;
@@ -359,33 +357,28 @@ void ebbrt::ZooKeeper::CLI(char *line) {
       line++;
     }
     if (line[0] != '/') {
-      fprintf(stderr, "Path must start with /, found: %s\n", line);
+      ebbrt::kprintf("Path must start with /, found: %s\n", line);
       return;
     }
-    fprintf(stderr, "Creating [%s] node\n", line);
-    //TODO: CREATE
-    //rc = zoo_acreate(zk_, line, "new", 3, &ZOO_OPEN_ACL_UNSAFE, flags,
-    //                 my_string_completion_free_data, strdup(line));
-    if (rc) {
-      fprintf(stderr, "Error %d for %s\n", rc, line);
-    }
+    ebbrt::kprintf("Creating [%s] node\n", line);
+    std::string path(line);
+    auto fp = Create(path, "new", flags);
+    auto f = fp.Block().Get();
+    PrintRecord(&f);
   } else if (startsWith(line, "delete ")) {
     line += 7;
     if (line[0] != '/') {
-      fprintf(stderr, "Path must start with /, found: %s\n", line);
+      ebbrt::kprintf("Path must start with /, found: %s\n", line);
       return;
     }
-    // TODO DELETE
-    if (rc) {
-      fprintf(stderr, "Error %d for %s\n", rc, line);
-    }
+    std::string path(line);
+    auto fp = Delete(path);
+    auto f = fp.Block().Get();
+    PrintRecord(&f);
   }else{
-    fprintf(stderr, "Error unknown command: %s\n", line);
+    ebbrt::kprintf("Error unknown command: %s\n", line);
   }
 }
-////////// ////////// ////////// ////////// ////////// ////////// //////////
-////////// ////////// ////////// ////////// ////////// ////////// //////////
-////////// ////////// ////////// ////////// ////////// ////////// //////////
 
 
 void ebbrt::ZooKeeper::my_string_completion_free_data(int rc, const char *name,
