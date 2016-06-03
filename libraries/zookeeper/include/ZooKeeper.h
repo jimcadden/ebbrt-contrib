@@ -4,8 +4,8 @@
 //          http://www.boost.org/LICENSE_1_0.txt)
 //
 
-#ifndef APPS_SOCKET_BAREMETAL_SRC_ZOOKEEPER_H_
-#define APPS_SOCKET_BAREMETAL_SRC_ZOOKEEPER_H_
+#ifndef APPS_ZK_BAREMETAL_SRC_ZOOKEEPER_H_
+#define APPS_ZK_BAREMETAL_SRC_ZOOKEEPER_H_
 
 #include <cstdio>
 #include <ebbrt/Debug.h>
@@ -19,13 +19,11 @@
 
 namespace ebbrt {
 
+namespace {
 
-  namespace{
-  
-    constexpr int ZkConnectionTimeoutMs = 30000;
-    constexpr int ZkIoEventTimer = 1000;
-  
-  }
+constexpr int ZkConnectionTimeoutMs = 30000;
+constexpr int ZkIoEventTimer = 1000;
+}
 
 typedef struct Stat ZkStat;
 /* struct ZkStat:
@@ -102,8 +100,6 @@ public:
     }
   };
 
-//
-
   static EbbRef<ZooKeeper> Create(EbbId id, const std::string &server_hosts,
                                   Watcher *connection_watcher = nullptr,
                                   int timeout_ms = ZkConnectionTimeoutMs,
@@ -118,22 +114,18 @@ public:
     LocalIdMap::ConstAccessor accessor;
     auto found = local_id_map->Find(accessor, id);
     if (!found)
-      throw std::runtime_error("Failed to find root for SharedEbb");
+      throw std::runtime_error("Failed to find root for ZooKeeper Ebb");
 
     auto rep = boost::any_cast<ZooKeeper *>(accessor->second);
     EbbRef<ZooKeeper>::CacheRef(id, *rep);
     return *rep;
   }
 
-  ZooKeeper(const std::string &server_hosts,
-            ebbrt::ZooKeeper::Watcher *connection_watcher, int timeout_ms,
-            int timer_ms);
   void Fire() override;
   ~ZooKeeper();
   // disable copy
   ZooKeeper(const ZooKeeper &) = delete;
   ZooKeeper &operator=(const ZooKeeper &) = delete;
-
   void CLI(char *line);
   /*
    * ZooKeeper::New
@@ -144,19 +136,19 @@ public:
    *                          number is appended to the path name.
    */
   Future<Znode> New(const std::string &path,
-                            const std::string &value = std::string(),
-                            int flags = 0);
+                    const std::string &value = std::string(), int flags = 0);
   Future<Znode> Exists(const std::string &path, Watcher *watch = nullptr);
   Future<Znode> Get(const std::string &path, Watcher *watch = nullptr);
   Future<Znode> Delete(const std::string &path, int version = -1);
   Future<Znode> Set(const std::string &path, const std::string &value,
-                         int version = -1);
+                    int version = -1);
   Future<ZnodeChildren> GetChildren(const std::string &path,
-                                         Watcher *watch = nullptr);
+                                    Watcher *watch = nullptr);
   static void PrintZnode(Znode *zkr);
   static void PrintZnodeChildren(ZnodeChildren *zkcr);
 
-  static void my_data_completion(int rc, const char *value, int value_len, const ZkStat *stat, const void *data);
+  static void my_data_completion(int rc, const char *value, int value_len,
+                                 const ZkStat *stat, const void *data);
   static void my_silent_data_completion(int rc, const char *value,
                                         int value_len, const ZkStat *stat,
                                         const void *data);
@@ -174,14 +166,17 @@ public:
                                         const void *data);
 
 private:
+  ZooKeeper(const std::string &server_hosts,
+            ebbrt::ZooKeeper::Watcher *connection_watcher, int timeout_ms,
+            int timer_ms);
   zhandle_t *zk_ = nullptr;
   SpinLock lock_;
-  int verbose = 0; // clean this 
+  int verbose = 0; // clean this
   Watcher *connection_watcher_ = nullptr;
-  static void process_watch_event(zhandle_t *, int type, int state, const char *path,
-                          void *ctx);
+  static void process_watch_event(zhandle_t *, int type, int state,
+                                  const char *path, void *ctx);
   static int startsWith(const char *line, const char *prefix);
-  static void print_stat( ZkStat *stat);
+  static void print_stat(ZkStat *stat);
 };
 }
 
