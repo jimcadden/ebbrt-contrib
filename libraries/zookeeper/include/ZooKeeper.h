@@ -19,8 +19,8 @@
 
 namespace ebbrt {
 
-/*
-struct Stat:
+typedef struct Stat ZkStat;
+/* struct ZkStat:
     int64_t czxid;
     int64_t mzxid;
     int64_t ctime;
@@ -33,17 +33,16 @@ struct Stat:
     int32_t numChildren;
     int64_t pzxid;
 */
-typedef struct Stat ZkStat;
 
 class ZooKeeper : public ebbrt::Timer::Hook {
 public:
-  struct ZkResponse {
+  struct Znode {
     int err;
     std::string value;
     ZkStat stat;
   };
 
-  struct ZkChildrenResponse {
+  struct ZnodeChildren {
     int err;
     std::vector<std::string> values;
     ZkStat stat;
@@ -112,18 +111,18 @@ public:
    *            ZOO_SEQUENCE  - a unique monotonically increasing sequence
    *                          number is appended to the path name.
    */
-  Future<ZkResponse> Create(const std::string &path,
+  Future<Znode> Create(const std::string &path,
                             const std::string &value = std::string(),
                             int flags = 0);
-  Future<ZkResponse> Exists(const std::string &path, Watcher *watch = nullptr);
-  Future<ZkResponse> Get(const std::string &path, Watcher *watch = nullptr);
-  Future<ZkResponse> Delete(const std::string &path, int version = -1);
-  Future<ZkResponse> Set(const std::string &path, const std::string &value,
+  Future<Znode> Exists(const std::string &path, Watcher *watch = nullptr);
+  Future<Znode> Get(const std::string &path, Watcher *watch = nullptr);
+  Future<Znode> Delete(const std::string &path, int version = -1);
+  Future<Znode> Set(const std::string &path, const std::string &value,
                          int version = -1);
-  Future<ZkChildrenResponse> GetChildren(const std::string &path,
+  Future<ZnodeChildren> GetChildren(const std::string &path,
                                          Watcher *watch = nullptr);
-  static void PrintRecord(ZkResponse *zkr);
-  static void PrintDirectory(ZkChildrenResponse *zkcr);
+  static void PrintZnode(Znode *zkr);
+  static void PrintZnodeChildren(ZnodeChildren *zkcr);
 
   static void my_data_completion(int rc, const char *value, int value_len, const ZkStat *stat, const void *data);
   static void my_silent_data_completion(int rc, const char *value,
