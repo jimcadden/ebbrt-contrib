@@ -16,16 +16,12 @@
 #include <ebbrt/Timer.h>
 #include <string>
 #include <zookeeper.h>
+//
+#include <poll.h>
 
 namespace ebbrt {
 
-namespace {
 
-constexpr int ZkConnectionTimeoutMs = 30000;
-constexpr int ZkIoEventTimer = 1000;
-}
-
-typedef struct Stat ZkStat;
 /* struct ZkStat:
     int64_t czxid;
     int64_t mzxid;
@@ -39,9 +35,12 @@ typedef struct Stat ZkStat;
     int32_t numChildren;
     int64_t pzxid;
 */
+  constexpr int ZkConnectionTimeoutMs = 30000;
+  constexpr int ZkIoEventTimer = 1000;
 
 class ZooKeeper : public ebbrt::Timer::Hook {
 public:
+  typedef struct Stat ZkStat;
   struct Znode {
     int err;
     std::string value;
@@ -147,36 +146,25 @@ public:
   static void PrintZnode(Znode *zkr);
   static void PrintZnodeChildren(ZnodeChildren *zkcr);
 
-  static void my_data_completion(int rc, const char *value, int value_len,
-                                 const ZkStat *stat, const void *data);
-  static void my_silent_data_completion(int rc, const char *value,
-                                        int value_len, const ZkStat *stat,
-                                        const void *data);
-  static void my_stat_completion(int rc, const ZkStat *stat, const void *data);
-  static void my_string_completion(int rc, const char *name, const void *data);
-  static void my_string_completion_free_data(int rc, const char *name,
-                                             const void *data);
-  static void my_strings_completion(int rc, const struct String_vector *strings,
-                                    const void *data);
-  static void my_strings_stat_completion(int rc,
-                                         const struct String_vector *strings,
-                                         const ZkStat *stat, const void *data);
-  static void my_void_completion(int rc, const void *data);
-  static void my_silent_stat_completion(int rc, const ZkStat *stat,
-                                        const void *data);
 
 private:
   ZooKeeper(const std::string &server_hosts,
             ebbrt::ZooKeeper::Watcher *connection_watcher, int timeout_ms,
             int timer_ms);
-  zhandle_t *zk_ = nullptr;
-  SpinLock lock_;
-  int verbose = 0; // clean this
-  Watcher *connection_watcher_ = nullptr;
   static void process_watch_event(zhandle_t *, int type, int state,
                                   const char *path, void *ctx);
+  static void data_completion(int rc, const char *value, int value_len,
+                              const ZkStat *stat, const void *data);
+  static void stat_completion(int rc, const ZkStat *stat, const void *data);
+  static void string_completion(int rc, const char *name, const void *data);
+  static void strings_completion(int rc, const struct String_vector *strings,
+                                 const ZkStat *stat, const void *data);
+  static void void_completion(int rc, const void *data);
   static int startsWith(const char *line, const char *prefix);
   static void print_stat(ZkStat *stat);
+  SpinLock lock_;
+  zhandle_t *zk_ = nullptr;
+  Watcher *connection_watcher_ = nullptr;
 };
 }
 
