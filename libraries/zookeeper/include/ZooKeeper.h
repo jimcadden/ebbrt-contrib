@@ -19,6 +19,14 @@
 
 namespace ebbrt {
 
+
+  namespace{
+  
+    constexpr int ZkConnectionTimeoutMs = 30000;
+    constexpr int ZkIoEventTimer = 1000;
+  
+  }
+
 typedef struct Stat ZkStat;
 /* struct ZkStat:
     int64_t czxid;
@@ -94,9 +102,33 @@ public:
     }
   };
 
-  void Fire() override;
+//
+
+  static EbbRef<ZooKeeper> Create(EbbId id, const std::string &server_hosts,
+                                  Watcher *connection_watcher = nullptr,
+                                  int timeout_ms = ZkConnectionTimeoutMs,
+                                  int timer_ms = ZkIoEventTimer) {
+    auto rep =
+        new ZooKeeper(server_hosts, connection_watcher, timeout_ms, timer_ms);
+    local_id_map->Insert(std::make_pair(id, std::move(rep)));
+    return EbbRef<ZooKeeper>(id);
+  }
+
+  static ZooKeeper &HandleFault(EbbId id) {
+    LocalIdMap::ConstAccessor accessor;
+    auto found = local_id_map->Find(accessor, id);
+    if (!found)
+      throw std::runtime_error("Failed to find root for SharedEbb");
+
+    auto rep = boost::any_cast<ZooKeeper *>(accessor->second);
+    EbbRef<ZooKeeper>::CacheRef(id, *rep);
+    return *rep;
+  }
+
   ZooKeeper(const std::string &server_hosts,
-            Watcher *connection_watcher = nullptr, int timeout_ms = 30 * 1000);
+            ebbrt::ZooKeeper::Watcher *connection_watcher, int timeout_ms,
+            int timer_ms);
+  void Fire() override;
   ~ZooKeeper();
   // disable copy
   ZooKeeper(const ZooKeeper &) = delete;
@@ -104,14 +136,14 @@ public:
 
   void CLI(char *line);
   /*
-   * ZooKeeper::Create
+   * ZooKeeper::New
    *
    * - flags:   ZOO_EPHEMERAL - node will automatically get removed if the
    *                          client session goes away.
    *            ZOO_SEQUENCE  - a unique monotonically increasing sequence
    *                          number is appended to the path name.
    */
-  Future<Znode> Create(const std::string &path,
+  Future<Znode> New(const std::string &path,
                             const std::string &value = std::string(),
                             int flags = 0);
   Future<Znode> Exists(const std::string &path, Watcher *watch = nullptr);

@@ -4,6 +4,7 @@
 //          http://www.boost.org/LICENSE_1_0.txt)
 
 #include <ebbrt/Debug.h>
+#include <ebbrt/EbbAllocator.h>
 
 #include "Printer.h"
 #include "ZooKeeper.h"
@@ -22,5 +23,6 @@ class PrinterWatcher : public ebbrt::ZooKeeper::Watcher {
 };
 
 auto *mw = new PrinterWatcher();
-ebbrt::ZooKeeper *zk = new ebbrt::ZooKeeper("172.17.0.4:2181", mw);
+ebbrt::EbbRef<ebbrt::ZooKeeper> zk =
+    ebbrt::ZooKeeper::Create(ebbrt::ebb_allocator->Allocate(), "172.17.0.4:2181", mw);
 

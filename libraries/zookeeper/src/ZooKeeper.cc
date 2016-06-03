@@ -10,15 +10,10 @@
 #include <poll.h>
 #include <zookeeper.h>
 
-void ebbrt::ZooKeeper::process_watch_event(zhandle_t *h, int type, int state,
-                                           const char *path, void *ctx) {
-  auto watcher = static_cast<Watcher *>(ctx);
-  watcher->WatchHandler(type, state, path);
-}
 
 ebbrt::ZooKeeper::ZooKeeper(const std::string &server_hosts,
                             ebbrt::ZooKeeper::Watcher *connection_watcher,
-                            int timeout_ms)
+                            int timeout_ms, int timer_ms)
     : connection_watcher_(connection_watcher) {
 
   // create zk object
@@ -84,15 +79,14 @@ void ebbrt::ZooKeeper::Fire() {
 }
 
 ebbrt::Future<ebbrt::ZooKeeper::Znode>
-ebbrt::ZooKeeper::Create(const std::string &path, const std::string &value,
+ebbrt::ZooKeeper::New(const std::string &path, const std::string &value,
                          int flags) {
   auto callback = [](int rc, const char *value, const void *data) {
     Znode res;
     res.err = rc;
     if (value)
       res.value = std::string(value);
-    auto p =
-        static_cast<ebbrt::Promise<Znode> *>(const_cast<void *>(data));
+    auto p = static_cast<ebbrt::Promise<Znode> *>(const_cast<void *>(data));
     p->SetValue(std::move(res));
     delete p;
     return;
@@ -114,8 +108,7 @@ ebbrt::ZooKeeper::Exists(const std::string &path,
     Znode res;
     res.err = rc;
     res.stat = *stat;
-    auto p =
-        static_cast<ebbrt::Promise<Znode> *>(const_cast<void *>(data));
+    auto p = static_cast<ebbrt::Promise<Znode> *>(const_cast<void *>(data));
     p->SetValue(std::move(res));
     delete p;
     return;
@@ -142,8 +135,7 @@ ebbrt::ZooKeeper::Get(const std::string &path,
     res.stat = *stat;
     if (value_len > 0)
       res.value = std::string(value, static_cast<size_t>(value_len));
-    auto p =
-        static_cast<ebbrt::Promise<Znode> *>(const_cast<void *>(data));
+    auto p = static_cast<ebbrt::Promise<Znode> *>(const_cast<void *>(data));
     p->SetValue(std::move(res));
     delete p;
     return;
@@ -175,8 +167,8 @@ ebbrt::ZooKeeper::GetChildren(const std::string &path,
       }
     }
 
-    auto p = static_cast<ebbrt::Promise<ZnodeChildren> *>(
-        const_cast<void *>(data));
+    auto p =
+        static_cast<ebbrt::Promise<ZnodeChildren> *>(const_cast<void *>(data));
     p->SetValue(std::move(res));
     delete p;
     return;
@@ -199,8 +191,7 @@ ebbrt::ZooKeeper::Delete(const std::string &path, int version) {
   auto callback = [](int rc, const void *data) {
     Znode res;
     res.err = rc;
-    auto p =
-        static_cast<ebbrt::Promise<Znode> *>(const_cast<void *>(data));
+    auto p = static_cast<ebbrt::Promise<Znode> *>(const_cast<void *>(data));
     p->SetValue(std::move(res));
     delete p;
     return;
@@ -220,8 +211,7 @@ ebbrt::ZooKeeper::Set(const std::string &path, const std::string &value,
     Znode res;
     res.err = rc;
     res.stat = *stat;
-    auto p =
-        static_cast<ebbrt::Promise<Znode> *>(const_cast<void *>(data));
+    auto p = static_cast<ebbrt::Promise<Znode> *>(const_cast<void *>(data));
     p->SetValue(std::move(res));
     delete p;
     return;
@@ -235,26 +225,32 @@ ebbrt::ZooKeeper::Set(const std::string &path, const std::string &value,
   return f;
 }
 
-void ebbrt::ZooKeeper::print_stat( ZkStat *stat) {
+void ebbrt::ZooKeeper::process_watch_event(zhandle_t *h, int type, int state,
+                                           const char *path, void *ctx) {
+  auto watcher = static_cast<Watcher *>(ctx);
+  watcher->WatchHandler(type, state, path);
+}
+
+void ebbrt::ZooKeeper::print_stat(ZkStat *stat) {
   ebbrt::kprintf("Stat: \n");
   ebbrt::kprintf("     version: %d \n", stat->version);
   ebbrt::kprintf("     data len: %d \n", stat->dataLength);
   ebbrt::kprintf("     children: %d \n", stat->numChildren);
   ebbrt::kprintf("     eph owner: %ld \n", stat->ephemeralOwner);
   ebbrt::kprintf("\n");
-    // todo timestamp
+  // todo timestamp
   return;
 }
 
-void ebbrt::ZooKeeper::PrintZnode( Znode *zkr) {
-  if( !zkr )
+void ebbrt::ZooKeeper::PrintZnode(Znode *zkr) {
+  if (!zkr)
     return;
 
-  if( zkr->err != ZOK )
+  if (zkr->err != ZOK)
     ebbrt::kprintf("Operation Error: %d\n", zkr->err);
-  //else
+  // else
   //  ebbrt::kprintf("Operation Successful\n",);
-  if( zkr->value.size() > 0 ) 
+  if (zkr->value.size() > 0)
     ebbrt::kprintf("Value: %s\n", zkr->value.c_str());
   else
     ebbrt::kprintf("Value: NO VALUE\n");
@@ -265,20 +261,25 @@ void ebbrt::ZooKeeper::PrintZnode( Znode *zkr) {
 }
 
 void ebbrt::ZooKeeper::PrintZnodeChildren(ZnodeChildren *zkr) {
-  if( !zkr )
+  if (!zkr)
     return;
-  if( zkr->err != ZOK )
+  if (zkr->err != ZOK)
     ebbrt::kprintf("Operation Error: %d\n", zkr->err);
-    ebbrt::kprintf("Values: \n");
-  for(auto i : zkr->values){
-    ebbrt::kprintf("    %s\n",i.c_str());
+  ebbrt::kprintf("Values: \n");
+  for (auto i : zkr->values) {
+    ebbrt::kprintf("    %s\n", i.c_str());
   }
   return;
 }
 
+int ebbrt::ZooKeeper::startsWith(const char *line, const char *prefix) {
+  int len = strlen(prefix);
+  return strncmp(line, prefix, len) == 0;
+}
+
 /* Command-line Interface - processes command, results sent to the stdout */
 void ebbrt::ZooKeeper::CLI(char *line) {
-  int rc =0;
+  int rc = 0;
   if (startsWith(line, "help")) {
     ebbrt::kprintf("    create [+[e|s]] <path>\n");
     ebbrt::kprintf("    delete <path>\n");
@@ -347,7 +348,7 @@ void ebbrt::ZooKeeper::CLI(char *line) {
     if (line[0] == '+') {
       line++;
       if (line[0] == 'e') {
-        flags |= ZOO_EPHEMERAL; 
+        flags |= ZOO_EPHEMERAL;
         line++;
       }
       if (line[0] == 's') {
@@ -362,7 +363,7 @@ void ebbrt::ZooKeeper::CLI(char *line) {
     }
     ebbrt::kprintf("Creating [%s] node\n", line);
     std::string path(line);
-    auto fp = Create(path, "new", flags);
+    auto fp = New(path, "new", flags);
     auto f = fp.Block().Get();
     PrintZnode(&f);
   } else if (startsWith(line, "delete ")) {
@@ -375,44 +376,31 @@ void ebbrt::ZooKeeper::CLI(char *line) {
     auto fp = Delete(path);
     auto f = fp.Block().Get();
     PrintZnode(&f);
-  }else{
+  } else {
     ebbrt::kprintf("Error unknown command: %s\n", line);
   }
 }
 
-
 void ebbrt::ZooKeeper::my_string_completion_free_data(int rc, const char *name,
-                                                      const void *data) {
-}
+                                                      const void *data) {}
 
 void ebbrt::ZooKeeper::my_data_completion(int rc, const char *value,
                                           int value_len, const ZkStat *stat,
-                                          const void *data) {
-}
+                                          const void *data) {}
 
 void ebbrt::ZooKeeper::my_silent_data_completion(int rc, const char *value,
                                                  int value_len,
                                                  const ZkStat *stat,
-                                                 const void *data) {
-}
+                                                 const void *data) {}
 
 void ebbrt::ZooKeeper::my_strings_completion(
-    int rc, const struct String_vector *strings, const void *data) {
-}
+    int rc, const struct String_vector *strings, const void *data) {}
 
-void ebbrt::ZooKeeper::my_void_completion(int rc, const void *data) {
-}
+void ebbrt::ZooKeeper::my_void_completion(int rc, const void *data) {}
 
 void ebbrt::ZooKeeper::my_stat_completion(int rc, const ZkStat *stat,
-                                          const void *data) {
-}
+                                          const void *data) {}
 
 void ebbrt::ZooKeeper::my_silent_stat_completion(int rc, const ZkStat *stat,
-                                                 const void *data) {
-}
-
-int ebbrt::ZooKeeper::startsWith(const char *line, const char *prefix) {
-  int len = strlen(prefix);
-  return strncmp(line, prefix, len) == 0;
-}
+                                                 const void *data) {}
 

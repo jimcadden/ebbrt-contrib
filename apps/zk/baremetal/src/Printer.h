@@ -12,7 +12,7 @@
 
 #include "../../src/StaticEbbIds.h"
 
-extern ebbrt::ZooKeeper *zk;
+extern ebbrt::EbbRef<ebbrt::ZooKeeper> zk;
 
 class Printer : public ebbrt::Messagable<Printer> {
  public:
