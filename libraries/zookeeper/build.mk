@@ -1,7 +1,7 @@
 # Makefile for EbbRT ZooKeeper library
 ZK_LIB := $(EBBRT_LD_LIBRARY_PATH)/zookeeper
 
-EBBRT_APP_INCLUDES += -I $(ZK_LIB)/include \
+EBBRT_APP_INCLUDES += -I $(ZK_LIB)/src \
 											-I $(ZK_LIB)/ext/zookeeper/include \
 											-I $(ZK_LIB)/ext/zookeeper/generated 
 

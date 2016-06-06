@@ -8,12 +8,14 @@
 #define APPS_ZK_BAREMETAL_SRC_ZOOKEEPER_H_
 
 #include <cstdio>
+#ifdef __EBBRT_BM__
+#include <ebbrt/SpinLock.h>
+#include <ebbrt/Timer.h>
+#endif
 #include <ebbrt/Debug.h>
 #include <ebbrt/Future.h>
 #include <ebbrt/SharedEbb.h>
 #include <ebbrt/SharedIOBufRef.h>
-#include <ebbrt/SpinLock.h>
-#include <ebbrt/Timer.h>
 #include <string>
 #include <zookeeper.h>
 //
