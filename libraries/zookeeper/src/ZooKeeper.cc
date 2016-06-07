@@ -15,7 +15,14 @@ ebbrt::ZooKeeper::ZooKeeper(const std::string &server_hosts,
   zoo_deterministic_conn_order(1); // deterministic command->server assignment
   zk_ = zookeeper_init(server_hosts.c_str(), process_watch_event, timeout_ms,
                        nullptr, connection_watcher, 0);
+
+#ifdef __EBBRT_BM__
   timer->Start(*this, std::chrono::milliseconds(timer_ms), true);
+#else
+  printf("Spawning ZooKeeper object IO thread..\n");
+  std::thread t([=]{ Fire(); });
+  t.detach();
+#endif 
   return;
 }
 
@@ -30,6 +37,9 @@ ebbrt::ZooKeeper::~ZooKeeper() {
 
 /* IO Hanlder */
 void ebbrt::ZooKeeper::Fire() {
+#ifndef __EBBRT_BM__
+  while(1){
+#endif
   std::lock_guard<ebbrt::SpinLock> guard(lock_);
   struct pollfd fds[1];
 
@@ -70,6 +80,10 @@ void ebbrt::ZooKeeper::Fire() {
       ebbrt::kabort(("zookeeper io handler  terminated"));
     }
   }
+#ifndef __EBBRT_BM__
+//  std::this_thread::sleep_for(std::chrono::milliseconds(x));
+  }
+#endif
 }
 
 ebbrt::Future<ebbrt::ZooKeeper::Znode>
