@@ -7,6 +7,7 @@
 
 #include <boost/filesystem.hpp>
 
+#include <ebbrt/Debug.h>
 #include <ebbrt/Context.h>
 #include <ebbrt/ContextActivation.h>
 #include <ebbrt/GlobalIdMap.h>
@@ -15,6 +16,7 @@
 #include <ebbrt/Runtime.h>
 
 #include "Printer.h"
+#include "../../src/MyTimer.h"
 
 int main(int argc, char** argv) {
   auto bindir = boost::filesystem::system_complete(argv[0]).parent_path() /
@@ -30,7 +32,10 @@ int main(int argc, char** argv) {
     sig.async_wait([&c](const boost::system::error_code& ec,
                         int signal_number) { c.io_service_.stop(); });
     Printer::Init().Then([bindir](ebbrt::Future<void> f) {
+      MyTimer *myt = new MyTimer();
+      myt->Foo();
       f.Get();
+
       ebbrt::node_allocator->AllocateNode(bindir.string());
     });
   }

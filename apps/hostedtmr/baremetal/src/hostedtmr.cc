@@ -4,5 +4,11 @@
 //          http://www.boost.org/LICENSE_1_0.txt)
 
 #include "Printer.h"
+#include "../../src/MyTimer.h"
 
-void AppMain() { printer->Print("HOSTEDTMR BACKEND UP.\n"); }
+void AppMain() { printer->Print("HOSTEDTMR BACKEND UP.\n"); 
+
+  MyTimer *myt = new MyTimer();
+  myt->Foo();
+
+}
