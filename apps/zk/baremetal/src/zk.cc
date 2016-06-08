@@ -26,3 +26,7 @@ auto *mw = new PrinterWatcher();
 ebbrt::EbbRef<ebbrt::ZooKeeper> zk =
     ebbrt::ZooKeeper::Create(ebbrt::ebb_allocator->Allocate(), "172.17.0.4:2181", mw);
 
+void AppMain() {
+  auto val = zk->Get("/secret").Block().Get();
+  printf("The secret value is %s\n", val.value.c_str());
+}

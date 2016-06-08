@@ -8,11 +8,8 @@
 #include <string>
 
 #include <ebbrt/Message.h>
-#include <ZooKeeper.h>
 
 #include "../../src/StaticEbbIds.h"
-
-extern ebbrt::EbbRef<ebbrt::ZooKeeper> zk;
 
 class Printer : public ebbrt::Messagable<Printer> {
  public:
