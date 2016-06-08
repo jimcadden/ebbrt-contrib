@@ -123,7 +123,6 @@ public:
   // disable copy
   ZooKeeper(const ZooKeeper &) = delete;
   ZooKeeper &operator=(const ZooKeeper &) = delete;
-  void CLI(char *line);
   /*
    * ZooKeeper::New
    *
@@ -134,16 +133,19 @@ public:
    */
   Future<Znode> New(const std::string &path,
                     const std::string &value = std::string(), int flags = 0);
-  Future<Znode> Exists(const std::string &path, Watcher *watch = nullptr);
+  Future<bool>  Exists(const std::string &path, Watcher *watch = nullptr);
   Future<Znode> Get(const std::string &path, Watcher *watch = nullptr);
+  Future<ZnodeChildren> GetChildren(const std::string &path,
+                                    Watcher *watch = nullptr);
+  Future<std::string> GetVal(const std::string &path, Watcher *watch = nullptr);
   Future<Znode> Delete(const std::string &path, int version = -1);
   Future<Znode> Set(const std::string &path, const std::string &value,
                     int version = -1);
-  Future<ZnodeChildren> GetChildren(const std::string &path,
-                                    Watcher *watch = nullptr);
+  Future<Znode> Stat(const std::string &path, Watcher *watch = nullptr);
+
+  void CLI(char *line);
   static void PrintZnode(Znode *zkr);
   static void PrintZnodeChildren(ZnodeChildren *zkcr);
-
 
 private:
   ZooKeeper(const std::string &server_hosts,
