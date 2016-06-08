@@ -16,11 +16,11 @@
 #include <time.h> 
 #include <unistd.h>
 
-
 #include <boost/filesystem.hpp>
 
 #include <ebbrt/Context.h>
 #include <ebbrt/ContextActivation.h>
+#include <ebbrt/EventManager.h>
 #include <ebbrt/GlobalIdMap.h>
 #include <ebbrt/NodeAllocator.h>
 #include <ebbrt/Runtime.h>
@@ -28,9 +28,6 @@
 
 #include "Printer.h"
 #include "ZooKeeper.h"
-
-  ebbrt::Runtime runtime;
-  ebbrt::Context c(runtime);
 
 using namespace std;
 ebbrt::Messenger::NetworkId net_id;
@@ -47,50 +44,42 @@ class PrinterWatcher : public ebbrt::ZooKeeper::Watcher {
     void OnNotWatching(const char* path) override { printf("watch alert: Not Wathcing.\n"); }
 };
 
-void cmdr () {
-        cout << "Enter a command for zookeeper:  " << endl;
-    ebbrt::ContextActivation activation(c);
-        string str;
-        while(str != "quit"){
-          cout << ">   ";
-          getline (cin, str);
-          printer->Print(net_id, str.c_str());
-        }
-}
-
 
 int main(int argc, char **argv) {
   auto bindir = boost::filesystem::system_complete(argv[0]).parent_path() /
                 "/bm/zk.elf32";
+  auto secret = "Hazer Baba";
 
+  ebbrt::Runtime runtime;
+  ebbrt::Context c(runtime);
   boost::asio::signal_set sig(c.io_service_, SIGINT);
   {
     ebbrt::ContextActivation activation(c);
 
-
     // ensure clean quit on ctrl-c
-    sig.async_wait([](const boost::system::error_code &ec,
+    sig.async_wait([&c](const boost::system::error_code& ec,
                         int signal_number) { c.io_service_.stop(); });
-    //Printer::Init().Then([bindir](ebbrt::Future<void> f) {
-    //  f.Get();
-    //  auto ns = ebbrt::node_allocator->AllocateNode(bindir.string(), 1,1);
-    //  ns.NetworkId().Then([](ebbrt::Future<ebbrt::Messenger::NetworkId> net_if){
-    //    net_id = net_if.Get();
-    //    std::thread ts(cmdr);
-    //    ts.detach();
-    //  }); });
 
+    // begin EbbRT context
+    ebbrt::event_manager->Spawn([&](){
 
-    auto *mw = new PrinterWatcher();
-    ebbrt::EbbRef<ebbrt::ZooKeeper> zk =
-      ebbrt::ZooKeeper::Create(ebbrt::ebb_allocator->Allocate(), "172.17.0.4:2181", mw);
-    
-        string str;
-        while(str != "quit"){
-          cout << ">   ";
-          getline (cin, str);
-          zk->CLI(const_cast<char*>(str.c_str()));
-        }
+      auto *mw = new PrinterWatcher();
+      ebbrt::EbbRef<ebbrt::ZooKeeper> zk = ebbrt::ZooKeeper::Create(
+          ebbrt::ebb_allocator->Allocate(), "172.17.0.4:2181", mw);
+
+      zk->New("/secret").Block();
+      zk->Set("/secret", secret).Block();
+
+      Printer::Init().Then([bindir](ebbrt::Future<void> f) {
+        f.Get();
+        auto ns = ebbrt::node_allocator->AllocateNode(bindir.string(), 1, 1);
+        ns.NetworkId().Then(
+            [](ebbrt::Future<ebbrt::Messenger::NetworkId> net_if) {
+              net_id = net_if.Get();
+            });
+      });
+
+    });
   }
   c.Run();
 
