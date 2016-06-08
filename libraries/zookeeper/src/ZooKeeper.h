@@ -9,14 +9,8 @@
 
 #include <cstdio>
 #include <string>
-#ifdef __EBBRT_BM__
 #include <ebbrt/SpinLock.h>
 #include <ebbrt/Timer.h>
-#else
-//#include <chrono>
-#include <mutex>
-#include <thread>
-#endif
 #include <ebbrt/Debug.h>
 #include <ebbrt/Future.h>
 #include <ebbrt/SharedEbb.h>
@@ -29,12 +23,7 @@ namespace ebbrt {
   constexpr int ZkConnectionTimeoutMs = 30000;
   constexpr int ZkIoEventTimer = 1000;
 
-#ifdef __EBBRT_BM__
 class ZooKeeper : public ebbrt::Timer::Hook {
-#else
-  typedef std::mutex SpinLock;
-class ZooKeeper {
-#endif
 public:
   typedef struct Stat ZkStat;
 /* struct ZkStat:
@@ -129,11 +118,7 @@ public:
     return *rep;
   }
 
-#ifdef __EBBRT_BM__
   void Fire() override;
-#else 
-  void Fire();
-#endif
   ~ZooKeeper();
   // disable copy
   ZooKeeper(const ZooKeeper &) = delete;

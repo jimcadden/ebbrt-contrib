@@ -13,8 +13,3 @@ EBBRT_APP_VPATH += $(abspath $(ZK_LIB)/src)
 EBBRT_APP_CXXFLAGS += -lzookeeper_mt -Wno-error
 EBBRT_APP_LDFLAGS += -L$(LD_LIBRARY_PATH) -lzookeeper_mt
 
-
-#zk_cpp_objects: zk_cpp_sources
-#	${CXX} ${EBBRT_APP_CFLAGS} 
-
-
