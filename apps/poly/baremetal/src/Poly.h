@@ -24,8 +24,8 @@ public:
     if (!found)
       throw std::runtime_error("Failed to find root for Poly");
 
-    auto rep = boost::any_cast<Root *>(accessor->second);
-    return rep->HandleFault(id);
+    auto root = boost::any_cast<Root *>(accessor->second);
+    return root->HandleFault(id);
   };
   virtual void Foo() = 0;
   virtual void Bar() = 0;
