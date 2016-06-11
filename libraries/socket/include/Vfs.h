@@ -30,6 +30,7 @@ public:
     private:
       friend class Fd;
     };
+    // Rep
     static Fd &HandleFault(EbbId id) {
       LocalIdMap::ConstAccessor accessor;
       auto found = local_id_map->Find(accessor, id);
@@ -38,6 +39,7 @@ public:
       auto rep = boost::any_cast<Root *>(accessor->second);
       return rep->HandleFault(id);
     };
+    virtual ~Fd(){};
      virtual ebbrt::Future<std::unique_ptr<IOBuf>> Read(size_t len) = 0;
      virtual ebbrt::Future<uint8_t> Close() = 0;
     // virtual void IsReady() = 0;

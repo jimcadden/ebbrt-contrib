@@ -12,8 +12,8 @@
 #include <ebbrt/CacheAligned.h>
 #include <ebbrt/EbbAllocator.h>
 #include <ebbrt/EventManager.h>
-#include <ebbrt/LocalIdMap.h>
 #include <ebbrt/Future.h>
+#include <ebbrt/LocalIdMap.h>
 #include <ebbrt/Net.h>
 #include <ebbrt/NetTcpHandler.h>
 #include <ebbrt/SharedIOBufRef.h>
@@ -25,26 +25,24 @@
 
 namespace ebbrt {
 
-
-
 class SocketManager : public ebbrt::StaticSharedEbb<SocketManager>,
                       public CacheAligned {
 public:
   class SocketFd : public Vfs::Fd {
   public:
-    class TcpSession : public ebbrt::TcpHandler,
-                       public ebbrt::Timer::Hook {
+    class TcpSession : public ebbrt::TcpHandler, public ebbrt::Timer::Hook {
     public:
       void Fire() override;
       TcpSession(SocketFd *fd, ebbrt::NetworkManager::TcpPcb pcb)
           : ebbrt::TcpHandler(std::move(pcb)), fd_(fd), read_blocked_(false) {}
-      void Connected() override; 
+      void Connected() override;
       void Receive(std::unique_ptr<ebbrt::MutIOBuf> buf) override;
       void Close() override;
       void Abort() override;
 
     private:
-      typedef std::pair<Promise<std::unique_ptr<ebbrt::IOBuf>>, size_t> PendingRead;
+      typedef std::pair<Promise<std::unique_ptr<ebbrt::IOBuf>>, size_t>
+          PendingRead;
       friend class SocketFd;
       SocketFd *fd_;
       ebbrt::NetworkManager::TcpPcb pcb_;
@@ -57,7 +55,7 @@ public:
       void check_read();
     };
 
-    SocketFd() : listen_port_(0), flags_(0) {};
+    SocketFd() : listen_port_(0), flags_(0){};
     static EbbRef<SocketFd> Create(EbbId id = ebb_allocator->AllocateLocal()) {
       auto root = new SocketFd::Root();
       local_id_map->Insert(
@@ -68,12 +66,20 @@ public:
       return static_cast<SocketFd &>(Vfs::Fd::HandleFault(id));
     }
     class Root : public Vfs::Fd::Root {
+      std::atomic<SocketFd*> theRep;
     public:
+      Root() : theRep(nullptr){};
       Vfs::Fd &HandleFault(EbbId id) override {
-        auto rep = new SocketFd();
+        if (!theRep) {
+          auto tmp = new SocketFd();
+           SocketFd* null = nullptr;
+          if (!theRep.compare_exchange_strong(null, tmp)) {
+            delete tmp;
+          }
+        }
         // Cache the reference to the rep in the local translation table
-        EbbRef<SocketFd>::CacheRef(id, *rep);
-        return *rep;
+        EbbRef<SocketFd>::CacheRef(id, *theRep);
+        return *theRep;
       }
     };
 
@@ -86,15 +92,15 @@ public:
     void Write(std::unique_ptr<IOBuf> buf) override;
     ebbrt::Future<uint8_t> Close() override;
     uint32_t GetFlags() override { return flags_; };
-    void SetFlags(uint32_t f) override { flags_ = f;};
-  
+    void SetFlags(uint32_t f) override { flags_ = f; };
+
     // NONBLOCKING
     bool IsReadReady();
     bool IsWriteReady() { return true; };
-    
+
   private:
     void install_pcb(ebbrt::NetworkManager::TcpPcb pcb);
-    bool is_nonblocking(){ return flags_ & O_NONBLOCK; }
+    bool is_nonblocking() { return flags_ & O_NONBLOCK; }
     void check_waiting();
 
     TcpSession *tcp_session_;
@@ -107,7 +113,6 @@ public:
     std::queue<ebbrt::NetworkManager::TcpPcb> waiting_pcb_;
     ebbrt::SpinLock waiting_lock_;
     uint32_t flags_;
-
   };
   explicit SocketManager(){};
   int NewIpv4Socket();
