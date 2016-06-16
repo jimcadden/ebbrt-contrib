@@ -1,18 +1,17 @@
 #!/bin/bash
 #set -x
-
 # environment variables 
-export VCPUS=${VM_CPUS:-2}
+export VCPU=${VM_CPU:-2}
 export VMEM=${VM_MEM:-2G}
 
-NETVEC=$(($((${VCPUS}*2))+ 2))
+NETVEC=$(($((${VCPU}*2))+ 2))
 
 IFACE=eth0
 BRIDGE_IFACE=br0
 TAP_IFACE=tap0
 
 : ${KVM_NET_OPTS:="-netdev tap,script=no,downscript=no,\
-ifname=\$TAP_IFACE,id=net0,vhost=on,queues=\$VCPUS \
+ifname=\$TAP_IFACE,id=net0,vhost=on,queues=\$VCPU \
 -device virtio-net-pci,netdev=net0,mac=\$MAC,mq=on,\
 vectors=\$NETVEC"}
 
@@ -63,12 +62,7 @@ setup_bridge_networking() {
     IP=`ip addr show dev $IFACE | grep "inet $IP" | awk '{print $2}' | cut -f1 -d/`
     CIDR=`ip addr show dev $IFACE | grep "inet $IP" | awk '{print $2}' | cut -f2 -d/`
     NETMASK=`cidr2mask $CIDR`
-    if [ "$RANCHER_NETWORK" = "true" ]
-    then
-        GATEWAY=$(curl -s http://169.254.169.250/2015-07-25/self/container/labels/io.rancher.vm.metadata | jq -r '.["local-ipv4-gateway"]')
-    else
-        GATEWAY=`ip route get 8.8.8.8 | grep via | cut -f3 -d ' '`
-    fi
+    GATEWAY=`ip route get 8.8.8.8 | grep via | cut -f3 -d ' '`
     NAMESERVER=( `grep nameserver /etc/resolv.conf | grep -v "#" | cut -f2 -d ' '` )
     NAMESERVERS=`echo ${NAMESERVER[*]} | sed "s/ /,/"`
 
@@ -86,10 +80,11 @@ EOF
     end=$( for i in {1..8} ; do echo -n ${hexchars:$(( $RANDOM % 16 )):1} ; done | sed -e 's/\(..\)/:\1/g' )
     NEWMAC=`echo 06:FE$end`
 
-    let "NEWCIDR=$CIDR-1"
+    let "NEWCIDR=$CIDR"
 
     i=`atoi $IP`
-    let "i=$i^(1<<$CIDR)"
+    #let "i=$i^(1<<$CIDR)"
+    let "i=$i&~((1<<$16)-1)" # X.Y.0.0/16
     NEWIP=`itoa i`
 
     ip link set dev $IFACE down
@@ -124,4 +119,4 @@ if [ "$1" = "bash" ]; then
   exec bash
 fi
 
-exec $LAUNCHER qemu-system-x86_64 -m $VMEM -smp cpus=$VCPUS -cpu host -serial stdio -display none -enable-kvm `eval echo $KVM_NET_OPTS` $KVM_ARGS
+exec $LAUNCHER qemu-system-x86_64 -m $VMEM -smp cpus=$VCPU -cpu host -serial stdio -display none -enable-kvm `eval echo $KVM_NET_OPTS` $KVM_ARGS
