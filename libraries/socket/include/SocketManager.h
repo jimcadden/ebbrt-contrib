@@ -95,8 +95,8 @@ public:
     void SetFlags(uint32_t f) override { flags_ = f; };
 
     // NONBLOCKING
-    bool IsReadReady();
-    bool IsWriteReady() { return true; };
+    bool ReadWouldBlock();
+    bool WriteWouldBlock() { return false; };
 
   private:
     void install_pcb(ebbrt::NetworkManager::TcpPcb pcb);

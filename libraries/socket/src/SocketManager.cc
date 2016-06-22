@@ -219,16 +219,13 @@ ebbrt::SocketManager::SocketFd::Listen() {
 }
 
 bool
-ebbrt::SocketManager::SocketFd::IsReadReady() {
+ebbrt::SocketManager::SocketFd::ReadWouldBlock() {
   if ( tcp_session_->read_blocked_ ){
-    ebbrt::kprintf("warning: socket read blocked \n");
+    ebbrt::kabort("warning: socket read already blocked \n");
     return false;
   }
-  else if( flags_ & O_NONBLOCK ) 
-  {
-    return (tcp_session_->inbuf_ != nullptr);
-  }
-  return false;
+  // no outstanding reads
+  return (tcp_session_->inbuf_ == nullptr);
 }
 
 ebbrt::Future<uint8_t>

@@ -90,6 +90,7 @@ int lwip_socket(int domain, int type, int protocol) {
     ebbrt::kabort("Socket type not supported");
     return -1;
   }
+  // ebbrt::unix::socket::ipv4->New()
   return ebbrt::socket_manager->NewIpv4Socket();
 }
 
@@ -98,7 +99,8 @@ int lwip_read(int s, void *mem, size_t len) {
   auto fd = ebbrt::root_vfs->Lookup(s);
   auto fdref = static_cast<ebbrt::EbbRef<ebbrt::SocketManager::SocketFd>>(fd);
 
-  if (len && !fdref->IsReadReady()){
+  // return EAGAIN error for non-blocking sockets when no data is available
+  if (len && (fdref->GetFlags() & O_NONBLOCK) && fdref->ReadWouldBlock()) {
     errno = EAGAIN;
     return -1;
   }
@@ -260,10 +262,10 @@ int poll(struct pollfd *fds, nfds_t nfds, int timeout) {
     auto fd = static_cast<ebbrt::EbbRef<ebbrt::SocketManager::SocketFd>>(
         ebbrt::root_vfs->Lookup(pfd.fd));
 
-    if ((pfd.events & POLLIN) && fd->IsReadReady()) {
+    if ((pfd.events & POLLIN) && !fd->ReadWouldBlock()) {
       fds[i].revents |= POLLIN;
     }
-    if ((pfd.events & POLLOUT) && fd->IsWriteReady()) {
+    if ((pfd.events & POLLOUT) && !fd->WriteWouldBlock()) {
       fds[i].revents |= POLLOUT;
     }
     if ((~(POLLIN | POLLOUT) & pfd.events) != 0) {
