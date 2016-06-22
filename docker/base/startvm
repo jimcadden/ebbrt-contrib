@@ -1,5 +1,5 @@
 #!/bin/bash
-#set -x
+# set -x
 # environment variables 
 export VCPU=${VM_CPU:-2}
 export VMEM=${VM_MEM:-2G}
@@ -90,7 +90,6 @@ EOF
     ip link set dev $IFACE down
     ip link set $IFACE address $NEWMAC
     ip addr del $IP/$CIDR dev $IFACE
-
     ip tuntap add dev $TAP_IFACE mode tap multi_queue 
     ip link add name $BRIDGE_IFACE type bridge
     ip link set $IFACE master $BRIDGE_IFACE 
@@ -101,12 +100,10 @@ EOF
     if [ -z $NO_DHCP ]; then
         ip addr add $NEWIP/$NEWCIDR dev $BRIDGE_IFACE
     fi
-
     if [[ $? -ne 0 ]]; then
         echo "Failed to bring up network bridge"
         exit 4
     fi
-
     if [ -z $NO_DHCP ]; then
         dnsmasq 
     fi

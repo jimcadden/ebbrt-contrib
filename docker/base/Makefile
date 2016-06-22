@@ -1,5 +1,5 @@
 NAME = ebbrt/kvm-qemu
-VERSION = 0.0.3
+VERSION = latest 
 
 .PHONY : all build
 
