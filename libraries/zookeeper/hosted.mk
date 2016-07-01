@@ -12,4 +12,3 @@ EBBRT_APP_OBJECTS += $(zk_cpp_objects)
 EBBRT_APP_VPATH += $(abspath $(ZK_LIB)/src) 
 EBBRT_APP_CXXFLAGS += -lzookeeper_st 
 EBBRT_APP_LDFLAGS += -L$(LD_LIBRARY_PATH) -lzookeeper_st
-

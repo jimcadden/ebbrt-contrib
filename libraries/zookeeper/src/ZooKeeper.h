@@ -4,41 +4,44 @@
 //          http://www.boost.org/LICENSE_1_0.txt)
 //
 
-#ifndef APPS_ZK_BAREMETAL_SRC_ZOOKEEPER_H_
-#define APPS_ZK_BAREMETAL_SRC_ZOOKEEPER_H_
+#ifndef LIBS_ZOOKEEPER_SRC_ZOOKEEPER_H_
+#define LIBS_ZOOKEEPER_SRC_ZOOKEEPER_H_
 
 #include <cstdio>
-#include <string>
-#include <ebbrt/SpinLock.h>
-#include <ebbrt/Timer.h>
 #include <ebbrt/Debug.h>
 #include <ebbrt/Future.h>
+#ifndef __EBBRT_BM__
+#include <ebbrt/NodeAllocator.h>
+#endif
 #include <ebbrt/SharedEbb.h>
 #include <ebbrt/SharedIOBufRef.h>
-#include <zookeeper.h>
+#include <ebbrt/SpinLock.h>
+#include <ebbrt/Timer.h>
 #include <poll.h>
+#include <string>
+#include <zookeeper.h>
 
 namespace ebbrt {
 
-  constexpr int ZkConnectionTimeoutMs = 30000;
-  constexpr int ZkIoEventTimer = 1000;
+constexpr int ZkConnectionTimeoutMs = 30000;
+constexpr int ZkIoEventTimer = 1000;
 
 class ZooKeeper : public ebbrt::Timer::Hook {
 public:
   typedef struct Stat ZkStat;
-/* struct ZkStat:
-    int64_t czxid;
-    int64_t mzxid;
-    int64_t ctime;
-    int64_t mtime;
-    int32_t version;
-    int32_t cversion;
-    int32_t aversion;
-    int64_t ephemeralOwner;
-    int32_t dataLength;
-    int32_t numChildren;
-    int64_t pzxid;
-*/
+  /* struct ZkStat:
+      int64_t czxid;
+      int64_t mzxid;
+      int64_t ctime;
+      int64_t mtime;
+      int32_t version;
+      int32_t cversion;
+      int32_t aversion;
+      int64_t ephemeralOwner;
+      int32_t dataLength;
+      int32_t numChildren;
+      int64_t pzxid;
+  */
   struct Znode {
     int err;
     std::string value;
@@ -97,15 +100,23 @@ public:
     }
   };
 
-  static EbbRef<ZooKeeper> Create(EbbId id, const std::string &server_hosts,
-                                  Watcher *connection_watcher = nullptr,
-                                  int timeout_ms = ZkConnectionTimeoutMs,
-                                  int timer_ms = ZkIoEventTimer) {
+#ifndef __EBBRT_BM__
+  static EbbRef<ZooKeeper>
+  Create(EbbId id, Watcher *connection_watcher = nullptr,
+         int timeout_ms = ZkConnectionTimeoutMs, int timer_ms = ZkIoEventTimer,
+         std::string server_hosts = std::string()) {
+
+    if(server_hosts.empty()){
+      // start a ZooKeeper server instance on our network
+      server_hosts = node_allocator->AllocateContainer("jplock/zookeeper", "--expose 2888 --expose 3888 --expose 2181");
+      server_hosts += std::string(":2181");
+    }
     auto rep =
         new ZooKeeper(server_hosts, connection_watcher, timeout_ms, timer_ms);
     local_id_map->Insert(std::make_pair(id, std::move(rep)));
     return EbbRef<ZooKeeper>(id);
   }
+#endif
 
   static ZooKeeper &HandleFault(EbbId id) {
     LocalIdMap::ConstAccessor accessor;
@@ -133,7 +144,7 @@ public:
    */
   Future<Znode> New(const std::string &path,
                     const std::string &value = std::string(), int flags = 0);
-  Future<bool>  Exists(const std::string &path, Watcher *watch = nullptr);
+  Future<bool> Exists(const std::string &path, Watcher *watch = nullptr);
   Future<Znode> Get(const std::string &path, Watcher *watch = nullptr);
   Future<ZnodeChildren> GetChildren(const std::string &path,
                                     Watcher *watch = nullptr);
@@ -148,6 +159,8 @@ public:
   static void PrintZnodeChildren(ZnodeChildren *zkcr);
 
 private:
+  ZooKeeper(ebbrt::ZooKeeper::Watcher *connection_watcher, int timeout_ms,
+            int timer_ms);
   ZooKeeper(const std::string &server_hosts,
             ebbrt::ZooKeeper::Watcher *connection_watcher, int timeout_ms,
             int timer_ms);
