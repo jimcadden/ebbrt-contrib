@@ -23,10 +23,10 @@ class PrinterWatcher : public ebbrt::ZooKeeper::Watcher {
 };
 
 auto *mw = new PrinterWatcher();
-//ebbrt::EbbRef<ebbrt::ZooKeeper> zk =
-//    ebbrt::ZooKeeper::Create(ebbrt::ebb_allocator->Allocate(),  mw);
+ebbrt::EbbRef<ebbrt::ZooKeeper> zk;
 
 void AppMain() {
+  zk = ebbrt::ZooKeeper::Create(ebbrt::ebb_allocator->Allocate(), static_cast<ebbrt::ZooKeeper::Watcher*>(mw));
 //  auto val = zk->Get("/secret").Block().Get();
  // printf("The secret value is %s\n", val.value.c_str());
  printf("Backend up\n");

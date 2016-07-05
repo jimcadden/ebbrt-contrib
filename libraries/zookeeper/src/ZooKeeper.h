@@ -12,6 +12,8 @@
 #include <ebbrt/Future.h>
 #ifndef __EBBRT_BM__
 #include <ebbrt/NodeAllocator.h>
+#else
+#include <ebbrt/Multiboot.h>
 #endif
 #include <ebbrt/SharedEbb.h>
 #include <ebbrt/SharedIOBufRef.h>
@@ -100,23 +102,11 @@ public:
     }
   };
 
-#ifndef __EBBRT_BM__
-  static EbbRef<ZooKeeper>
-  Create(EbbId id, Watcher *connection_watcher = nullptr,
-         int timeout_ms = ZkConnectionTimeoutMs, int timer_ms = ZkIoEventTimer,
-         std::string server_hosts = std::string()) {
-
-    if(server_hosts.empty()){
-      // start a ZooKeeper server instance on our network
-      server_hosts = node_allocator->AllocateContainer("jplock/zookeeper", "--expose 2888 --expose 3888 --expose 2181");
-      server_hosts += std::string(":2181");
-    }
-    auto rep =
-        new ZooKeeper(server_hosts, connection_watcher, timeout_ms, timer_ms);
-    local_id_map->Insert(std::make_pair(id, std::move(rep)));
-    return EbbRef<ZooKeeper>(id);
-  }
-#endif
+  static EbbRef<ZooKeeper> Create(EbbId id,
+                                  Watcher *connection_watcher = nullptr,
+                                  int timeout_ms = ZkConnectionTimeoutMs,
+                                  int timer_ms = ZkIoEventTimer,
+                                  std::string server_hosts = std::string());
 
   static ZooKeeper &HandleFault(EbbId id) {
     LocalIdMap::ConstAccessor accessor;

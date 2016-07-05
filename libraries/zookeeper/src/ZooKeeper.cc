@@ -5,6 +5,55 @@
 //
 #include "ZooKeeper.h"
 
+#ifndef __EBBRT_BM__
+  /* On creation, the front-end will spawn a ZooKeeper container */
+  ebbrt::EbbRef<ebbrt::ZooKeeper> ebbrt::ZooKeeper::Create(EbbId id,
+                                  Watcher *connection_watcher,
+                                  int timeout_ms,
+                                  int timer_ms,
+                                  std::string server_hosts) {
+    if (server_hosts.empty()) {
+      // start a ZooKeeper server instance on our network
+      server_hosts = node_allocator->AllocateContainer(
+          "jplock/zookeeper", "--expose 2888 --expose 3888 --expose 2181");
+      server_hosts += std::string(":2181");
+    }
+    node_allocator->AppendArgs(std::string("zookeeper=") + server_hosts);
+    auto rep =
+        new ebbrt::ZooKeeper(server_hosts, connection_watcher, timeout_ms, timer_ms);
+    local_id_map->Insert(std::make_pair(id, std::move(rep)));
+    return ebbrt::EbbRef<ebbrt::ZooKeeper>(id);
+  }
+#else
+  /* On creation, the back-end will check the node's command line arguments
+   * for the ZooKeeper ip/port */
+  ebbrt::EbbRef<ebbrt::ZooKeeper> ebbrt::ZooKeeper::Create(EbbId id,
+                                  Watcher *connection_watcher,
+                                  int timeout_ms,
+                                  int timer_ms,
+                                  std::string server_hosts) {
+
+    if (server_hosts.empty()) {
+      // get ZooKeeper addresses from the command line
+      auto cl = std::string(ebbrt::multiboot::CmdLine());
+      auto zkstr = std::string("zookeeper=");
+      auto loc = cl.find(zkstr);
+      if (loc == std::string::npos) {
+        kabort("No configuration for ZooKeeper found in command line\n");
+      }
+      server_hosts = cl.substr((loc + zkstr.size()));
+      auto gap = server_hosts.find(";");
+      if (gap != std::string::npos) {
+        server_hosts = server_hosts.substr(0, gap);
+      }
+    }
+    auto rep =
+        new ebbrt::ZooKeeper(server_hosts, connection_watcher, timeout_ms, timer_ms);
+    local_id_map->Insert(std::make_pair(id, std::move(rep)));
+    return ebbrt::EbbRef<ebbrt::ZooKeeper>(id);
+  }
+#endif
+
 ebbrt::ZooKeeper::ZooKeeper(const std::string &server_hosts,
                             ebbrt::ZooKeeper::Watcher *connection_watcher,
                             int timeout_ms, int timer_ms)
