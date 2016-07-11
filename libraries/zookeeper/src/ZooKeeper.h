@@ -25,7 +25,7 @@
 
 namespace ebbrt {
 
-constexpr int ZkConnectionTimeoutMs = 30000;
+constexpr int ZkConnectionTimeoutMs = 40000;
 constexpr int ZkIoEventTimer = 1000;
 
 class ZooKeeper : public ebbrt::Timer::Hook {

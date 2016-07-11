@@ -4,9 +4,10 @@
 //          http://www.boost.org/LICENSE_1_0.txt)
 //
 #include "ZooKeeper.h"
-
 #ifndef __EBBRT_BM__
-  /* On creation, the front-end will spawn a ZooKeeper container */
+#include <chrono>
+#include <thread>
+  /* On creation the front-end will spawn a ZooKeeper container */
   ebbrt::EbbRef<ebbrt::ZooKeeper> ebbrt::ZooKeeper::Create(EbbId id,
                                   Watcher *connection_watcher,
                                   int timeout_ms,
@@ -17,6 +18,8 @@
       server_hosts = node_allocator->AllocateContainer(
           "jplock/zookeeper", "--expose 2888 --expose 3888 --expose 2181");
       server_hosts += std::string(":2181");
+      using namespace std::chrono_literals;
+      std::this_thread::sleep_for(5s);
     }
     node_allocator->AppendArgs(std::string("zookeeper=") + server_hosts);
     auto rep =
@@ -25,14 +28,13 @@
     return ebbrt::EbbRef<ebbrt::ZooKeeper>(id);
   }
 #else
-  /* On creation, the back-end will check the node's command line arguments
+  /* On creation the back-end will check the node's command line arguments
    * for the ZooKeeper ip/port */
   ebbrt::EbbRef<ebbrt::ZooKeeper> ebbrt::ZooKeeper::Create(EbbId id,
                                   Watcher *connection_watcher,
                                   int timeout_ms,
                                   int timer_ms,
                                   std::string server_hosts) {
-
     if (server_hosts.empty()) {
       // get ZooKeeper addresses from the command line
       auto cl = std::string(ebbrt::multiboot::CmdLine());
@@ -59,13 +61,12 @@ ebbrt::ZooKeeper::ZooKeeper(const std::string &server_hosts,
                             int timeout_ms, int timer_ms)
     : connection_watcher_(connection_watcher) {
 
-  // create zk object
-  zoo_set_debug_level(ZOO_LOG_LEVEL_DEBUG);
+  zoo_set_debug_level(ZOO_LOG_LEVEL_INFO);
   zoo_deterministic_conn_order(1); // deterministic command->server assignment
   zk_ = zookeeper_init(server_hosts.c_str(), process_watch_event, timeout_ms,
                        nullptr, connection_watcher, 0);
 
-  timer->Start(*this, std::chrono::milliseconds(timer_ms), true);
+  timer->Start(*this, std::chrono::milliseconds(timer_ms-1000), true);
   return;
 }
 
