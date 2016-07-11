@@ -1,4 +1,4 @@
-project("helloworld-ebbrt" C CXX)
+project("helloworld-ebbrt" CXX)
 cmake_minimum_required(VERSION 2.6 FATAL_ERROR)
 
 set(HOSTED_SOURCES 
@@ -19,6 +19,7 @@ if(CMAKE_TOOLCHAIN_FILE)
 endif()
 
 if( ${CMAKE_SYSTEM_NAME} STREQUAL "EbbRT")
+
   message(STATUS "Building baremetal image...")
   add_executable(helloworld.elf ${BAREMETAL_SOURCES})
 
