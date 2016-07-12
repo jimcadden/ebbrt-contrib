@@ -70,4 +70,12 @@ baremetal-debug: | check-ebbrt-src check-ebbrt-sysroot $(BAREMETAL_DEBUG_DIR)
 	$(CD) $(BAREMETAL_DEBUG_DIR) && \
 		EBBRT_SYSROOT=$(EBBRTSYSROOT) $(CMAKE) -DCMAKE_TOOLCHAIN_FILE=$(CMAKE_TOOLCHAIN_FILE) $(MYDIR) && $(MAKE)
 
+baremetal-release: | check-ebbrt-src check-ebbrt-sysroot $(BAREMETAL_RELEASE_DIR) 
+	$(CD) $(BAREMETAL_RELEASE_DIR) && \
+		EBBRT_SYSROOT=$(EBBRTSYSROOT) $(CMAKE) -DCMAKE_TOOLCHAIN_FILE=$(CMAKE_TOOLCHAIN_FILE) $(MYDIR) && $(MAKE)
+
+hosted-debug:
+
+hosted-release:
+
 .PHONY: Debug Release all check-src baremetal baremetal-debug baremetal-release hosted hosted-debug hosted-release 
