@@ -13,19 +13,21 @@
 
 #include <errno.h>
 #include <netdb.h>
-#include <sys/socket.h>
 #include <poll.h>
+#include <sys/socket.h>
 
 #include "lwip/api.h"
 #include "lwip/err.h"
 #include "lwip/memp.h"
+#include "lwip/netdb.h"
 #include "lwip/pbuf.h"
 
 int lwip_listen(int s, int backlog) {
   // XXX: backlog len ignored
   try {
     auto fd = ebbrt::root_vfs->Lookup(s);
-    return static_cast<ebbrt::EbbRef<ebbrt::SocketManager::SocketFd>>(fd)->Listen();
+    return static_cast<ebbrt::EbbRef<ebbrt::SocketManager::SocketFd>>(fd)
+        ->Listen();
   } catch (std::invalid_argument &e) {
     errno = EBADF;
     return -1;
@@ -86,7 +88,8 @@ int lwip_connect(int s, const struct sockaddr *name, socklen_t namelen) {
 }
 
 int lwip_socket(int domain, int type, int protocol) {
-  if (domain != AF_INET || type != SOCK_STREAM || protocol != 0) {
+  if (domain != AF_INET || type != SOCK_STREAM ||
+      (protocol != IPPROTO_IP && protocol != IPPROTO_TCP)) {
     ebbrt::kabort("Socket type not supported");
     return -1;
   }
@@ -94,7 +97,8 @@ int lwip_socket(int domain, int type, int protocol) {
   return ebbrt::socket_manager->NewIpv4Socket();
 }
 
-// A read with len=0 will create a future that signals when a non-blocking socket has data
+// A read with len=0 will create a future that signals when a non-blocking
+// socket has data
 int lwip_read(int s, void *mem, size_t len) {
   auto fd = ebbrt::root_vfs->Lookup(s);
   auto fdref = static_cast<ebbrt::EbbRef<ebbrt::SocketManager::SocketFd>>(fd);
@@ -114,7 +118,7 @@ int lwip_read(int s, void *mem, size_t len) {
     return chain_len;
   }
   {
-    errno = EIO; 
+    errno = EIO;
     return -1;
   }
 }
@@ -183,6 +187,9 @@ int lwip_setsockopt(int s, int level, int optname, const void *optval,
       EBBRT_UNIMPLEMENTED();
     }
     break;
+  case SOL_SOCKET:
+    ebbrt::kprintf("Warning: Approving SOL_SOCKET level option #%d without action\n", optname);
+    return ERR_OK;
   default:
     EBBRT_UNIMPLEMENTED();
   }
@@ -273,4 +280,15 @@ int poll(struct pollfd *fds, nfds_t nfds, int timeout) {
     }
   }
   return 0;
+}
+
+struct protoent *getprotobyname(const char *name) {
+  if (strcmp(name, "tcp") || strcmp(name, "TCP")) {
+    auto rtn = (struct protoent *)malloc(sizeof(struct protoent));
+    rtn->p_name = const_cast<char *>(std::string("tcp").c_str());
+    rtn->p_proto = IPPROTO_TCP;
+    rtn->p_aliases = nullptr;
+    return rtn;
+  }
+  return nullptr;
 }

@@ -91,10 +91,12 @@ void Setup(ArgStruct *p)
           exit(556);
      }
  }
- getsockopt(sockfd, SOL_SOCKET, SO_SNDBUF,
-                 (char *) &send_size, (void *) &sizeofint);
- getsockopt(sockfd, SOL_SOCKET, SO_RCVBUF,
-                 (char *) &recv_size, (void *) &sizeofint);
+ /* getsockopt(sockfd, SOL_SOCKET, SO_SNDBUF, */
+ /*                 (char *) &send_size, (void *) &sizeofint); */
+ /* getsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, */
+ /*                 (char *) &recv_size, (void *) &sizeofint); */
+ send_size=0;
+ recv_size=0;
  
  if(!doing_reset) {
    fprintf(stderr,"Send and receive buffers are %d and %d bytes\n",
@@ -142,7 +144,7 @@ void Setup(ArgStruct *p)
 
    p->servicefd = sockfd;
  }
- p->upper = send_size + recv_size;
+ p->upper = MAXINT; //send_size + recv_size;
 
  establish(p);                               /* Establish connections */
 
@@ -329,6 +331,7 @@ void establish(ArgStruct *p)
 
   if( p->tr ){
 
+    fprintf(stderr, "Client: listening...\n");
     while( connect(p->commfd, (struct sockaddr *) &(p->prot.sin1),
                    sizeof(p->prot.sin1)) < 0 ) {
 
@@ -347,11 +350,13 @@ void establish(ArgStruct *p)
   } else if( p->rcv ) {
 
     /* SERVER */
+    fprintf(stderr, "Server: listening...\n");
     listen(p->servicefd, 5);
     p->commfd = accept(p->servicefd, (struct sockaddr *) &(p->prot.sin2), &clen);
 
+    fprintf(stderr, "Server: New Connection!...\n");
     if(p->commfd < 0){
-      printf("Server: Accept Failed! errno=%d\n",errno);
+      fprintf(stderr,"Server: Accept Failed! errno=%d\n",errno);
       exit(-12);
     }
 

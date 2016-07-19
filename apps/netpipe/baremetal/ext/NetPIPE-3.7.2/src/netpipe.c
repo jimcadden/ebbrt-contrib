@@ -32,7 +32,7 @@
 
 extern char *optarg;
 
-int main(int argc, char **argv)
+int netpipe_main(int argc, char **argv)
 {
     FILE        *out;           /* Output data file                          */
     char        s[255],s2[255],delim[255],*pstr; /* Generic strings          */

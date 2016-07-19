@@ -36,6 +36,11 @@
 #include <infiniband/verbs.h>	/* enum ibv_mtu */
 #endif
 
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifdef FINAL
   #define  TRIALS             7
   #define  RUNTM              0.25
@@ -368,6 +373,8 @@ struct data
     int    repeat;
 };
 
+int netpipe_main(int argc, char **argv);
+
 double When();
 
 void Init(ArgStruct *p, int* argc, char*** argv);
@@ -425,3 +432,7 @@ void PrintUsage();
 int getopt( int argc, char * const argv[], const char *optstring);
 
 void AfterAlignmentInit( ArgStruct *p );
+
+#ifdef __cplusplus
+}
+#endif

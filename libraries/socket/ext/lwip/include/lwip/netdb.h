@@ -115,10 +115,19 @@ extern int lwip_getaddrinfo(const char *nodename,
        lwip_getaddrinfo(nodname, servname, hints, res)
 #endif /* LWIP_COMPAT_SOCKETS */
 
+/* CUSTOM */
+struct protoent {
+    char  *p_name;       /* official protocol name */
+    char **p_aliases;    /* alias list */
+    int    p_proto;      /* protocol number */
+};
+struct protoent *getprotobyname(const char *name);
+
 #ifdef __cplusplus
 }
 #endif
 
 #endif /* LWIP_DNS && LWIP_SOCKET */
+
 
 #endif /* __LWIP_NETDB_H__ */
