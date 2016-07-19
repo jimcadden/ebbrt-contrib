@@ -106,7 +106,7 @@ void AppMain() { printer->Print("MAPREDUCE BACKEND UP.\n");
 
     job.run<mapreduce::schedule_policy::sequential<prime_calculator::job> >(result);
 
-    ebbrt::kprintf("MapReduce finished in %d with %d results \n", result.job_runtime.count(), std::distance(job.begin_results(), job.end_results()));
+    ebbrt::kprintf("MapReduce finished in %lf with %d results \n", result.job_runtime.count(), std::distance(job.begin_results(), job.end_results()));
     for (auto it=job.begin_results(); it!=job.end_results(); ++it)
         ebbrt::kprintf("%d ",it->second);
     ebbrt::kprintf("\n");
