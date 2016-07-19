@@ -1,7 +1,5 @@
 MYDIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 
-APP_TARGET ?= helloworld
-
 CD ?= cd
 CMAKE ?= cmake
 CP ?= cp
@@ -9,18 +7,12 @@ ECHO ?= echo
 MAKE ?= make
 MKDIR ?= mkdir
 
-EBBRTSRCDIR ?= $(abspath $(EBBRT_SRCDIR))# required variable
-EBBRTSYSROOT ?= $(abspath $(EBBRT_SYSROOT))# required variable
+# REQUIRE ENVIRONMENT VARIABLES
+EBBRTSRCDIR ?= $(abspath $(EBBRT_SRCDIR))
+EBBRTSYSROOT ?= $(abspath $(EBBRT_SYSROOT))
+EBBRTCONFIGDIR ?= $(abspath $(EBBRT_CONFIGDIR))
 
-EBBRT_HOSTED_SRC_PATH ?= $(EBBRTSRCDIR)/hosted
-EBBRT_BUILD_PATH ?= $(MYDIR)/ebbrt
-EBBRT_HOSTED_BUILD_PATH ?= $(EBBRT_BUILD_PATH)/hosted
-EBBRT_HOSTED_INSTALL_PATH ?= $(MYDIR)/usr
-EBBRT_HOSTED_LIB_PATH ?= $(EBBRT_HOSTED_INSTALL_PATH)/lib
-EBBRT_HOSTED_CMAKE_CONFIG_PATH ?= $(EBBRT_HOSTED_LIB_PATH)/cmake/EbbRT
-
-CMAKE_TOOLCHAIN_FILE ?= $(EBBRTSRCDIR)/baremetal/cmake/ebbrt.cmake
-CMAKE_PACKAGE_CONFIG_FILE ?= $(EBBRT_HOSTED_CMAKE_CONFIG_PATH)/EbbRTConfig.cmake
+CMAKE_TOOLCHAIN_FILE ?= $(EBBRTSYSROOT)/usr/misc/ebbrt.cmake
 
 BUILD_PATH ?= $(MYDIR)
 DEBUG_PATH ?= $(BUILD_PATH)/Debug
@@ -32,8 +24,29 @@ HOSTED_DEBUG_DIR ?= $(DEBUG_PATH)
 HOSTED_RELEASE_DIR ?= $(RELEASE_PATH)
 
 all: Debug Release
+
+hosted: hosted-debug hosted-release
+
+baremetal: baremetal-debug baremetal-release
+
 Debug: baremetal-debug hosted-debug
+
 Release: baremetal-release baremetal-debug
+
+check-ebbrt-src:
+ifndef EBBRT_SRCDIR
+	$(error EBBRT_SRCDIR is undefined)
+endif
+
+check-ebbrt-sysroot:
+ifndef EBBRT_SYSROOT
+	$(error EBBRT_SYSROOT is undefined)
+endif
+
+check-ebbrt-config:
+ifndef EBBRT_CONFIGDIR
+	$(error EBBRT_CONFIGDIR is undefined)
+endif
 
 $(BUILD_PATH): 
 	$(MKDIR) $@
@@ -56,26 +69,32 @@ $(HOSTED_DEBUG_DIR): | $(DEBUG_PATH)
 $(HOSTED_RELEASE_DIR): | $(RELEASE_PATH)
 	$(MKDIR) $@
 
-check-ebbrt-src:
-ifndef EBBRT_SRCDIR
-	$(error EBBRT_SRCDIR is undefined)
-endif
-
-check-ebbrt-sysroot:
-ifndef EBBRT_SYSROOT
-	$(error EBBRT_SYSROOT is undefined)
-endif
-
 baremetal-debug: | check-ebbrt-src check-ebbrt-sysroot $(BAREMETAL_DEBUG_DIR) 
 	$(CD) $(BAREMETAL_DEBUG_DIR) && \
 		EBBRT_SYSROOT=$(EBBRTSYSROOT) $(CMAKE) -DCMAKE_TOOLCHAIN_FILE=$(CMAKE_TOOLCHAIN_FILE) $(MYDIR) && $(MAKE)
 
 baremetal-release: | check-ebbrt-src check-ebbrt-sysroot $(BAREMETAL_RELEASE_DIR) 
 	$(CD) $(BAREMETAL_RELEASE_DIR) && \
-		EBBRT_SYSROOT=$(EBBRTSYSROOT) $(CMAKE) -DCMAKE_TOOLCHAIN_FILE=$(CMAKE_TOOLCHAIN_FILE) $(MYDIR) && $(MAKE)
+		EBBRT_SYSROOT=$(EBBRTSYSROOT) \
+		$(CMAKE) -DCMAKE_TOOLCHAIN_FILE=$(CMAKE_TOOLCHAIN_FILE) $(MYDIR) && \
+		$(MAKE)
 
-hosted-debug:
+hosted-debug: | check-ebbrt-src check-ebbrt-config $(HOSTED_DEBUG_DIR)
+	$(CD) $(HOSTED_DEBUG_DIR) && \
+		EBBRT_CONFIGDIR=$(EBBRTCONFIGDIR) \
+	$(CMAKE) $(MYDIR) && \
+	$(MAKE)
 
-hosted-release:
+hosted-release: | check-ebbrt-src check-ebbrt-config $(HOSTED_RELEASE_DIR)
+	$(CD) $(HOSTED_RELEASE_DIR) && \
+		EBBRT_CONFIGDIR=$(EBBRTCONFIGDIR) \
+	$(CMAKE) $(MYDIR) && \
+	$(MAKE)
 
-.PHONY: Debug Release all check-src baremetal baremetal-debug baremetal-release hosted hosted-debug hosted-release 
+clean: 
+	$(MAKE) clean -C $(HOSTED_DEBUG_DIR) && \
+	$(MAKE) clean -C $(HOSTED_RELEASE_DIR) && \
+	$(MAKE) clean -C $(BAREMETAL_DEBUG_DIR) && \
+	$(MAKE) clean -C $(BAREMETAL_RELEASE_DIR) 
+
+.PHONY: Debug Release all clean baremetal baremetal-debug baremetal-release hosted hosted-debug hosted-release 

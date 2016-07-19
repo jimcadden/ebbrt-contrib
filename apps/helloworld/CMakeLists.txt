@@ -1,4 +1,4 @@
-project("helloworld-ebbrt" CXX)
+project("helloworld-ebbrt" C CXX)
 cmake_minimum_required(VERSION 2.6 FATAL_ERROR)
 
 set(HOSTED_SOURCES 
@@ -34,23 +34,22 @@ if( ${CMAKE_SYSTEM_NAME} STREQUAL "EbbRT")
 # to specify the installed location of EbbRT hosted, wherein EbbRTConfig.cmake
 # is installed to: ./lib/cmake/EbbRT/ 
 
-
 elseif( ${CMAKE_SYSTEM_NAME} STREQUAL "Linux" )
   message(STATUS "Building Linux executable...")
   # optional: pull cmake modules from the EbbRT source tree 
+  # TODO(jmcadden): remove source-dir requirement by installing these modules
+  # to the system
   if(DEFINED ENV{EBBRT_SRCDIR})
     list(APPEND CMAKE_MODULE_PATH 
       "$ENV{EBBRT_SRCDIR}/hosted/cmake/Modules")
   endif()
 
   # optional: specify location of cmake configuration (EbbRTConfig.cmake)
-  if(DEFINED ENV{EBBRT_LIBDIR})
-    set(EbbRT_DIR $ENV{EBBRT_LIBDIR}/cmake/EbbRT) 
-  elseif(DEFINED ENV{EBBRT_CONFIGDIR})
+  if(DEFINED ENV{EBBRT_CONFIGDIR})
     set(EbbRT_DIR $ENV{EBBRT_CONFIGDIR}) 
   else()
-    message( WARNING "No location specified for EbbRTConfig.cmake (checks for
-    $EBBRT_LIBDIR or $EBBRT_CONFIGDIR)")
+    message( WARNING "No location specified for EbbRTConfig.cmake (set
+    $EBBRT_CONFIGDIR)")
   endif()
 
   find_package(EbbRT REQUIRED)
@@ -59,14 +58,13 @@ elseif( ${CMAKE_SYSTEM_NAME} STREQUAL "Linux" )
   find_package(Capnp REQUIRED)
   find_package(Fdt REQUIRED)
   find_package(TBB REQUIRED)
-  find_package(Threads REQUIRED)
   
   list(APPEND CMAKE_CXX_FLAGS " -std=gnu++14 -Wall -Werror ")
 
   include_directories(${EBBRT_INCLUDE_DIRS})
   add_executable(helloworld ${HOSTED_SOURCES})
   target_link_libraries(helloworld -Wl,--whole-archive ${EBBRT_LIBRARIES}
-    -Wl,--no-whole-archive ${CAPNP_LIBRARIES_LITE} ${LIBFDT_LIBRARIES}
+    -Wl,--no-whole-archive -lpthread ${CAPNP_LIBRARIES_LITE} ${LIBFDT_LIBRARIES}
     ${CMAKE_THREAD_LIBS_INIT} ${Boost_LIBRARIES} ${TBB_LIBRARIES}
     )
 
