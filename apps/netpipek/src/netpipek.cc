@@ -243,9 +243,9 @@ ebbrt::NetworkManager::ListeningTcpPcb listening_pcb;
 
 void AppMain() {
 #ifdef TX
-  pcb.Connect(ebbrt::Ipv4Address({192, 168, 4, 104}), 49152);
+  pcb.Connect(ebbrt::Ipv4Address({192, 168, 1, 115}), 49152);
 #else
-  auto port = listening_pcb.Bind(0, [](ebbrt::NetworkManager::TcpPcb pcb) {
+  auto port = listening_pcb.Bind(49152, [](ebbrt::NetworkManager::TcpPcb pcb) {
 #endif
   auto handler = new NetPipeReceiver(std::move(pcb));
   handler->Install();
