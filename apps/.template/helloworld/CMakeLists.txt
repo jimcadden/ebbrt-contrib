@@ -17,22 +17,13 @@ set(BAREMETAL_SOURCES
       src/baremetal/Printer.cc)
 
 # Baremetal  ========================================================
-
 if( ${CMAKE_SYSTEM_NAME} STREQUAL "EbbRT")
-
   add_executable({{ title }}.elf ${BAREMETAL_SOURCES})
   add_custom_command(TARGET {{ title }}.elf POST_BUILD
     COMMAND objcopy -O elf32-i386 {{ title }}.elf {{ title }}.elf32 )
 
 # Hosted  ===========================================================
 elseif( ${CMAKE_SYSTEM_NAME} STREQUAL "Linux" )
-
-  # TODO(jmcadden): remove source-dir requirement
-  if(DEFINED ENV{EBBRT_SRCDIR})
-    list(APPEND CMAKE_MODULE_PATH
-      "$ENV{EBBRT_SRCDIR}/hosted/cmake/Modules")
-  endif()
-
   find_package(EbbRT REQUIRED)
   find_package(Boost 1.53.0 REQUIRED COMPONENTS
     filesystem system coroutine context )
