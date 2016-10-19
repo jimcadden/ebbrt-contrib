@@ -28,7 +28,8 @@ if( ${CMAKE_SYSTEM_NAME} STREQUAL "EbbRT")
   include_directories(${EBBRT-SOCKET_INCLUDE_DIRS}
     ${EBBRT-ZOOKEEPER_INCLUDE_DIRS})
   add_executable(zkdemo.elf ${BAREMETAL_SOURCES})
-  target_link_libraries(zkdemo.elf ${EBBRT-ZOOKEEPER_LIBRARIES})
+  target_link_libraries(zkdemo.elf ${EBBRT-ZOOKEEPER_LIBRARIES} )
+  target_link_libraries(zkdemo.elf ${EBBRT-SOCKET_LIBRARIES})
   add_custom_command(TARGET zkdemo.elf POST_BUILD
     COMMAND objcopy -O elf32-i386 zkdemo.elf zkdemo.elf32 )
 

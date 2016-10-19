@@ -7,6 +7,10 @@
 
 #include <ebbrt/StaticIds.h>
 
-enum : ebbrt::EbbId { kPrinterEbbId = ebbrt::kFirstStaticUserId };
+enum : ebbrt::EbbId {
+  kPrinterEbbId = ebbrt::kFirstStaticUserId,
+  kSocketManagerEbbId,
+  kVfsEbbId
+};
 
 #endif  // APPS_ZKDEMO_SRC_STATICEBBIDS_H_

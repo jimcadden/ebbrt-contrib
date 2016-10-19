@@ -5,8 +5,4 @@
 
 #include "Printer.h"
 
-#include <ebbrt-zookeeper/ZooKeeper.h>
-
-ebbrt::EbbRef<ebbrt::ZooKeeper> zk;
-
 void AppMain() { printer->Print("ZKDEMO BACKEND UP.\n"); }
