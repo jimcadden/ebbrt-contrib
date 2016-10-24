@@ -4,9 +4,9 @@
 //          http://www.boost.org/LICENSE_1_0.txt)
 #include <cfloat>
 
-#include <ebbrt/Clock.h>
+#include <ebbrt/native/Clock.h>
 #include <ebbrt/EventManager.h>
-#include <ebbrt/NetTcpHandler.h>
+#include <ebbrt/native/NetTcpHandler.h>
 #include <ebbrt/StaticIOBuf.h>
 #include <ebbrt/UniqueIOBuf.h>
 
