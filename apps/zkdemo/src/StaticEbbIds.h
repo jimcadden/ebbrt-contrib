@@ -9,8 +9,7 @@
 
 enum : ebbrt::EbbId {
   kPrinterEbbId = ebbrt::kFirstStaticUserId,
-  kSocketManagerEbbId,
-  kVfsEbbId
+  kZKGlobalIdMapId
 };
 
 #endif  // APPS_ZKDEMO_SRC_STATICEBBIDS_H_

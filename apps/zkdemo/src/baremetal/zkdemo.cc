@@ -3,6 +3,16 @@
 //    (See accompanying file LICENSE_1_0.txt or copy at
 //          http://www.boost.org/LICENSE_1_0.txt)
 
-#include "Printer.h"
+#include <ebbrt/Debug.h>
 
-void AppMain() { printer->Print("ZKDEMO BACKEND UP.\n"); }
+#include "Printer.h"
+#include "../ZKGlobalIdMap.h"
+
+void AppMain() { 
+  
+  printer->Print("ZKDEMO BACKEND UP.\n"); 
+
+  ebbrt::kprintf("getting secret\n");
+  auto val = ebbrt::zkglobal_id_map->Get(42).Block().Get();
+  ebbrt::kprintf("The secret value is %s\n", val.c_str());
+}
