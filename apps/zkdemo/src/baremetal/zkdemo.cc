@@ -11,8 +11,10 @@
 void AppMain() { 
   
   printer->Print("ZKDEMO BACKEND UP.\n"); 
-
-  ebbrt::kprintf("getting secret\n");
-  auto val = ebbrt::zkglobal_id_map->Get(42).Block().Get();
-  ebbrt::kprintf("The secret value is %s\n", val.c_str());
+  ebbrt::zkglobal_id_map->Init().Then([](auto connected) {
+   ebbrt::kbugon(connected.Get() == false);
+   ebbrt::kprintf("getting secret\n");
+   auto val = ebbrt::zkglobal_id_map->Get(42).Block().Get();
+   ebbrt::kprintf("The secret value is %s\n", val.c_str());
+  });
 }

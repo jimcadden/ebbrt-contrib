@@ -7,34 +7,39 @@
 
 #include "ZKGlobalIdMap.h"
 
-
-ebbrt::Future<std::string> ebbrt::ZKGlobalIdMap::Get(ebbrt::EbbId id) {
-  ebbrt::kprintf("ZKGlobalIdMap Get() called: %d \n", id);
-  auto p = new ebbrt::Promise<std::string>;
-  auto ret = p->GetFuture();
-  char buff[100];
-  sprintf(buff, "/%d", id);
-  // TODO: use GetVal
-  zk_->Get(std::string(buff)).Then(
-          [p](ebbrt::Future<ebbrt::ZooKeeper::Znode> f) { 
-            auto zn = f.Get(); 
-            p->SetValue(zn.value); 
-          });
-  return ret;
+ebbrt::Future<bool> ebbrt::ZKGlobalIdMap::Init() {
+  zk_ = ebbrt::ZooKeeper::Create(ebbrt::ebb_allocator->Allocate(), &zkwatcher_);
+  return zkwatcher_.connected_.GetFuture();
+  ;
 }
 
-ebbrt::Future<void> ebbrt::ZKGlobalIdMap::Set(EbbId id, std::string val) {
-  ebbrt::kprintf("ZKGlobalIdMap Set() called: %d %s\n", id, val.c_str());
-  // if not chached, if not existed, create
-  // new
+ebbrt::Future<std::string> ebbrt::ZKGlobalIdMap::Get(ebbrt::EbbId id,
+                                                     std::string path) {
+  char buf[15];
+  sprintf(buf, "/%d", id);
+  return zk_->GetValue(std::string(buf));
+}
+
+ebbrt::Future<void> ebbrt::ZKGlobalIdMap::Set(EbbId id, std::string val,
+                                              std::string path) {
   auto p = new ebbrt::Promise<void>;
   auto ret = p->GetFuture();
   char buff[100];
   sprintf(buff, "/%d", id);
-  zk_->New(std::string(buff), val).Then(
-          [p](ebbrt::Future<ebbrt::ZooKeeper::Znode> f) { 
-            auto zn = f.Get(); 
-            p->SetValue(); 
-          });
+  zk_->Exists(std::string(buff)).Then([this, p, buff, val](auto b) {
+    if (b.Get() == true) {
+      zk_->Set(std::string(buff), val).Then([p](auto f) { p->SetValue(); });
+    } else {
+      zk_->New(std::string(buff), val).Then([p](auto f) { p->SetValue(); });
+    }
+  });
   return ret;
+}
+
+//ebbrt::Future<std::vector<std::string>> ebbrt::ZKGlobalIdMap::List(ebbrt::EbbId id, std::string path = std::string()){
+//  return;
+//}
+
+void ebbrt::ZKGlobalIdMap::SetWatchEvent(EbbId id, WatchEvent f, std::string path) {
+  return;
 }

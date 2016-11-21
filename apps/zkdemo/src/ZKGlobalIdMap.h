@@ -22,34 +22,39 @@
 
 namespace ebbrt {
 
-class ZKGlobalIdMap : public StaticSharedEbb<ZKGlobalIdMap>, public CacheAligned {
+class ZKGlobalIdMap : public StaticSharedEbb<ZKGlobalIdMap>,
+                      public CacheAligned {
+  typedef ebbrt::ZooKeeper::PathWatchEvent WatchEvent;
+
 public:
-  ZKGlobalIdMap(){
-    auto *zkwatcher = new ConnectionWatcher();
-    zk_ = ebbrt::ZooKeeper::Create(ebbrt::ebb_allocator->Allocate(), zkwatcher);
-  };
-  Future<std::string> Get(EbbId id);
-  Future<void> Set(EbbId id, std::string data);
+  Future<bool> Init();
+  Future<std::vector<std::string>> List(EbbId id, std::string path = std::string());
+  Future<std::string> Get(EbbId id, std::string path = std::string());
+  Future<void> Set(EbbId id, std::string data,
+                   std::string path = std::string());
+  void SetWatchEvent(EbbId id, WatchEvent f, std::string path = std::string());
 
 private:
   struct ConnectionWatcher : ebbrt::ZooKeeper::ConnectionWatcher {
     void OnConnected() override {
       ebbrt::kprintf("ZKGlobalIdMap: Session Connected.\n");
+      connected_.SetValue(true);
     }
     void OnConnecting() override {
-      ebbrt::kprintf("ZKGlobalIdMap: Session Conneting.\n");
+      ebbrt::kprintf("ZKGlobalIdMap: Session Conneting...\n");
     }
     void OnSessionExpired() override {
       ebbrt::kabort("ZKGlobalIdMap: Session Expired.\n");
     }
     void OnAuthFailed() override {
-      ebbrt::kabort("ZKGlobalIdMap: Session Authentication Failed.\n");
+      ebbrt::kprintf("ZKGlobalIdMap: Session Authentication Failed.\n");
+      connected_.SetValue(false);
     }
+    ebbrt::Promise<bool> connected_;
   };
 
+  ConnectionWatcher zkwatcher_;
   ebbrt::EbbRef<ebbrt::ZooKeeper> zk_;
-  ebbrt::SpinLock lock_;
-  uint64_t val_;
 };
 
 constexpr auto zkglobal_id_map = EbbRef<ZKGlobalIdMap>(kZKGlobalIdMapId);
