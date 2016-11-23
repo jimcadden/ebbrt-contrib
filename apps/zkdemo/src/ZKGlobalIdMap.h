@@ -24,15 +24,28 @@ namespace ebbrt {
 
 class ZKGlobalIdMap : public StaticSharedEbb<ZKGlobalIdMap>,
                       public CacheAligned {
-  typedef ebbrt::ZooKeeper::PathWatchEvent WatchEvent;
 
 public:
+  typedef ebbrt::ZooKeeper::PathWatcher MapWatcher;
+  typedef ebbrt::ZooKeeper::PathWatchEvent WatchEvent;
+
+  struct RepeatAlert : MapWatcher {
+    void OnChanged(const char* path){
+      ebbrt::kprintf("(watched) VALUE CHANGED: %s\n", path);
+    };
+    bool Repeat(){ 
+      
+    }
+  };
   Future<bool> Init();
   Future<std::vector<std::string>> List(EbbId id, std::string path = std::string());
-  Future<std::string> Get(EbbId id, std::string path = std::string());
+  Future<std::string> Get(EbbId id,
+                   std::string path = std::string());
   Future<void> Set(EbbId id, std::string data,
                    std::string path = std::string());
-  void SetWatchEvent(EbbId id, WatchEvent f, std::string path = std::string());
+  void SetWatcher(EbbId id, MapWatcher* w,  std::string path = std::string());
+  // Spawn
+  void SetWatchEvent(EbbId id, WatchEvent* f, std::string path = std::string());
 
 private:
   struct ConnectionWatcher : ebbrt::ZooKeeper::ConnectionWatcher {

@@ -45,6 +45,12 @@ int main(int argc, char **argv) {
           ebbrt::kbugon(connected.Get() == false);
           auto secret = "Hazer Baba";
           ebbrt::zkglobal_id_map->Set(42, secret).Block();
+          ebbrt::zkglobal_id_map->SetWatcher(
+              42, new ebbrt::ZKGlobalIdMap::RepeatAlert());
+          ebbrt::zkglobal_id_map->SetWatchEvent(
+              42, new ebbrt::ZKGlobalIdMap::WatchEvent(ZOO_CHANGED_EVENT, []() {
+                ebbrt::kprintf("Value has changed!\n");
+              }));
           auto ns = ebbrt::node_allocator->AllocateNode(bindir.string());
           ns.NetworkId().Then(
               [](ebbrt::Future<ebbrt::Messenger::NetworkId> net_if) {

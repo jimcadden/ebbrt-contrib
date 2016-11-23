@@ -40,6 +40,16 @@ ebbrt::Future<void> ebbrt::ZKGlobalIdMap::Set(EbbId id, std::string val,
 //  return;
 //}
 
-void ebbrt::ZKGlobalIdMap::SetWatchEvent(EbbId id, WatchEvent f, std::string path) {
+void ebbrt::ZKGlobalIdMap::SetWatcher(EbbId id, MapWatcher* w, std::string path) {
+  char buf[15];
+  sprintf(buf, "/%d", id);
+  zk_->Stat(std::string(buf), w).Block(); 
+  return;
+}
+
+void ebbrt::ZKGlobalIdMap::SetWatchEvent(EbbId id, WatchEvent* f, std::string path) {
+  char buf[15];
+  sprintf(buf, "/%d", id);
+  zk_->Stat(std::string(buf), f).Block(); 
   return;
 }
