@@ -41,20 +41,20 @@ template <class T> using RepMap = boost::container::flat_map<size_t, T*>;
 using detail::RepMap;
 
 /* forward declarations of class templates */
-template <class T, class R> class MulticoreEbbRootz;
-template <class T, class R> class MulticoreEbbz;
+template <class T, class R> class MulticoreEbbRoot;
+template <class T, class R> class MulticoreEbb;
 
 /* Ebb Root class templace with R-type Rep Map */
-template <class T, class R> class MulticoreEbbRootz {
+template <class T, class R> class MulticoreEbbRoot {
 protected:
   R* get_rep_(size_t core); 
   RepMap<R> reps_;
   EbbId id_;
 private:
-  friend class MulticoreEbbz<R, T>;
+  friend class MulticoreEbb<R, T>;
 };
 
-template <class T, class R> R* MulticoreEbbRootz<T,R>::get_rep_(size_t core) {
+template <class T, class R> R* MulticoreEbbRoot<T,R>::get_rep_(size_t core) {
     auto it = reps_.find(core);
       if (it != reps_.end()) {
         return it->second;
@@ -67,20 +67,20 @@ template <class T, class R> R* MulticoreEbbRootz<T,R>::get_rep_(size_t core) {
 }
 
 /* Multicore Ebb class template with typed Root */
-template <class T, class R> class MulticoreEbbz {
-  static_assert(std::is_base_of<MulticoreEbbRootz<R, T>, R>::value,
+template <class T, class R> class MulticoreEbb {
+  static_assert(std::is_base_of<MulticoreEbbRoot<R, T>, R>::value,
                 "Root type must inherit from MulticoreEbbRoot<R,T>");
 public:
-  MulticoreEbbz() = default;
+  MulticoreEbb() = default;
   static T &HandleFault(EbbId id);
 protected:
   R *root_ = nullptr;
 private:
   // By making the base root type a friend allows the rep constructor to initialize protected members
-  friend class MulticoreEbbRootz<R, T>;
+  friend class MulticoreEbbRoot<R, T>;
 };
 
-template <class T, class R> T &MulticoreEbbz<T, R>::HandleFault(EbbId id) {
+template <class T, class R> T &MulticoreEbb<T, R>::HandleFault(EbbId id) {
 retry:
   {
     // Check for root in LocalIdMap (read-lock)

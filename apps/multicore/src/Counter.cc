@@ -19,14 +19,11 @@ ebbrt::CounterRoot::CounterRoot() {
 uint64_t ebbrt::CounterRoot::Get() {
   auto sum = 0ll;
   for (size_t core = 0; core < ebbrt::Cpu::Count(); ++core) {
-    ebbrt::kprintf("seatch for core: %u\n", core);
-    ebbrt::kprintf("%p seatch repz %p\n", this, reps_);
-    ebbrt::kprintf("seatch repz %p\n", MulticoreEbbRootz::reps_);
     auto it = reps_.find(core);
     if (it != reps_.end()) {
       sum += it->second->GetLocal();
     } else {
-      ebbrt::kprintf("skipped!\n");
+      ebbrt::kprintf("core skipped!\n");
     }
   }
   return sum;

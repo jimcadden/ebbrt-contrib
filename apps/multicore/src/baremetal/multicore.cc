@@ -18,7 +18,6 @@ void AppMain() { printer->Print("MULTICORE BACKEND UP.\n");
     for (size_t core = 1; core < ebbrt::Cpu::Count(); ++core) {
       ebbrt::event_manager->SpawnRemote(
           [counter, &barrier, core]() {
-            ebbrt::kprintf("count on core i%d..\n", (size_t)ebbrt::Cpu::GetMine());
             counter->Up();
             barrier->Wait();
           },
@@ -26,7 +25,6 @@ void AppMain() { printer->Print("MULTICORE BACKEND UP.\n");
     }
     counter->Up();
     barrier->Wait();
-     ebbrt::kprintf("Getting Sum..\n");
     if((size_t)ebbrt::Cpu::GetMine() == 0){
         ebbrt::kprintf("Sum: %d\n", counter->Get());
     }

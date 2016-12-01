@@ -11,19 +11,19 @@
 namespace ebbrt {
 class Counter;
 
-class CounterRoot : public ebbrt::MulticoreEbbRootz<CounterRoot, Counter> {
+class CounterRoot : public ebbrt::MulticoreEbbRoot<CounterRoot, Counter> {
 public:
   CounterRoot();
   uint64_t Get();
 private:
-  friend class ebbrt::MulticoreEbbz<Counter,CounterRoot>;
+  friend class ebbrt::MulticoreEbb<Counter,CounterRoot>;
   Counter* get_rep_(size_t core){ 
     ebbrt::kprintf("overload! %d\n", id_);
-    return ebbrt::MulticoreEbbRootz<CounterRoot, Counter>::get_rep_(core);
+    return ebbrt::MulticoreEbbRoot<CounterRoot, Counter>::get_rep_(core);
   };
 };
 
-class Counter : public ebbrt::MulticoreEbbz<Counter, CounterRoot> {
+class Counter : public ebbrt::MulticoreEbb<Counter, CounterRoot> {
 public:
   Counter();
   void Up();
