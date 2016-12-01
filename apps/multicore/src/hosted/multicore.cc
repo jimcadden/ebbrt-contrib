@@ -7,7 +7,11 @@
 
 #include <boost/filesystem.hpp>
 
+#include <ebbrt/Cpu.h>
+#include <ebbrt/Debug.h>
+#include <ebbrt/SpinBarrier.h>
 #include <ebbrt/GlobalIdMap.h>
+#include <ebbrt/EbbRef.h>
 #include <ebbrt/Runtime.h>
 #include <ebbrt/StaticIds.h>
 #include <ebbrt/hosted/Context.h>
@@ -15,6 +19,7 @@
 #include <ebbrt/hosted/NodeAllocator.h>
 
 #include "Printer.h"
+//#include "../Counter.h"
 
 int main(int argc, char** argv) {
   auto bindir = boost::filesystem::system_complete(argv[0]).parent_path() /
@@ -29,6 +34,14 @@ int main(int argc, char** argv) {
     // ensure clean quit on ctrl-c
     sig.async_wait([&c](const boost::system::error_code& ec,
                         int signal_number) { c.io_service_.stop(); });
+
+
+///    ebbrt::EbbRef<Counter> counter;
+///    counter->Up();
+///    ebbrt::kprintf("Sum: %d\n", counter->Get());
+
+
+
     Printer::Init().Then([bindir](ebbrt::Future<void> f) {
       f.Get();
       ebbrt::node_allocator->AllocateNode(bindir.string());

@@ -13,6 +13,7 @@ set(HOSTED_SOURCES
       src/hosted/Printer.cc)
 
 set(BAREMETAL_SOURCES
+      src/Counter.cc
       src/baremetal/multicore.cc
       src/baremetal/Printer.cc)
 
