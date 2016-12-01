@@ -6,6 +6,10 @@
 #include "Counter.h"
 #include <ebbrt/Cpu.h>
 #include <ebbrt/Debug.h>
+#include <ebbrt/GlobalIdMap.h>
+
+#include <cstdlib>
+#include <string>
 
 void ebbrt::Counter::Up() { ++count_; };
 void ebbrt::Counter::Down() { --count_; };
@@ -23,4 +27,15 @@ uint64_t ebbrt::CounterRoot::Get() {
     }
   }
   return sum;
+};
+
+uint64_t ebbrt::GCounter::Get() { 
+  // local sum + global sum
+  return Counter::Get() + root_->Get(); 
+};
+
+/* get global sum */
+uint64_t ebbrt::GCounterRoot::Get() {
+  auto f = ebbrt::global_id_map->Get(id_).Block().Get();
+  return atoi(f.c_str());
 };

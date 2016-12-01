@@ -18,8 +18,8 @@
 #include <ebbrt/hosted/ContextActivation.h>
 #include <ebbrt/hosted/NodeAllocator.h>
 
+#include "../Counter.h"
 #include "Printer.h"
-//#include "../Counter.h"
 
 int main(int argc, char** argv) {
   auto bindir = boost::filesystem::system_complete(argv[0]).parent_path() /
@@ -44,7 +44,9 @@ int main(int argc, char** argv) {
 
     Printer::Init().Then([bindir](ebbrt::Future<void> f) {
       f.Get();
-      ebbrt::node_allocator->AllocateNode(bindir.string());
+      ebbrt::global_id_map->Set(ebbrt::GCounter::GlobalCounterId, "220").Then([bindir](auto f){
+          ebbrt::node_allocator->AllocateNode(bindir.string());
+        });
     });
   }
   c.Run();

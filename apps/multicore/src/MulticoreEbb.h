@@ -58,6 +58,8 @@ protected:
   R *cache_rep_(size_t core);
   RepMap<R> reps_;
   EbbId id_;
+private:
+  friend class MulticoreEbb<R,T>;
 };
 
 

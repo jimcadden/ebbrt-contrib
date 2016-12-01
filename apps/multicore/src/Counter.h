@@ -10,6 +10,8 @@
 #include <ebbrt/LocalIdMap.h>
 
 namespace ebbrt {
+
+
 class Counter;
 class GCounter;
 
@@ -18,13 +20,9 @@ class CounterRoot : public ebbrt::MulticoreEbbRoot<CounterRoot, Counter> {
 
 public:
   CounterRoot(ebbrt::EbbId id, int init)
-      : MulticoreEbbRoot<CounterRoot, Counter>(id), init_(init) {
-    ebbrt::kprintf("Counter constructed w/ initial value(%d)\n", init_);
-  }
+      : MulticoreEbbRoot<CounterRoot, Counter>(id), init_(init) {}
   uint64_t Get();
-
 private:
-  friend class ebbrt::MulticoreEbb<Counter, CounterRoot>;
   int init_ = 0;
 };
 
@@ -54,24 +52,18 @@ class GCounterRoot : public ebbrt::MulticoreEbbRoot<GCounterRoot, GCounter> {
   using MulticoreEbbRoot<GCounterRoot, GCounter>::MulticoreEbbRoot;
 public:
   uint64_t Get();
-private:
-  friend class ebbrt::MulticoreEbb<GCounter, GCounterRoot>;
-  int init_ = 0;
 };
 
 class GCounter : public Counter, public ebbrt::MulticoreEbb<GCounter, GCounterRoot>{
-  public:
-  using ebbrt::MulticoreEbb<GCounter, GCounterRoot>::MulticoreEbb;
-  using ebbrt::MulticoreEbb<GCounter, GCounterRoot>::HandleFault;
+public:
+  using MulticoreEbb<GCounter, GCounterRoot>::HandleFault;
+  using MulticoreEbb<GCounter, GCounterRoot>::root_;
   using Counter::Counter;
-  //using Counter::Up;
-  //using Counter::Down;
-  //using Counter::GetLocal;
-  //using Counter::Get;
+  const static ebbrt::EbbId GlobalCounterId = 321;
+  uint64_t Get();
+
   GCounter(GCounterRoot* root)
-      : Counter((CounterRoot*)root), MulticoreEbb<GCounter, GCounterRoot>(root) {
-    ebbrt::kprintf("Gcounter consturcted\n" );
-  }
+      : Counter((CounterRoot*)root), MulticoreEbb<GCounter, GCounterRoot>(root) {};
 };
 
 };     // end namespace
