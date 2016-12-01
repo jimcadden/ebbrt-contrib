@@ -47,7 +47,14 @@ template <class T, class R> class MulticoreEbbz;
 /* Ebb Root class templace with R-type Rep Map */
 template <class T, class R> class MulticoreEbbRootz {
 protected:
-  R* get_rep_(size_t core){
+  R* get_rep_(size_t core); 
+  RepMap<R> reps_;
+  EbbId id_;
+private:
+  friend class MulticoreEbbz<R, T>;
+};
+
+template <class T, class R> R* MulticoreEbbRootz<T,R>::get_rep_(size_t core) {
     auto it = reps_.find(core);
       if (it != reps_.end()) {
         return it->second;
@@ -57,12 +64,7 @@ protected:
         ret->root_ = static_cast<T*>(this);
         return ret;
       }
-  }; 
-  RepMap<R> reps_;
-private:
-  friend class MulticoreEbbz<R, T>;
-  EbbId id_;
-};
+}
 
 /* Multicore Ebb class template with typed Root */
 template <class T, class R> class MulticoreEbbz {
@@ -102,7 +104,7 @@ retry:
     // LocalIdMap will create the root object
     if (created) {
       auto root = new R();
-      root->id_ = id;
+      root->id_ = id; 
       accessor->second = root;
     }
   }
