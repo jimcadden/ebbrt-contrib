@@ -7,21 +7,13 @@
 #include <ebbrt/Cpu.h>
 #include <ebbrt/Debug.h>
 
-//ebbrt::Counter::Counter( ebbrt::CounterRoot* root) { 
-//  
-//  ebbrt::kprintf("Hello rep! 0x%p\n", this); 
-//
-//};
 void ebbrt::Counter::Up() { ++count_; };
 void ebbrt::Counter::Down() { --count_; };
 uint64_t ebbrt::Counter::GetLocal() { return count_; };
 uint64_t ebbrt::Counter::Get() { return root_->Get(); };
 
-//ebbrt::CounterRoot::CounterRoot() {
-//  ebbrt::kprintf("Hello root! 0x%p\n", this);
-//};
 uint64_t ebbrt::CounterRoot::Get() {
-  auto sum = 0ll;
+  auto sum = init_;
   for (size_t core = 0; core < ebbrt::Cpu::Count(); ++core) {
     auto it = reps_.find(core);
     if (it != reps_.end()) {

@@ -11,20 +11,21 @@
 
 namespace ebbrt {
 class Counter;
+class GCounter;
 
 class CounterRoot : public ebbrt::MulticoreEbbRoot<CounterRoot, Counter> {
   using MulticoreEbbRoot<CounterRoot, Counter>::MulticoreEbbRoot;
 
 public:
-  //CounterRoot(ebbrt::EbbId id, int init)
-  //    : MulticoreEbbRoot<CounterRoot, Counter>(id), init_(init) {
-  //  ebbrt::kprintf("root constructed w/ initial value(%d)\n", init_);
-  //}
+  CounterRoot(ebbrt::EbbId id, int init)
+      : MulticoreEbbRoot<CounterRoot, Counter>(id), init_(init) {
+    ebbrt::kprintf("Counter constructed w/ initial value(%d)\n", init_);
+  }
   uint64_t Get();
 
 private:
   friend class ebbrt::MulticoreEbb<Counter, CounterRoot>;
-  int init_;
+  int init_ = 0;
 };
 
 class Counter : public ebbrt::MulticoreEbb<Counter, CounterRoot> {
@@ -35,10 +36,9 @@ public:
   Create(int init, ebbrt::EbbId id = ebbrt::ebb_allocator->Allocate()) {
     LocalIdMap::Accessor accessor;
     auto created = local_id_map->Insert(accessor, id);
-    if (!created)
+    if (!created) // map entry should be empty
       ebbrt::kabort();
-    auto root = new CounterRoot(id);
-    accessor->second = root;
+    accessor->second = new CounterRoot(id, init);
     return ebbrt::EbbRef<Counter>(id);
   }
   void Up();
@@ -48,6 +48,30 @@ public:
 
 private:
   uint64_t count_ = 0;
+};
+
+class GCounterRoot : public ebbrt::MulticoreEbbRoot<GCounterRoot, GCounter> {
+  using MulticoreEbbRoot<GCounterRoot, GCounter>::MulticoreEbbRoot;
+public:
+  uint64_t Get();
+private:
+  friend class ebbrt::MulticoreEbb<GCounter, GCounterRoot>;
+  int init_ = 0;
+};
+
+class GCounter : public Counter, public ebbrt::MulticoreEbb<GCounter, GCounterRoot>{
+  public:
+  using ebbrt::MulticoreEbb<GCounter, GCounterRoot>::MulticoreEbb;
+  using ebbrt::MulticoreEbb<GCounter, GCounterRoot>::HandleFault;
+  using Counter::Counter;
+  //using Counter::Up;
+  //using Counter::Down;
+  //using Counter::GetLocal;
+  //using Counter::Get;
+  GCounter(GCounterRoot* root)
+      : Counter((CounterRoot*)root), MulticoreEbb<GCounter, GCounterRoot>(root) {
+    ebbrt::kprintf("Gcounter consturcted\n" );
+  }
 };
 
 };     // end namespace
