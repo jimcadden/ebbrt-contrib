@@ -7,6 +7,7 @@
 #define MULTICOREEBB_H_
 
 #include <cassert>
+#include <mutex>
 #include <utility>
 
 #include <boost/container/flat_map.hpp>
@@ -48,20 +49,22 @@ template <class T, class R> class MulticoreEbb;
 /* Ebb Root class templace with R-type Rep Map */
 template <class T, class R> class MulticoreEbbRoot {
 public:
-  MulticoreEbbRoot( EbbId id ) : id_(id) {};
+  MulticoreEbbRoot(EbbId id) : id_(id){};
+
 protected:
   static void HandleGlobalFault(EbbId id);
-  // Derived class can re-implement protected methods, which hides 
+  // Derived class can re-implement protected methods, which hides
   // (doesn't conflict with) these base class implementations.
-  R *create_rep(){ return new R(static_cast<T*>(this)); };
-  R *create_initial_rep(){ return create_rep(); };
+  R *create_rep() { return new R(static_cast<T *>(this)); };
+  R *create_initial_rep() { return create_rep(); };
   R *cache_rep_(size_t core);
+  SpinLock lock_;
   RepMap<R> reps_;
   EbbId id_;
-private:
-  friend class MulticoreEbb<R,T>;
-};
 
+private:
+  friend class MulticoreEbb<R, T>;
+};
 
 /* Multicore Ebb class template with typed Root */
 template <class T, class R> class MulticoreEbb {
@@ -70,7 +73,7 @@ template <class T, class R> class MulticoreEbb {
 
 public:
   MulticoreEbb() = delete; // Must ber constructed w/ root pointer
-  MulticoreEbb(R* root) : root_(root) {}
+  MulticoreEbb(R *root) : root_(root) {}
   static T &HandleFault(EbbId id);
 
 protected:
@@ -79,7 +82,7 @@ protected:
 private:
   // By making the base root type a friend allows the rep constructor to
   // initialize protected members
-  //friend class MulticoreEbbRoot<R, T>;
+  // friend class MulticoreEbbRoot<R, T>;
 };
 
 template <class T, class R> R *MulticoreEbbRoot<T, R>::cache_rep_(size_t core) {
@@ -89,16 +92,18 @@ template <class T, class R> R *MulticoreEbbRoot<T, R>::cache_rep_(size_t core) {
     return it->second;
   } else {
     //  construct a new rep and cache the address
-    R* rep;
-    if(reps_.size() == 0){
+    R *rep;
+    if (reps_.size() == 0) {
       // construct initial rep on the node
       rep = create_initial_rep();
-    }
-    else{
+    } else {
       rep = create_rep();
     }
     // cached rep
-    reps_[core] = rep;
+    {
+      std::lock_guard<ebbrt::SpinLock> guard(lock_);
+      reps_[core] = rep;
+    }
     return rep;
   }
 }
@@ -108,9 +113,10 @@ void MulticoreEbbRoot<T, R>::HandleGlobalFault(EbbId id) {
   // Default behavior is to construct and cache a local root object
   LocalIdMap::Accessor accessor;
   auto created = local_id_map->Insert(accessor, id);
-  // In this case of a race, the thread that successfully wrote to 
+  // In this case of a race, the thread that successfully wrote to
   // the local_id_map will create a new root object
   if (created) {
+    ebbrt::kprintf("New root #%d\n", id);
     accessor->second = new T(id);
   }
 }
@@ -130,7 +136,7 @@ retry : {
   }
 }
   // No root was found on this node. Trigger global miss for this root type
-  MulticoreEbbRoot<R, T>::HandleGlobalFault(id); 
+  MulticoreEbbRoot<R, T>::HandleGlobalFault(id);
   // retry, expecting we'll find the root on the next pass
   goto retry;
 }

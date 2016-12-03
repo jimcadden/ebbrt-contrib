@@ -23,7 +23,7 @@ uint64_t ebbrt::CounterRoot::Get() {
     if (it != reps_.end()) {
       sum += it->second->GetLocal();
     } else {
-      ebbrt::kprintf("core skipped!\n");
+      ebbrt::kprintf("skipped core %d!\n", core);
     }
   }
   return sum;
