@@ -5,6 +5,7 @@
 #include "MsgTst.h"
 #include <ebbrt/UniqueIOBuf.h>
 #include <ebbrt/LocalIdMap.h>
+#include <ebbrt/Future.h>
 
 // This is *IMPORTANT*, it allows the messenger to resolve remote HandleFaults
 EBBRT_PUBLISH_TYPE(, MsgTst);
