@@ -15,12 +15,13 @@
 #include <ebbrt/hosted/ContextActivation.h>
 #include <ebbrt/hosted/NodeAllocator.h>
 
-#include "Printer.h"
 #include "../CRTP.h"
-#include "../Factory.h"
+#include "../Counter.h"
+#include "Printer.h"
 
 using namespace ebbrt;
 
+#if 0
 class Ebby;
 class Ebby1;
 class Ebby2;
@@ -55,17 +56,18 @@ struct Ebby1 : EbbShard<Ebby1, Ebby, Ebby2> {
 };
 
 // LAYER 0
-struct Ebby : Ebb<Ebby, Ebby1>
+struct Ebby : SharedEbb<Ebby, Ebby1>
 {
-  Ebby(EbbId id) : Ebb(id) { 
+  Ebby(EbbId id) : SharedEbb(id) { 
     std::cout << "tail["<< id_ << "]" << std::endl;
   }
   void foo(int x){
     std::cout << "Ebby foo! #" << id_ << "~" << x << std::endl;
   }
 };
+#endif
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
 
   ebbrt::Runtime runtime;
   ebbrt::Context c(runtime);
@@ -74,18 +76,22 @@ int main(int argc, char** argv) {
     ebbrt::ContextActivation activation(c);
 
     // ensure clean quit on ctrl-c
-    sig.async_wait([&c](const boost::system::error_code& ec,
+    sig.async_wait([&c](const boost::system::error_code &ec,
                         int signal_number) { c.io_service_.stop(); });
-  std::cout << "Start" << std::endl;
+    std::cout << "Start" << std::endl;
 
-  auto e = ebbrt::EbbRef<Ebby>(4);
-  e->foo(2);
+    auto e = ebbrt::EbbRef<Counter>(4);
+    e->Up();
+    std::cout << "Sum: " << e->Get() << std::endl;
 
-  auto ee = ebbrt::EbbRef<Ebbo>(44);
-  ee->bar(3);
+    // auto e = ebbrt::EbbRef<Ebby>(4);
+    // e->foo(2);
 
-  e->foo(2);
-  std::cout << "End" << std::endl;
+    // auto ee = ebbrt::EbbRef<Ebbo>(44);
+    // ee->bar(3);
+
+    // e->foo(2);
+    // std::cout << "End" << std::endl;
   }
   c.Run();
 

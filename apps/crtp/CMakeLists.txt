@@ -10,10 +10,12 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++14 -Wall -Werror")
 
 set(HOSTED_SOURCES
       src/hosted/crtp.cc
+      src/Counter.cc
       src/hosted/Printer.cc)
 
 set(BAREMETAL_SOURCES
       src/baremetal/crtp.cc
+      src/Counter.cc
       src/baremetal/Printer.cc)
 
 # Baremetal  ========================================================

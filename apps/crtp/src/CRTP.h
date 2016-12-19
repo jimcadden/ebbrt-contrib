@@ -2,70 +2,158 @@
 #ifndef APPS_CRTP_CRTP_H_
 #define APPS_CRTP_CRTP_H_
 
-#include <ebbrt/EbbId.h>
+#include <boost/container/flat_map.hpp>
+
 #include "EbbRef.h"
+#include <ebbrt/Cpu.h>
+#include <ebbrt/EbbId.h>
+#include <ebbrt/EbbAllocator.h>
+#include <ebbrt/LocalIdMap.h>
+#include <ebbrt/SpinLock.h>
 
 // e.g., Origin -> Domain -> Region -> Subregion -> Context
 // Origin -> Shard -> Shard -> Shart
 //          (layer) (layer) (layer)
 //
-// id space: [ 0 | ID | INTERNAL | XXXX ] 
+// id space: [ 0 | ID | INTERNAL | XXXX ]
 //
 // Ebb<T,R,C>
 
 // TRY NEXT, swap root and child ordering
 
-constexpr ebbrt::EbbId layer_up_(ebbrt::EbbId id){ return id +1;}
-//constexpr ebbrt::EbbId layer_down_(ebbrt::EbbId id){ return id -1;}
+
+using namespace ebbrt;
+
+namespace detail {
+template <class T> using RepMap = boost::container::flat_map<size_t, T *>;
+}
+using detail::RepMap;
+
+constexpr ebbrt::EbbId layer_up_(ebbrt::EbbId id) { return id + 1; }
+constexpr ebbrt::EbbId layer_down_(ebbrt::EbbId id) { return id - 1; }
 
 
-// Ebb Interface with root
-template <class T, class R = void>
-class Ebb {
-  public:
-    Ebb(ebbrt::EbbId id) : id_{id}, root_{layer_up_(id)} {};
-    static T& HandleFault(ebbrt::EbbId id); 
-  protected:
-    ebbrt::EbbId id_;
-    ebbrt::EbbRef<R> root_;
+// Ebb Interface
+template <class T, class R = void> class Ebb {
+public:
+  Ebb(ebbrt::EbbId id) : id_{id}, root_{layer_up_(id)} {};
+  static T &HandleFault(ebbrt::EbbId id);
+
+protected:
+  ebbrt::EbbId id_;
+  ebbrt::EbbRef<R> root_;
 };
 
-// Ebb Interface without root
-template <class T>
-class Ebb<T,void> {
-  public:
-    Ebb(ebbrt::EbbId id) : id_{id} {};
-    static T& HandleFault(ebbrt::EbbId id); 
-  protected:
-    ebbrt::EbbId id_;
+template <typename T, typename R> T &Ebb<T, R>::HandleFault(ebbrt::EbbId id) {
+  std::cout << "Ebb<T,R>::HF " << id << std::endl;
+  auto r = ebbrt::EbbRef<R>(layer_up_(id))->NewChild();
+  ebbrt::EbbRef<T>::CacheRef(id, *r);
+  return *r;
+}
+
+// Ebb Interface w/o a specified root type
+//
+template <class T> class Ebb<T, void> {
+public:
+  Ebb(ebbrt::EbbId id) : id_{id} {};
+  static T &HandleFault(ebbrt::EbbId id);
+protected:
+  ebbrt::EbbId id_;
 };
 
-template <class T, class C, class R = void>
-class EbbShard : public Ebb<T,R> {
-  public:
-    EbbShard(ebbrt::EbbId id) : Ebb<T,R>::Ebb(id) {};
-    C& NewChild();
+template <typename T> T &Ebb<T, void>::HandleFault(ebbrt::EbbId id) {
+  std::cout << "Ebb<T>::HF " << id << std::endl;
+  T *t = new T(id);
+  ebbrt::EbbRef<T>::CacheRef(id, *t);
+  return *t;
 };
 
-template <typename T, typename R>
-T& Ebb<T,R>::HandleFault(ebbrt::EbbId id){
-  std::cout << "Ebb<T,R>::HF[" << id << std::endl;
-  auto troot = ebbrt::EbbRef<R>(layer_up_(id));
-  return troot->NewChild(); 
-}
+// (Internal) Ebb Shard
+//
+template <class T, class C, class R = void> class EbbShard : public Ebb<T, R> {
+public:
+  EbbShard(ebbrt::EbbId id) : Ebb<T, R>::Ebb(id){};
+  C *NewChild();
+protected:
+  C* create_initial_rep_(){ return create_rep_();}
+  C* create_rep_(){ return new C(layer_down_(Ebb<T, R>::id_));}
+  RepMap<C> local_reps_;
+private:
+  ebbrt::SpinLock lock_;
+};
 
-template <typename T>
-T& Ebb<T, void>::HandleFault(ebbrt::EbbId id){
-  std::cout << "Ebb<T>::HF" << std::endl;
-  T* t = new T(id);
-  return *t; 
-}
+template <class T, class C, class R> C *EbbShard<T, C, R>::NewChild() {
+  auto core = (size_t)ebbrt::Cpu::GetMine();
+  auto it = local_reps_.find(core);
+  if (it != local_reps_.end()) {
+    // rep was already cached for this core, return it
+    return it->second;
+  } else {
+    //  construct a new rep and cache the address
+    C *rep;
+    if (local_reps_.size() == 0) {
+      // construct initial rep on the node
+      rep = create_initial_rep_();
+    } else {
+      rep = create_rep_();
+    }
+    // cached rep
+    {
+      std::lock_guard<ebbrt::SpinLock> guard(lock_);
+      local_reps_[core] = rep;
+    }
+    return rep;
+  }
+};
 
-template <typename T, typename C, typename R>
-C& EbbShard<T,C,R>::NewChild(){
-  C* c = new C(Ebb<T,R>::id_);
-  return *c; 
-}
+// SharedLocalEbb
+//
+template <class T, class R = void> class SharedLocalEbb : public Ebb<T, R> {
+  using Ebb<T, R>::Ebb;
+public:
+  static EbbRef<T> Create(T* rep, EbbId id = ebbrt::ebb_allocator->Allocate()) {
+    local_id_map->Insert(std::make_pair(id, std::move(rep)));
+    return EbbRef<T>(id);
+  }
+  static T &HandleFault(ebbrt::EbbId id);
+};
+
+// Handle a fault on SharedLocalEbb by checking local id map for rep and, if not found, locks and calls underlying HF to
+// process creation of Ebb.
+template <typename T, typename R> T &SharedLocalEbb<T, R>::HandleFault(ebbrt::EbbId id)
+{
+  std::cout << "SharedLocalEbb<T,R>::HF[" << id << std::endl;
+  {
+    // First we check if the representative is in the LocalIdMap (using a
+    // read-lock)
+    LocalIdMap::ConstAccessor accessor;
+    auto found = local_id_map->Find(accessor, id);
+    if (found) {
+      auto& rep = *boost::any_cast<T*>(accessor->second);
+      EbbRef<T>::CacheRef(id, rep);
+      return rep;
+    }
+  }
+  // else, 
+  T* rep;
+  {
+    // Insert entry into the id map while holding exclusive (write) lock
+    LocalIdMap::Accessor accessor;
+    auto created = local_id_map->Insert(accessor, id);
+    if (!created) {
+      // We raced with another writer, use the rep it created and return
+      rep = boost::any_cast<T*>(accessor->second);
+    } else {
+      // Create a new rep and insert it into the LocalIdMap
+      // XXX: We are still locked and this may block...
+      accessor->second = Ebb<T,R>::HandleFault(id);
+    }
+  }
+  // Cache the reference to the rep in the local translation table
+  EbbRef<T>::CacheRef(id, *rep);
+  return *rep;
+};
+
 
 #if 0
 struct VoidEbb {};
@@ -116,27 +204,25 @@ T& Ebb<T,VoidEbb,VoidEbb>::HandleFault(ebbrt::EbbId id){
 
 #endif
 
-
 // DEFINITIONS
-//Childless
-//template <typename T, typename R>
-//T* Ebb<T,R,void>::HandleFault(EbbId id){
+// Childless
+// template <typename T, typename R>
+// T* Ebb<T,R,void>::HandleFault(EbbId id){
 //  return new T(id);
 //}
 
-//template <typename T, typename R, typename C>
-//R* Ebb<T,R,C>::Root(){
+// template <typename T, typename R, typename C>
+// R* Ebb<T,R,C>::Root(){
 //  if( !root_ ){
-//    root_ = R::HandleFault(id_);  
+//    root_ = R::HandleFault(id_);
 //  }
 //  return root_;
 //}
 // Childless
-//template <typename T, typename R, typename C>
-//C* Ebb<T,R,C>::NewChild(){
-//  return new C(id_); 
+// template <typename T, typename R, typename C>
+// C* Ebb<T,R,C>::NewChild(){
+//  return new C(id_);
 //}
-
 
 #if 0
 
