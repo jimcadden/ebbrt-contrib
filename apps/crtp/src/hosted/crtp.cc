@@ -21,7 +21,6 @@
 
 using namespace ebbrt;
 
-#if 0
 class Ebby;
 class Ebby1;
 class Ebby2;
@@ -56,16 +55,15 @@ struct Ebby1 : EbbShard<Ebby1, Ebby, Ebby2> {
 };
 
 // LAYER 0
-struct Ebby : SharedEbb<Ebby, Ebby1>
+struct Ebby : SharedLocalEbb<Ebby, Ebby1>
 {
-  Ebby(EbbId id) : SharedEbb(id) { 
-    std::cout << "tail["<< id_ << "]" << std::endl;
+  Ebby(EbbId id) : SharedLocalEbb(id) { 
+    std::cout << "base["<< id_ << "]" << std::endl;
   }
   void foo(int x){
     std::cout << "Ebby foo! #" << id_ << "~" << x << std::endl;
   }
 };
-#endif
 
 int main(int argc, char **argv) {
 
@@ -80,18 +78,18 @@ int main(int argc, char **argv) {
                         int signal_number) { c.io_service_.stop(); });
     std::cout << "Start" << std::endl;
 
-    auto e = ebbrt::EbbRef<Counter>(4);
-    e->Up();
-    std::cout << "Sum: " << e->Get() << std::endl;
+    auto c = ebbrt::EbbRef<Counter>(4);
+    c->Up();
+    std::cout << "Sum: " << c->Get() << std::endl;
 
-    // auto e = ebbrt::EbbRef<Ebby>(4);
-    // e->foo(2);
+     auto e = ebbrt::EbbRef<Ebby>(43);
+     e->foo(2);
 
-    // auto ee = ebbrt::EbbRef<Ebbo>(44);
-    // ee->bar(3);
+     auto ee = ebbrt::EbbRef<Ebbo>(44);
+     ee->bar(3);
 
-    // e->foo(2);
-    // std::cout << "End" << std::endl;
+     e->foo(2);
+     std::cout << "End" << std::endl;
   }
   c.Run();
 
