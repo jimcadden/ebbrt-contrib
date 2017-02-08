@@ -3,6 +3,16 @@
 //    (See accompanying file LICENSE_1_0.txt or copy at
 //          http://www.boost.org/LICENSE_1_0.txt)
 
+#include <ebbrt/Debug.h>
+#include "../Counter.h"
 #include "Printer.h"
 
-void AppMain() { printer->Print("CRTP BACKEND UP.\n"); }
+void AppMain() { 
+  
+    auto c = ebbrt::EbbRef<Counter>(321);
+    c->Up();
+    kprintf("Sum: %d/n", c->Get());
+  
+  printer->Print("CRTP BACKEND UP.\n"); 
+
+}

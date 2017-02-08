@@ -7,13 +7,12 @@
 
 #include <boost/filesystem.hpp>
 
-#include <ebbrt/EbbId.h>
-#include <ebbrt/GlobalIdMap.h>
-#include <ebbrt/Runtime.h>
-#include <ebbrt/StaticIds.h>
 #include <ebbrt/hosted/Context.h>
 #include <ebbrt/hosted/ContextActivation.h>
+#include <ebbrt/GlobalIdMap.h>
+#include <ebbrt/StaticIds.h>
 #include <ebbrt/hosted/NodeAllocator.h>
+#include <ebbrt/Runtime.h>
 
 #include "../CRTP.h"
 #include "../Counter.h"
@@ -34,6 +33,14 @@ struct Ebbo : Ebb<Ebbo> {
   }
 };
 
+struct Ebbx : SharedLocalEbb<Ebbx> {
+  using SharedLocalEbb<Ebbx>::SharedLocalEbb;
+  void bar(int x){
+    std::cout << "YES EbbX bar! #" << id_ << "~" << x << std::endl;
+  }
+};
+
+// EBB STACK
 // LAYER 3
 struct Ebby3 : EbbShard<Ebby3, Ebby2> {
   Ebby3(EbbId id) : EbbShard(id) { 
@@ -67,29 +74,39 @@ struct Ebby : SharedLocalEbb<Ebby, Ebby1>
 
 int main(int argc, char **argv) {
 
+  auto bindir = boost::filesystem::system_complete(argv[0]).parent_path() /
+                "/bm/crtp.elf32";
+
   ebbrt::Runtime runtime;
   ebbrt::Context c(runtime);
   boost::asio::signal_set sig(c.io_service_, SIGINT);
   {
     ebbrt::ContextActivation activation(c);
 
-    // ensure clean quit on ctrl-c
-    sig.async_wait([&c](const boost::system::error_code &ec,
-                        int signal_number) { c.io_service_.stop(); });
     std::cout << "Start" << std::endl;
 
-    auto c = ebbrt::EbbRef<Counter>(4);
-    c->Up();
-    std::cout << "Sum: " << c->Get() << std::endl;
+    // ensure clean quit on ctrl-c
+    sig.async_wait([&c](const boost::system::error_code& ec,
+                        int signal_number) { c.io_service_.stop(); });
+    Printer::Init().Then([bindir](ebbrt::Future<void> f) {
+      f.Get();
+      ebbrt::node_allocator->AllocateNode(bindir.string());
+    //auto cnt = ebbrt::EbbRef<Counter>(4);
+    //cnt->Up();
+    //std::cout << "Sum: " << cnt->Get() << std::endl;
 
-     auto e = ebbrt::EbbRef<Ebby>(43);
-     e->foo(2);
+    // auto e = ebbrt::EbbRef<Ebby>(43);
+    // e->foo(2);
 
-     auto ee = ebbrt::EbbRef<Ebbo>(44);
-     ee->bar(3);
+    // auto ee = ebbrt::EbbRef<Ebbo>(44);
+    // ee->bar(3);
 
-     e->foo(2);
-     std::cout << "End" << std::endl;
+    // auto eee = ebbrt::EbbRef<Ebbx>(400);
+    // eee->bar(4);
+
+    // e->foo(2);
+    // std::cout << "End" << std::endl;
+    });
   }
   c.Run();
 

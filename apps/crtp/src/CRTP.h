@@ -108,6 +108,7 @@ template <class T, class C, class R> C *EbbShard<T, C, R>::GetRep() {
 };
 
 
+
 // SharedLocalEbb base type 
 //
 // Instances are shared locally by default (i.e. across cores) 
@@ -155,6 +156,15 @@ template <typename T, typename R> T &SharedLocalEbb<T, R>::HandleFault(ebbrt::Eb
   EbbRef<T>::CacheRef(id, *rep);
   return *rep;
 };
+
+
+/// WORKING ON IT 
+template <class T, class C, class R = void> class SharedLocalEbbShard : public SharedLocalEbb<T, R> {
+  using SharedLocalEbb<T, R>::SharedLocalEbb;
+public:
+  SharedLocalEbbShard(ebbrt::EbbId id) : SharedLocalEbb<T, R>::SharedLocalEbb(id){};
+};
+
 
 #if 0
 struct VoidEbb {};
