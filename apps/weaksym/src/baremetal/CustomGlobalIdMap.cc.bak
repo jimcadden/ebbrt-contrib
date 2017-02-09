@@ -1,0 +1,35 @@
+//          Copyright Boston University SESA Group 2013 - 2014.
+// Distributed under the Boost Software License, Version 1.0.
+//    (See accompanying file LICENSE_1_0.txt or copy at
+//          http://www.boost.org/LICENSE_1_0.txt)
+#include <ebbrt/Debug.h>
+#include <ebbrt/GlobalIdMap.h>
+
+ebbrt::GlobalIdMap::GlobalIdMap()
+    : Messagable<GlobalIdMap>(kGlobalIdMapId), val_(0) {
+    ebbrt::kprintf("ZKGlobalIdMap consturctor called\n");
+    }
+
+__attribute__((weak)) void ebbrt::GlobalIdMap::SetAddress(uint32_t addr) {
+  ebbrt::kprintf("ZKGlobalIdMap SetAddress() called\n");
+  EBBRT_UNIMPLEMENTED();
+}
+
+ebbrt::Future<std::string> ebbrt::GlobalIdMap::Get(ebbrt::EbbId id) {
+  ebbrt::kprintf("ZKGlobalIdMap Get() called\n");
+  EBBRT_UNIMPLEMENTED();
+}
+
+
+ebbrt::Future<void>
+ebbrt::GlobalIdMap::Set(EbbId id, std::string str) {
+  ebbrt::kprintf("ZKGlobalIdMap Set() called\n");
+  EBBRT_UNIMPLEMENTED();
+}
+
+void
+ebbrt::GlobalIdMap::ReceiveMessage(Messenger::NetworkId nid,
+                                   std::unique_ptr<IOBuf>&& b) {
+  ebbrt::kprintf("ZKGlobalIdMap ReceiveMessage() called\n");
+  EBBRT_UNIMPLEMENTED();
+}

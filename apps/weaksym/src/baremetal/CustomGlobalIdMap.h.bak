@@ -1,0 +1,47 @@
+//          Copyright Boston University SESA Group 2013 - 2014.
+// Distributed under the Boost Software License, Version 1.0.
+//    (See accompanying file LICENSE_1_0.txt or copy at
+//          http://www.boost.org/LICENSE_1_0.txt)
+#ifndef BAREMETAL_SRC_INCLUDE_EBBRT_GLOBALIDMAP_H_
+#define BAREMETAL_SRC_INCLUDE_EBBRT_GLOBALIDMAP_H_
+
+#include <string>
+
+#include <capnp/message.h>
+
+#include <ebbrt/CacheAligned.h>
+#include <ebbrt/EbbRef.h>
+#include <ebbrt/Future.h>
+#include <ebbrt/Message.h>
+#include <ebbrt/Runtime.h>
+#include <ebbrt/StaticIds.h>
+#include <ebbrt/StaticSharedEbb.h>
+#include <ebbrt/Debug.h>
+
+namespace ebbrt {
+class CustomGlobalIdMap : public StaticSharedEbb<CustomGlobalIdMap>,
+                    public CacheAligned,
+                    public Messagable<CustomGlobalIdMap> {
+ public:
+  CustomGlobalIdMap();
+
+  Future<std::string> Get(EbbId id){
+  kabort("CustomGlobalIdMap Get() called");
+}
+
+  Future<void> Set(EbbId id, std::string data){
+  kabort("CustomGlobalIdMap Set() called");
+}
+
+  void ReceiveMessage(Messenger::NetworkId nid, std::unique_ptr<IOBuf>&& buf){
+  kabort("CustomGlobalIdMap ReceiveMessagfe() called");
+}
+
+  static void SetAddress(uint32_t addr){
+  kabort("CustomGlobalIdMap SetAddress() called");
+}
+};
+constexpr auto global_id_map = EbbRef<CustomGlobalIdMap>(kGlobalIdMapId);
+}  // namespace ebbrt
+
+#endif  // BAREMETAL_SRC_INCLUDE_EBBRT_GLOBALIDMAP_H_
