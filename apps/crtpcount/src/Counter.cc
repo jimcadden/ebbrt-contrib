@@ -19,6 +19,38 @@ uint64_t GlobalCounterRoot::GetLocal() {
   return sum;
 };
 
+uint64_t GlobalCounterRoot::Get() {
+  auto sum = 0;
+  auto futs = GetRemotes();
+  for( auto &f : futs){
+    sum += f.Block().Get();
+  }
+  return sum;
+};
+std::vector<ebbrt::Future<uint64_t>> GlobalCounterRoot::GetRemotes() {
+  uint32_t id;
+  std::vector<ebbrt::Future<uint64_t>> ret;
+  {
+    std::lock_guard<std::mutex> guard(m_);
+    for (auto &nid : node_map_) {
+      Promise<uint64_t> promise;
+      id = id_; // Get a new id (always even)
+      id_ += 2;
+      bool inserted;
+      auto f = promise.GetFuture();
+      ret.push_back(std::move(f));
+      std::tie(std::ignore, inserted) =
+          request_map_.emplace(id, std::move(promise));
+      assert(inserted);
+      auto buf = MakeUniqueIOBuf(sizeof(uint32_t));
+      auto dp = buf->GetMutDataPointer();
+      dp.Get<uint32_t>() = id + 1; // Ping messages are odd
+      SendMessage(nid, std::move(buf));
+    }
+  }
+  return ret;
+}
+#if 0
 ebbrt::Future<uint64_t> GlobalCounterRoot::Get() {
   kprintf("GlobalCounterRoot Get called\n");
   uint32_t id;
@@ -43,6 +75,7 @@ ebbrt::Future<uint64_t> GlobalCounterRoot::Get() {
   }
   return ret;
 }
+#endif
 
 void GlobalCounterRoot::Register(Messenger::NetworkId nid) {
   kprintf("GlobalCounterRoot Registed called!\n");
@@ -54,7 +87,6 @@ void GlobalCounterRoot::Register(Messenger::NetworkId nid) {
   return;
 }
 
-
 void GlobalCounterRoot::ReceiveMessage(ebbrt::Messenger::NetworkId nid,
                                        std::unique_ptr<ebbrt::IOBuf> &&buffer) {
 // registration ACK when len=1
@@ -65,20 +97,24 @@ void GlobalCounterRoot::ReceiveMessage(ebbrt::Messenger::NetworkId nid,
     return;
   }
 #endif
-  kprintf("Receive Message Called\n");
   auto dp = buffer->GetDataPointer();
   auto id = dp.Get<uint32_t>();
   // Get requests id + 1, so they are always odd
   if (id & 1) {
+  kprintf("Receive Get Request\n");
     // Received Ping
     auto buf = MakeUniqueIOBuf(sizeof(uint32_t) + sizeof(uint64_t));
     auto dp = buf->GetMutDataPointer();
     dp.Get<uint32_t>() = id - 1;     // Send back with the original id
+#ifndef __ebbrt__
+    dp.Get<uint64_t>() = Get(); // Send back global count
+#else
     dp.Get<uint64_t>() = GetLocal(); // Send back local count
+#endif
     SendMessage(nid, std::move(buf));
   } else {
+  kprintf("Receive Get Reply\n");
     // Received Get response, lookup in the hash table for our promise and set
-    // it
     auto val = dp.Get<uint64_t>();
     std::lock_guard<std::mutex> guard(m_);
     auto it = request_map_.find(id);
@@ -98,10 +134,7 @@ uint64_t LocalCounterRoot::GetLocal() {
   }
   return sum;
 }
-uint64_t LocalCounterRoot::Get() {
-  //return GetLocal() + root_->Get().Block().Get();
-  return root_->Get().Block().Get();
-};
+uint64_t LocalCounterRoot::Get()  { return root_->Get(); }
 
 // Counter
 //

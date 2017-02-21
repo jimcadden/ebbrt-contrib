@@ -25,7 +25,9 @@ public:
     Register();
 #endif 
   }
-  ebbrt::Future<uint64_t> Get();
+  std::vector<ebbrt::Future<uint64_t>> GetRemotes();
+  //ebbrt::Future<uint64_t> Get();
+  uint64_t Get();
   uint64_t GetLocal();
   void ReceiveMessage(ebbrt::Messenger::NetworkId nid,
                       std::unique_ptr<ebbrt::IOBuf>&& buffer);
@@ -57,7 +59,7 @@ public:
   void Up() { count_++; };
   void Down() { count_--; };
   uint64_t GetLocal() { return count_; };
-  uint64_t Get() { return root_->Get(); }
+  uint64_t Get(); 
 
 private:
   uint64_t count_ = 0;
