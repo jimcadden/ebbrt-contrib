@@ -19,22 +19,21 @@
 // Ebb<T,R> Ebb with a base type <T> and a "root" object type <R>
 //
 // Ebb<T> Ebb with a base type <T> without root
-
-// EbbShard<T,C,R> internal component of the Ebb <T> with a child <C> 
-// and root <R> types
+//
+// SharedLocalEbb<T, R> : public Ebb<T, R>
+//
+// EbbShard<T,C,R>  : public Ebb<T,R>
+// Internal component of the Ebb <T> with a child <C> and root <R> types
 
 using namespace ebbrt;
-
 namespace detail {
 template <class T> using RepMap = boost::container::flat_map<size_t, T *>;
 }
 using detail::RepMap;
-
 constexpr ebbrt::EbbId shard_layer_up_(ebbrt::EbbId id) { return id + 1; }
 constexpr ebbrt::EbbId shard_layer_down_(ebbrt::EbbId id) { return id - 1; }
 
-
-// Ebb base type
+// Ebb w/ root 
 //
 template <class T, class R = void> class Ebb {
 public:
@@ -42,19 +41,17 @@ public:
   static T &HandleFault(ebbrt::EbbId id);
 protected:
   ebbrt::EbbId id_;
-  ebbrt::EbbRef<R> root_;
+  ebbrt::EbbRef<R> root_; // typed Root pointer
 };
-
 template <typename T, typename R> T &Ebb<T, R>::HandleFault(ebbrt::EbbId id) {
   // Invoke the root object on each miss to receive local rep
   // Call may trigger miss of the root type 
-  kprintf("Ebb base HF(%d)\n", id);
   auto r = ebbrt::EbbRef<R>(shard_layer_up_(id))->GetRep();
   ebbrt::EbbRef<T>::CacheRef(id, *r);
   return *r;
 }
 
-// Ebb base type (no root)
+// Ebb w/o root
 //
 template <class T> class Ebb<T, void> {
 public:
@@ -63,72 +60,30 @@ public:
 protected:
   ebbrt::EbbId id_;
 };
-
 template <typename T> T &Ebb<T, void>::HandleFault(ebbrt::EbbId id) {
-  // Construct object for each miss 
-  kprintf("Ebb (no root) base HF(%d)\n", id);
+  // Construct an object for each miss 
   T *t = new T(id);
   ebbrt::EbbRef<T>::CacheRef(id, *t);
   return *t;
 };
 
-// EbbShard base type
-//
-template <class T, class C, class R = void> class EbbShard : public Ebb<T, R> {
-  using Ebb<T, R>::Ebb;
-public:
-  EbbShard(ebbrt::EbbId id) : Ebb<T, R>::Ebb(id){};
-  C *GetRep();
-protected:
-  C* new_child_(){ return new C(shard_layer_down_(Ebb<T, R>::id_));}
-  RepMap<C> local_reps_;
-private:
-  ebbrt::SpinLock lock_;
-};
-
-template <class T, class C, class R> C *EbbShard<T, C, R>::GetRep() {
-  kprintf("Ebb shard GetRep\n");
-  // Check for previously constructed rep for this core
-  // TODO: locking around structure
-  auto core = (size_t)ebbrt::Cpu::GetMine();
-  auto it = local_reps_.find(core);
-  if (it != local_reps_.end()) {
-    // return cached rep 
-    return it->second;
-  } else {
-    //  construct a new rep and cache it 
-  kprintf("Ebb shard new_child_\n");
-    C *rep = new_child_();
-    {
-      std::lock_guard<ebbrt::SpinLock> guard(lock_);
-      local_reps_[core] = rep;
-    }
-    return rep;
-  }
-};
-
-
-
-// SharedLocalEbb base type 
-//
-// Instances are shared locally by default (i.e. across cores) 
+// SharedLocalEbb specialized Ebb behavior 
+// Instances are shared across local cores/contexts
 template <class T, class R = void> class SharedLocalEbb : public Ebb<T, R> {
   using Ebb<T, R>::Ebb;
 public:
   SharedLocalEbb(ebbrt::EbbId id) : Ebb<T,R>(id) {};
-  // Create configures local translation for pre-constructed rep
+  // Create pre-configures the local translation for a constructed rep
   static EbbRef<T> Create(T* rep, EbbId id = ebbrt::ebb_allocator->Allocate()) {
     local_id_map->Insert(std::make_pair(id, std::move(rep)));
     return EbbRef<T>(id);
   }
   static T &HandleFault(ebbrt::EbbId id);
 };
-
 template <typename T, typename R> T &SharedLocalEbb<T, R>::HandleFault(ebbrt::EbbId id)
 {
-  kprintf("SharedLocalEbb HF(%d)\n", id);
+  // Check local translation for representative (read-lock)
   {
-    // Check local translation for representative (read-lock)
     LocalIdMap::ConstAccessor accessor;
     auto found = local_id_map->Find(accessor, id);
     if (found) {
@@ -137,7 +92,7 @@ template <typename T, typename R> T &SharedLocalEbb<T, R>::HandleFault(ebbrt::Eb
       return rep;
     }
   }
-  // No local rep was found so we construct a new one
+  // If no rep was found, we construct a new one
   T* rep;
   {
     // Insert into the local translation map while holding exclusive lock
@@ -157,14 +112,100 @@ template <typename T, typename R> T &SharedLocalEbb<T, R>::HandleFault(ebbrt::Eb
   return *rep;
 };
 
-
-/// WORKING ON IT 
-template <class T, class C, class R = void> class SharedLocalEbbShard : public SharedLocalEbb<T, R> {
-  using SharedLocalEbb<T, R>::SharedLocalEbb;
+// EbbRoot <T, C>
+// An internal Ebb structure with both and child <C> types
+template <class T, class C> class EbbRoot {
 public:
-  SharedLocalEbbShard(ebbrt::EbbId id) : SharedLocalEbb<T, R>::SharedLocalEbb(id){};
+  EbbRoot(ebbrt::EbbId id) : id_{id} {};
+  C *GetRep();
+protected:
+  C* new_child_(){ 
+    auto rep = new C(shard_layer_down_(id_));
+    local_reps_[Cpu::GetMine()] = rep;
+    return rep;
+  }
+  RepMap<C> local_reps_;
+  ebbrt::EbbId id_;
+private:
+  ebbrt::SpinLock lock_;
 };
 
+template <class T, class C> C *EbbRoot<T, C>::GetRep() {
+  // TODO:Check for previously constructed rep for this core &  lock around structure
+  auto core = (size_t)ebbrt::Cpu::GetMine();
+  auto it = local_reps_.find(core);
+  if (it != local_reps_.end()) {
+    // return cached rep 
+    return it->second;
+  } else {
+    //  construct a new rep and cache it 
+    C *rep = new_child_();
+    {
+      std::lock_guard<ebbrt::SpinLock> guard(lock_);
+      local_reps_[core] = rep;
+    }
+    return rep;
+  }
+};
+
+// EbbShard
+// 
+template <class T, class C, class R = void> class EbbShard : public Ebb<T, R>, public EbbRoot<T,C> {
+  using Ebb<T, R>::Ebb;
+  using EbbRoot<T,C>::EbbRoot;
+public:
+  EbbShard(ebbrt::EbbId id) : Ebb<T, R>::Ebb(id), EbbRoot<T,C>::EbbRoot(id){};
+};
+
+// SharedLocalEbbShard
+// 
+template <class T, class C, class R = void> class SharedLocalEbbShard : public SharedLocalEbb<T, R>, public EbbRoot<T,C> {
+  using SharedLocalEbb<T, R>::SharedLocalEbb;
+  using EbbRoot<T,C>::EbbRoot;
+public:
+  SharedLocalEbbShard(ebbrt::EbbId id) : SharedLocalEbb<T, R>::SharedLocalEbb(id), EbbRoot<T,C>::EbbRoot(id){};
+};
+
+/*
+// EbbShard <T, C, R>
+// An internal Ebb structure with both root <R> and child <C> types
+template <class T, class C, class R = void> class EbbShard : public SharedLocalEbb<T, R> {
+  using SharedLocalEbb<T, R>::SharedLocalEbb;
+public:
+  EbbShard(ebbrt::EbbId id) : SharedLocalEbb<T, R>::SharedLocalEbb(id){};
+  C *GetRep();
+protected:
+  C* new_child_(){ 
+  kprintf("Ebb new child %d\n", Cpu::GetMine());
+    auto rep = new C(shard_layer_down_(Ebb<T, R>::id_));
+    local_reps_[Cpu::GetMine()] = rep;
+    return rep;
+  }
+  RepMap<C> local_reps_;
+private:
+  ebbrt::SpinLock lock_;
+};
+
+template <class T, class C, class R> C *EbbShard<T, C, R>::GetRep() {
+  kprintf("Ebb shard GetRep\n");
+  // TODO:Check for previously constructed rep for this core &  lock around structure
+  auto core = (size_t)ebbrt::Cpu::GetMine();
+  auto it = local_reps_.find(core);
+  if (it != local_reps_.end()) {
+    // return cached rep 
+    return it->second;
+  } else {
+    //  construct a new rep and cache it 
+  kprintf("Ebb shard new_child_\n");
+    C *rep = new_child_();
+    {
+      std::lock_guard<ebbrt::SpinLock> guard(lock_);
+      local_reps_[core] = rep;
+    }
+    return rep;
+  }
+};
+*/
 
 #if 0
 struct VoidEbb {};
