@@ -17,6 +17,7 @@
 #include <ebbrt/hosted/ContextActivation.h>
 #include <ebbrt/hosted/NodeAllocator.h>
 
+
 using namespace std;
 ebbrt::Messenger::NetworkId net_id;
 
@@ -46,8 +47,6 @@ int main(int argc, char **argv) {
           auto secret = "Hazer Baba";
           ebbrt::zkglobal_id_map->Set(42, secret).Block();
           ebbrt::zkglobal_id_map->SetWatcher(
-              42, new ebbrt::ZKGlobalIdMap::RepeatAlert());
-          ebbrt::zkglobal_id_map->SetWatchEvent(
               42, new ebbrt::ZKGlobalIdMap::WatchEvent(ZOO_CHANGED_EVENT, []() {
                 ebbrt::kprintf("Value has changed!\n");
               }));

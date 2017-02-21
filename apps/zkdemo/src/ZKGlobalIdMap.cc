@@ -15,9 +15,15 @@ ebbrt::Future<bool> ebbrt::ZKGlobalIdMap::Init() {
 
 ebbrt::Future<std::string> ebbrt::ZKGlobalIdMap::Get(ebbrt::EbbId id,
                                                      std::string path) {
-  char buf[15];
-  sprintf(buf, "/%d", id);
-  return zk_->GetValue(std::string(buf));
+  char buff[100];
+  sprintf(buff, "/%d", id);
+  auto p = new ebbrt::Promise<std::string>;
+  auto f = p->GetFuture();
+  zk_->Get(std::string(buff)).Then([p](ebbrt::Future<ebbrt::ZooKeeper::Znode> z) {
+    auto znode = z.Get();
+    p->SetValue(znode.value);
+  });
+  return f;
 }
 
 ebbrt::Future<void> ebbrt::ZKGlobalIdMap::Set(EbbId id, std::string val,
@@ -36,20 +42,22 @@ ebbrt::Future<void> ebbrt::ZKGlobalIdMap::Set(EbbId id, std::string val,
   return ret;
 }
 
-//ebbrt::Future<std::vector<std::string>> ebbrt::ZKGlobalIdMap::List(ebbrt::EbbId id, std::string path = std::string()){
-//  return;
-//}
-
-void ebbrt::ZKGlobalIdMap::SetWatcher(EbbId id, MapWatcher* w, std::string path) {
-  char buf[15];
-  sprintf(buf, "/%d", id);
-  zk_->Stat(std::string(buf), w).Block(); 
-  return;
+ebbrt::Future<std::vector<std::string>>
+ebbrt::ZKGlobalIdMap::List(ebbrt::EbbId id, std::string path ){
+  auto p = new ebbrt::Promise<std::vector<std::string>>;
+  auto ret = p->GetFuture();
+  char buff[100];
+  sprintf(buff, "/%d", id);
+  zk_->GetChildren(std::string(buff)).Then([p](auto f){
+      auto zn_children = f.Get();
+      p->SetValue(zn_children.values);
+  });
+  return ret;
 }
 
-void ebbrt::ZKGlobalIdMap::SetWatchEvent(EbbId id, WatchEvent* f, std::string path) {
+void ebbrt::ZKGlobalIdMap::SetWatcher(EbbId id, Watcher *w, std::string path) {
   char buf[15];
   sprintf(buf, "/%d", id);
-  zk_->Stat(std::string(buf), f).Block(); 
+  zk_->Stat(std::string(buf), w).Block();
   return;
 }
