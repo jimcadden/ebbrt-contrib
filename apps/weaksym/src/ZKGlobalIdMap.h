@@ -14,7 +14,7 @@
 #include <ebbrt/Message.h>
 #include <ebbrt/Runtime.h>
 #include <ebbrt/StaticIds.h>
-#include <ebbrt/StaticSharedEbb.h>
+#include <ebbrt/SharedEbb.h>
 
 #include <ebbrt-zookeeper/ZooKeeper.h>
 
@@ -22,14 +22,14 @@
 
 namespace ebbrt {
 
-class GlobalIdMap : public StaticSharedEbb<GlobalIdMap>,
+class ZKGlobalIdMap : public StaticSharedEbb<ZKGlobalIdMap>,
                       public CacheAligned {
 
 public:
   typedef ebbrt::ZooKeeper::Watcher Watcher;
   typedef ebbrt::ZooKeeper::WatchEvent WatchEvent;
 
-  GlobalIdMap();
+  ZKGlobalIdMap();
   void SetAddress(uint32_t addr);
   ///
   Future<bool> Init();
@@ -63,6 +63,6 @@ private:
   ebbrt::EbbRef<ebbrt::ZooKeeper> zk_;
 };
 
-constexpr auto global_id_map = EbbRef<GlobalIdMap>(kZKEbbId);
+constexpr auto global_id_map = EbbRef<ZKGlobalIdMap>(kZKGlobalIdMapId);
 } // namespace ebbrt
 #endif // EBBRT_ZKGLOBALIDMAP_H_

@@ -43,7 +43,7 @@ int main(int argc, char **argv) {
           auto secret = "Hazer Baba";
           ebbrt::global_id_map->Set(42, secret).Block();
           ebbrt::global_id_map->SetWatcher(
-              42, new ebbrt::GlobalIdMap::WatchEvent(ZOO_CHANGED_EVENT, []() {
+              42, new ebbrt::ZKGlobalIdMap::WatchEvent(ZOO_CHANGED_EVENT, []() {
                 ebbrt::kprintf("Value has changed!\n");
               }));
           auto ns = ebbrt::node_allocator->AllocateNode(bindir.string());

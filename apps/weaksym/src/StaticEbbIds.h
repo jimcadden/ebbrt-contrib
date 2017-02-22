@@ -7,6 +7,8 @@
 
 #include <ebbrt/StaticIds.h>
 
-enum : ebbrt::EbbId { kZKEbbId = ebbrt::kFirstStaticUserId };
+enum : ebbrt::EbbId { kZKEbbId = ebbrt::kFirstStaticUserId,
+  kZKGlobalIdMapId
+       };
 
 #endif  // APPS_WEAKSYM_SRC_STATICEBBIDS_H_
