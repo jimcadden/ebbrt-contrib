@@ -19,7 +19,7 @@ void AppMain() {
    auto val = ebbrt::zkglobal_id_map->Get(42).Block().Get();
    ebbrt::kprintf("The secret value is %s\n", val.c_str());
 
-   ebbrt::zkglobal_id_map->SetWatchEvent(42, new ebbrt::ZKGlobalIdMap::WatchEvent(ZOO_CHANGED_EVENT, [val](){
+   ebbrt::zkglobal_id_map->SetWatcher(42, new ebbrt::ZKGlobalIdMap::WatchEvent(ZOO_CHANGED_EVENT, [val](){
         auto val = ebbrt::zkglobal_id_map->Get(42).Block().Get();
         ebbrt::kprintf("The new secret value is %s\n", val.c_str());
        ebbrt::kprintf("setting new secrets\n");
