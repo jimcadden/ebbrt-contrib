@@ -58,6 +58,6 @@ native: | $(EBBRT_MAKEFILE)
 	$(CD) - && \
 	$(CLEANUP) $(NATIVE_BUILD_DIR)
 
-.PHONY: all hosted native 
+.PHONY: all clean hosted native 
 
 
