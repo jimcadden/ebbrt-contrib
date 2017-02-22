@@ -7,7 +7,6 @@
 #include <iostream>
 
 #include <ebbrt/GlobalIdMap.h>
-#include <ebbrt/UniqueIOBuf.h>
 
 EBBRT_PUBLISH_TYPE(, Printer);
 
@@ -18,12 +17,7 @@ ebbrt::Future<void> Printer::Init() {
       kPrinterEbbId, ebbrt::messenger->LocalNetworkId().ToBytes());
 }
 
-void Printer::Print(ebbrt::Messenger::NetworkId remote_nid_, const char* str) {
-  auto len = strlen(str) + 1;
-  auto buf = ebbrt::MakeUniqueIOBuf(len);
-  snprintf(reinterpret_cast<char*>(buf->MutData()), len, "%s", str);
-  SendMessage(remote_nid_, std::move(buf));
-}
+void Printer::Print(const char* str) {}
 
 void Printer::ReceiveMessage(ebbrt::Messenger::NetworkId nid,
                              std::unique_ptr<ebbrt::IOBuf>&& buffer) {
