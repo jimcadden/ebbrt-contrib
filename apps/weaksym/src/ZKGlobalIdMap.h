@@ -22,14 +22,14 @@
 
 namespace ebbrt {
 
-class ZKGlobalIdMap : public StaticSharedEbb<ZKGlobalIdMap>,
+class GlobalIdMap : public SharedEbb<GlobalIdMap>,
                       public CacheAligned {
 
 public:
   typedef ebbrt::ZooKeeper::Watcher Watcher;
   typedef ebbrt::ZooKeeper::WatchEvent WatchEvent;
 
-  ZKGlobalIdMap();
+  GlobalIdMap();
   void SetAddress(uint32_t addr);
   ///
   Future<bool> Init();
@@ -43,19 +43,19 @@ public:
 private:
   struct ConnectionWatcher : ebbrt::ZooKeeper::ConnectionWatcher {
     void OnConnected() override {
-      ebbrt::kprintf("ZKGlobalIdMap: Session Connected.\n");
+      ebbrt::kprintf("GlobalIdMap: Session Connected.\n");
       connected_.SetValue(true);
     }
     void OnConnecting() override {
-      ebbrt::kprintf("ZKGlobalIdMap: Session Conneting...\n");
+      ebbrt::kprintf("GlobalIdMap: Session Conneting...\n");
     }
     void OnSessionExpired() override {
       connected_.SetValue(false);
-      ebbrt::kabort("ZKGlobalIdMap: Session Expired.\n");
+      ebbrt::kabort("GlobalIdMap: Session Expired.\n");
     }
     void OnAuthFailed() override {
       connected_.SetValue(false);
-      ebbrt::kabort("ZKGlobalIdMap: Session Authentication Failed.\n");
+      ebbrt::kabort("GlobalIdMap: Session Authentication Failed.\n");
     }
     ebbrt::Promise<bool> connected_;
   };
@@ -63,6 +63,6 @@ private:
   ebbrt::EbbRef<ebbrt::ZooKeeper> zk_;
 };
 
-constexpr auto global_id_map = EbbRef<ZKGlobalIdMap>(kZKGlobalIdMapId);
+constexpr auto global_id_map = EbbRef<GlobalIdMap>(kGlobalIdMapId);
 } // namespace ebbrt
 #endif // EBBRT_ZKGLOBALIDMAP_H_
