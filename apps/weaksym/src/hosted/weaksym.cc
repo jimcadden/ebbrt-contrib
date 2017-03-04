@@ -8,13 +8,13 @@
 
 #include <boost/filesystem.hpp>
 
-#include "../ZKGlobalIdMap.h"
 #include <ebbrt/Runtime.h>
 #include <ebbrt/StaticIds.h>
 #include <ebbrt/hosted/Context.h>
 #include <ebbrt/hosted/ContextActivation.h>
 #include <ebbrt/hosted/NodeAllocator.h>
 
+#include <ebbrt-zookeeper/ZKGlobalIdMap.h>
 
 using namespace std;
 ebbrt::Messenger::NetworkId net_id;
@@ -36,14 +36,19 @@ int main(int argc, char **argv) {
     // begin EbbRT context
     ebbrt::event_manager->Spawn([&]() {
 
-        cout << "My ip is: " << ebbrt::messenger->LocalNetworkId().ToString()
-             << std::endl;
-        ebbrt::global_id_map->Init().Then([bindir](auto connected) {
+        //cout << "My ip is: " << ebbrt::messenger->LocalNetworkId().ToString() << std::endl;
+        ebbrt::zkglobal_id_map->Init().Then([bindir](auto connected) {
           ebbrt::kbugon(connected.Get() == false);
           auto secret = "Hazer Baba";
+<<<<<<< Updated upstream
           ebbrt::global_id_map->Set(42, secret).Block();
           ebbrt::global_id_map->SetWatcher(
               42, new ebbrt::GlobalIdMap::WatchEvent(ZOO_CHANGED_EVENT, []() {
+=======
+          ebbrt::zkglobal_id_map->Set(42, secret).Block();
+          ebbrt::zkglobal_id_map->SetWatcher(
+              42, new ebbrt::ZKGlobalIdMap::WatchEvent(ZOO_CHANGED_EVENT, []() {
+>>>>>>> Stashed changes
                 ebbrt::kprintf("Value has changed!\n");
               }));
           auto ns = ebbrt::node_allocator->AllocateNode(bindir.string());

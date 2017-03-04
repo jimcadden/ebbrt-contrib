@@ -42,6 +42,7 @@ template <class T> using RepMap = boost::container::flat_map<size_t, T *>;
 }
 using detail::RepMap;
 
+
 /* forward declarations of class templates */
 template <class T, class R> class MulticoreEbbRoot;
 template <class T, class R> class MulticoreEbb;

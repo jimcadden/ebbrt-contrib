@@ -43,10 +43,10 @@ int main(int argc, char** argv) {
 
 
     Printer::Init().Then([bindir](ebbrt::Future<void> f) {
-      f.Get();
-      ebbrt::global_id_map->Set(ebbrt::GCounter::GlobalCounterId, "220").Then([bindir](auto f){
-          ebbrt::node_allocator->AllocateNode(bindir.string());
-        });
+     // f.Get();
+     // ebbrt::global_id_map->Set(ebbrt::GCounter::GlobalCounterId, "220").Then([bindir](auto f){
+          ebbrt::node_allocator->AllocateNode(bindir.string(),6);
+        //});
     });
   }
   c.Run();

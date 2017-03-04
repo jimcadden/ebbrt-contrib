@@ -10,12 +10,10 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++14 -Wall -Werror")
 
 set(HOSTED_SOURCES
       src/hosted/weaksym.cc
-      src/ZKGlobalIdMap.cc
       )
 
 set(BAREMETAL_SOURCES
       src/baremetal/weaksym.cc
-      src/ZKGlobalIdMap.cc
       )
 
 
@@ -45,8 +43,8 @@ find_package(EbbRTZooKeeper REQUIRED)
   add_executable(weaksym ${HOSTED_SOURCES})
   target_link_libraries(weaksym ${EBBRT_LIBRARIES}
     ${CAPNP_LIBRARIES_LITE} ${CMAKE_THREAD_LIBS_INIT}
-    ${Boost_LIBRARIES} ${TBB_LIBRARIES} ${EBBRT-ZOOKEEPER_LIBRARIES} 
-  )
+    ${Boost_LIBRARIES} ${TBB_LIBRARIES} ${EBBRT-ZOOKEEPER_LIBRARIES}
+    ${EBBRT_LIBRARIES})
 else()
   message(FATAL_ERROR "System name unsupported: ${CMAKE_SYSTEM_NAME}")
 endif()

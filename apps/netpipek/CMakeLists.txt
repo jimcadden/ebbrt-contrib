@@ -10,5 +10,5 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++14 -Wall -Werror")
 include_directories(${PROJECT_SRC_DIR})
 add_executable(netpipek.elf src/netpipek.cc)
 
-add_custom_command(TARGET iperf.elf POST_BUILD 
+add_custom_command(TARGET netpipek.elf POST_BUILD 
   COMMAND objcopy -O elf32-i386 netpipek.elf netpipek.elf32 )
