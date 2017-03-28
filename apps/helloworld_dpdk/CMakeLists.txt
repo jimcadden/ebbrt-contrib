@@ -33,6 +33,10 @@ elseif( ${CMAKE_SYSTEM_NAME} STREQUAL "Linux" )
       "$ENV{EBBRT_SRCDIR}/hosted/cmake/Modules")
   endif()
 
+  include_directories($ENV{RTE_SDK}/include/dpdk)
+  link_directories($ENV{RTE_SDK}/lib)
+  set( DPDK_LIB  "-Wl,--whole-archive -lrte_mbuf  -lrte_eal -lrte_pmd_e1000 -lrte_mempool -lrte_ring -lrte_ethdev -lrte_pmd_ixgbe -Wl,--no-whole-archive" )
+
   find_package(EbbRT REQUIRED)
   find_package(Boost 1.53.0 REQUIRED COMPONENTS
     filesystem system coroutine context )
@@ -42,6 +46,8 @@ elseif( ${CMAKE_SYSTEM_NAME} STREQUAL "Linux" )
 
   include_directories(${EBBRT_INCLUDE_DIRS})
   add_executable(helloworld ${HOSTED_SOURCES})
+  target_link_libraries(helloworld ${DPDK_LIB})
+  target_link_libraries(helloworld pthread dl rt) 
   target_link_libraries(helloworld ${EBBRT_LIBRARIES}
     ${CAPNP_LIBRARIES_LITE} ${CMAKE_THREAD_LIBS_INIT}
     ${Boost_LIBRARIES} ${TBB_LIBRARIES}

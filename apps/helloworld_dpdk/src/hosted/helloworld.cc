@@ -14,13 +14,16 @@
 #include <ebbrt/hosted/ContextActivation.h>
 #include <ebbrt/hosted/NodeAllocator.h>
 
-#include <ebbrt/hosted//Dpdk.h>
+#include <ebbrt/hosted/Dpdk.h>
+
+#include <iostream>
 
 #include "Printer.h"
 
 int main(int argc, char** argv) {
   auto bindir = boost::filesystem::system_complete(argv[0]).parent_path() /
-                "/bm/helloworld.elf32";
+                "/bm/helloworld.elf32"; 
+  std::cout << "Initializing DPDK with the app" << std::endl;
 
   auto ret = ebbrt::Dpdk::Init(argc, argv);
 	argc -= ret;
