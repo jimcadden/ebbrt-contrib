@@ -25,9 +25,6 @@ int main(int argc, char** argv) {
                 "/bm/helloworld.elf32"; 
   std::cout << "Initializing DPDK with the app" << std::endl;
 
-  auto ret = ebbrt::Dpdk::Init(argc, argv);
-	argc -= ret;
-	argv += ret;
 
   ebbrt::Runtime runtime;
   ebbrt::Context c(runtime);
@@ -35,12 +32,16 @@ int main(int argc, char** argv) {
   {
     ebbrt::ContextActivation activation(c);
 
+  auto ret = ebbrt::Dpdk::Init(argc, argv);
+	argc -= ret;
+	argv += ret;
+
     // ensure clean quit on ctrl-c
     sig.async_wait([&c](const boost::system::error_code& ec,
                         int signal_number) { c.io_service_.stop(); });
     Printer::Init().Then([bindir](ebbrt::Future<void> f) {
       f.Get();
-      ebbrt::node_allocator->AllocateNode(bindir.string());
+      //ebbrt::node_allocator->AllocateNode(bindir.string());
     });
   }
   c.Run();
