@@ -33,8 +33,8 @@ elseif( ${CMAKE_SYSTEM_NAME} STREQUAL "Linux" )
       "$ENV{EBBRT_SRCDIR}/hosted/cmake/Modules")
   endif()
 
-  include_directories($ENV{RTE_SDK}/include/dpdk)
-  link_directories($ENV{RTE_SDK}/lib)
+  include_directories($ENV{RTE_SDK}/$ENV{RTE_TARGET}/include/)
+  link_directories($ENV{RTE_SDK}/$ENV{RTE_TARGET}/lib)
   set( DPDK_LIB  "-Wl,--whole-archive -lrte_mbuf  -lrte_eal -lrte_pmd_e1000 -lrte_mempool -lrte_ring -lrte_ethdev -lrte_pmd_ixgbe -Wl,--no-whole-archive" )
 
   find_package(EbbRT REQUIRED)
