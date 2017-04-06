@@ -13,8 +13,8 @@ set(HOSTED_SOURCES
       src/hosted/Printer.cc)
 
 set(BAREMETAL_SOURCES
-      src/baremetal/{{ title }}.cc
-      src/baremetal/Printer.cc)
+      src/native/{{ title }}.cc
+      src/native/Printer.cc)
 
 # Baremetal  ========================================================
 if( ${CMAKE_SYSTEM_NAME} STREQUAL "EbbRT")

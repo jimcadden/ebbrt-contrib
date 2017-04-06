@@ -21,9 +21,9 @@ HOSTED_RELEASE_DIR ?= $(RELEASE_PATH)
 
 all: Debug Release
 hosted: hosted-debug hosted-release
-baremetal: baremetal-debug baremetal-release
-Debug: baremetal-debug hosted-debug
-Release: baremetal-release hosted-release
+native: native-debug native-release
+Debug: native-debug hosted-debug
+Release: native-release hosted-release
 
 # ENVIRONMENT VARIABLES
 check-ebbrt-sysroot:
@@ -60,13 +60,13 @@ $(HOSTED_RELEASE_DIR): | $(RELEASE_PATH)
 	$(MKDIR) $@
 endif
 
-baremetal-debug: | check-ebbrt-sysroot $(BAREMETAL_DEBUG_DIR)
+native-debug: | check-ebbrt-sysroot $(BAREMETAL_DEBUG_DIR)
 	$(CD) $(BAREMETAL_DEBUG_DIR) && \
 		EBBRT_SYSROOT=$(EBBRTSYSROOT) $(CMAKE) -DCMAKE_BUILD_TYPE=Debug \
 		-DCMAKE_PREFIX_PATH=$(BAREMETAL_PREFIX_PATH) \
 		-DCMAKE_TOOLCHAIN_FILE=$(CMAKE_TOOLCHAIN_FILE) $(MYDIR) && $(MAKE)
 
-baremetal-release: | check-ebbrt-sysroot $(BAREMETAL_RELEASE_DIR)
+native-release: | check-ebbrt-sysroot $(BAREMETAL_RELEASE_DIR)
 	$(CD) $(BAREMETAL_RELEASE_DIR) && \
 		EBBRT_SYSROOT=$(EBBRTSYSROOT) $(CMAKE) -DCMAKE_BUILD_TYPE=Release  \
 		-DCMAKE_PREFIX_PATH=$(BAREMETAL_PREFIX_PATH) \
@@ -87,4 +87,4 @@ clean:
 	$(MAKE) clean -C $(BAREMETAL_DEBUG_DIR) && \
 	$(MAKE) clean -C $(BAREMETAL_RELEASE_DIR)
 
-.PHONY: Debug Release all clean baremetal baremetal-debug baremetal-release hosted hosted-debug hosted-release
+.PHONY: Debug Release all clean native native-debug native-release hosted hosted-debug hosted-release
