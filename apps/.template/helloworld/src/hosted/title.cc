@@ -3,38 +3,41 @@
 //    (See accompanying file LICENSE_1_0.txt or copy at
 //          http://www.boost.org/LICENSE_1_0.txt)
 
+#include <iostream>
 #include <signal.h>
 
 #include <boost/filesystem.hpp>
 
-#include <ebbrt/GlobalIdMap.h>
-#include <ebbrt/Runtime.h>
-#include <ebbrt/StaticIds.h>
-#include <ebbrt/hosted/Context.h>
-#include <ebbrt/hosted/ContextActivation.h>
+#include <ebbrt/Cpu.h>
 #include <ebbrt/hosted/NodeAllocator.h>
 
 #include "Printer.h"
 
-int main(int argc, char** argv) {
-  auto bindir = boost::filesystem::system_complete(argv[0]).parent_path() /
+static char* ExecName = 0;
+
+void AppMain() {
+  auto bindir = boost::filesystem::system_complete(ExecName).parent_path() /
                 "/bm/{{ title }}.elf32";
 
-  ebbrt::Runtime runtime;
-  ebbrt::Context c(runtime);
-  boost::asio::signal_set sig(c.io_service_, SIGINT);
-  {
-    ebbrt::ContextActivation activation(c);
-
-    // ensure clean quit on ctrl-c
-    sig.async_wait([&c](const boost::system::error_code& ec,
-                        int signal_number) { c.io_service_.stop(); });
-    Printer::Init().Then([bindir](ebbrt::Future<void> f) {
-      f.Get();
+  Printer::Init().Then([bindir](ebbrt::Future<void> f) {
+    f.Get();
+    try {
       ebbrt::node_allocator->AllocateNode(bindir.string());
-    });
-  }
-  c.Run();
+    } catch (std::runtime_error &e) {
+      std::cout << e.what() << std::endl;
+      exit(1);
+    }
+  });
+}
+
+int main(int argc, char **argv) {
+  void *status;
+
+  ExecName = argv[0];
+
+  pthread_t tid = ebbrt::Cpu::EarlyInit(1);
+
+  pthread_join(tid, &status);
 
   return 0;
 }
