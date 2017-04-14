@@ -5,12 +5,11 @@
 
 #include <ebbrt/Debug.h>
 #include <ebbrt/EbbAllocator.h>
-#include <ebbrt/Net.h>
-#include <ebbrt/NetTcpHandler.h>
+#include <ebbrt/native/Net.h>
+#include <ebbrt/native/NetTcpHandler.h>
 #include <ebbrt/SharedIOBufRef.h>
 #include <ebbrt/StaticSharedEbb.h>
 #include <ebbrt/UniqueIOBuf.h>
-
 
 namespace ebbrt {
 class iPerf : public StaticSharedEbb<iPerf>, public CacheAligned {
@@ -42,13 +41,10 @@ private:
   };
   NetworkManager::ListeningTcpPcb listening_pcb_;
 };
-
 }
 
-void AppMain()
-{
+void AppMain() {
   auto iperf = ebbrt::EbbRef<ebbrt::iPerf>(ebbrt::ebb_allocator->AllocateLocal());
   iperf->Start(5201);
   ebbrt::kprintf("iPerf server listening on port 5201\n");
 }
-
